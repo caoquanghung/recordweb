@@ -28,6 +28,7 @@ export interface RecordingMetadata {
   localId?: string;
   storageUrl?: string | null;
   blobPathname?: string | null;
+  isPublic?: boolean;          // share link toggle (maps to is_public in DB)
   settings?: RecordingSettingsSnapshot;
   blob?: Blob;
   previewUrl?: string;

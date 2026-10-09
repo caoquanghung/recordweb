@@ -53,8 +53,9 @@ This file serves as the persistent memory bank for AI agents working on **Record
   * `DATABASE_URL`: Neon pooled Postgres connection string (`postgresql://...pooler...neon.tech/neondb?sslmode=require`).
   * `BLOB_READ_WRITE_TOKEN`: Vercel Blob store token (`vercel_blob_rw_...`).
 * **Database Schema**:
-  * `recordings` table (id, title, duration_seconds, file_size_bytes, resolution, fps, mime_type, local_id, storage_url, blob_pathname, settings, created_at).
-  * `studio_presets` table (id, preset_name, pip_shape, pip_size, pip_position, bg_removal_mode, filters_config, updated_at).
+  * `users` table (id, email, display_name, created_at).
+  * `recordings` table (id, **user_id FK**, title, duration_seconds, file_size_bytes, resolution, fps, mime_type, local_id, storage_url, blob_pathname, **is_public**, settings, created_at).
+  * `studio_presets` table (id, **user_id FK**, preset_name, pip_shape, pip_size, pip_position, bg_removal_mode, filters_config, updated_at).
 
 ---
 
@@ -62,7 +63,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 
 - [x] **Requirements Analysis & Architecture Specs**:
   - [x] `docs/requirements_analysis.md`
-  - [x] `docs/system_architecture.md`
+  - [x] `docs/system_architecture.md` (**Risk mitigations R1-R5 applied**)
   - [x] `docs/audio_video_pipeline.md`
   - [x] `docs/ui_ux_specification.md`
   - [x] `docs/implementation_roadmap.md`
@@ -103,10 +104,14 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Vercel Serverless 4.5MB Payload Limit** | Video upload crashes with HTTP 413 | Use `@vercel/blob/client` direct browser upload; never send video chunks to serverless handler body. |
 | **Inference CPU Spike** | Canvas framerate drops below 30 FPS | Run MediaPipe segmentation on downscaled resolution (256x256) and upscale the mask. |
 | **Next.js SSR vs Browser Media APIs** | `navigator.mediaDevices` undefined on server | Guard all media access with `"use client"` and React `useEffect` / event handlers. |
+| **Noise Gate Step Change** | Audible clicking/popping artifacts | Use `gainNode.gain.setTargetAtTime()` with 10ms attack / 100ms release — never `gain.value = 0`. |
+| **Safari WebM Playback** | Shared videos fail to play in Safari/iOS | Detect MP4/AVC support at session start; prefer `video/mp4` if available; show compatibility notice on `/share/` page. |
+| **A/V Desync over Long Sessions** | Audio and video drift out of sync after ~15 min | Use delta-clamped RAF timer; enforce 30-min hard stop; UI warns at 15 min. |
 
 ---
 
 ## 6. Immediate Next Steps
 
-1. Implement `src/hooks/useMediaDevices.ts` to acquire screen, camera, and microphone streams with error handling and track cleanup.
-2. Implement `src/hooks/useCanvasCompositor.ts` for the 30 FPS canvas compositing render loop and PiP positioning.
+1. **Add authentication provider**: Install Clerk or NextAuth and add `middleware.ts` to protect all `/api/*` routes; add `user_id` scoping to all Route Handlers.
+2. Implement `src/hooks/useMediaDevices.ts` to acquire screen, camera, and microphone streams with error handling and track cleanup.
+3. Implement `src/hooks/useCanvasCompositor.ts` for the 30 FPS delta-clamped canvas compositing render loop and PiP positioning.

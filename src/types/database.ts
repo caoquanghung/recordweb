@@ -1,5 +1,15 @@
+/** Mirrors the `users` table — populated by the auth provider callback. */
+export interface DbUser {
+  id: string;           // Clerk / Auth.js user ID (VARCHAR 128)
+  email: string;
+  display_name: string | null;
+  created_at: string;
+}
+
+/** Mirrors the `recordings` table. */
 export interface DbRecording {
   id: string;
+  user_id: string;      // FK → users.id
   title: string;
   duration_seconds: number;
   file_size_bytes: number;
@@ -7,14 +17,17 @@ export interface DbRecording {
   fps: number;
   mime_type: string;
   local_id: string | null;
-  storage_url: string | null;
-  blob_pathname: string | null;
+  storage_url: string | null;    // Vercel Blob CDN URL
+  blob_pathname: string | null;  // Vercel Blob pathname (used for del())
+  is_public: boolean;            // Share link toggle
   settings: Record<string, unknown>;
   created_at: string;
 }
 
+/** Mirrors the `studio_presets` table. */
 export interface DbStudioPreset {
   id: string;
+  user_id: string;      // FK → users.id
   preset_name: string;
   pip_shape: string;
   pip_size: string;
