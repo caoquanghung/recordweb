@@ -15,6 +15,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   * **Audio Processing**: Native Web Audio API (`AudioContext`, `BiquadFilterNode`, `DynamicsCompressorNode`, `AnalyserNode`).
   * **Video Repair**: Client-side EBML binary duration patching (`fix-webm-duration`).
   * **Database**: Neon Serverless Postgres (`@neondatabase/serverless`) for metadata, presets, and catalogs.
+  * **Authentication**: Clerk (`@clerk/nextjs`) with Next.js 16 `src/proxy.ts`.
   * **Video Object Storage**: Vercel Blob (`@vercel/blob/client`) for direct client-to-edge uploads.
   * **Hosting**: Vercel (Next.js Edge CDN + Serverless Route Handlers in `src/app/api/*`).
 
@@ -36,7 +37,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
    * Encapsulated in `src/hooks/useAudioDSP.ts`.
 4. **Direct Client Upload to Vercel Blob**:
    * Standard Vercel Serverless Functions have a 4.5MB request body size limit.
-   * 5-minute video recordings are 50MB - 150MB+.
+   * Video recordings are far larger than the 4.5MB serverless body limit, especially at the 30-minute maximum.
    * Videos **MUST** be uploaded using `@vercel/blob/client` (`upload()`) directly from the browser to edge storage after fetching a client token from `src/app/api/upload/route.ts`.
    * Resulting CDN URL is stored in Neon Postgres `recordings.storage_url`.
 5. **Resilient Dual Storage**:
@@ -56,6 +57,8 @@ This file serves as the persistent memory bank for AI agents working on **Record
   * `users` table (id, email, display_name, created_at).
   * `recordings` table (id, **user_id FK**, title, duration_seconds, file_size_bytes, resolution, fps, mime_type, local_id, storage_url, blob_pathname, **is_public**, settings, created_at).
   * `studio_presets` table (id, **user_id FK**, preset_name, pip_shape, pip_size, pip_position, bg_removal_mode, filters_config, updated_at).
+  * `recording_shares` table (recording_id, recipient_user_id, permission, created_at).
+  * `schema_migrations` table tracks ordered `psql` migrations.
 
 ---
 
@@ -67,10 +70,12 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] `docs/audio_video_pipeline.md`
   - [x] `docs/ui_ux_specification.md`
   - [x] `docs/implementation_roadmap.md`
-  - [x] `docs/deployment_and_database_guide.md`
+  - [ ] Deployment/database guide is currently absent from the working tree and should be recreated only if requested.
+  - [x] Product recommendations reconciled into the roadmap, requirements analysis, architecture, media pipeline, and UI specification (30-minute active-time limit, dashboard/library, recovery, presets, auth, and sharing scope)
 - [x] **Agentic Files & Customization Setup**:
-  - [x] `AGENTS.md` and `GEMINI.md`
+  - [x] `AGENTS.md` is the single agent instruction entry point; obsolete `GEMINI.md` was removed
   - [x] `.agents/rules/code_standards.md`
+  - [x] `.agents/rules/database_management.md`
   - [x] `.agents/rules/media_audio_video.md`
   - [x] `.agents/rules/memory_management.md`
   - [x] `.agents/skills/media-pipeline-verifier/SKILL.md`
@@ -81,12 +86,16 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Defined TypeScript types (`types/media.ts`, `types/recording.ts`, `types/database.ts`)
   - [x] Created database client (`lib/db.ts`), IndexedDB helper (`lib/idb.ts`), EBML duration patcher (`lib/ebmlPatcher.ts`)
   - [x] Created Next.js Route Handlers (`api/upload`, `api/recordings`, `api/presets`)
+  - [x] Added the `psql` migration runner, npm/VS Code tasks, and versioned SQL migrations (`scripts/db-migrate.mjs`, `database/migrations/`)
+  - [x] Applied and verified `0001_user_owned_recordings` against Neon; repeat runs are idempotent
+  - [x] Integrated Clerk provider, Proxy, sign-in/sign-up pages, server session helper, and verified webhook Route Handler
+  - [ ] Add `CLERK_WEBHOOK_SIGNING_SECRET` and register the production Clerk webhook for user synchronization
   - [x] Verified zero TypeScript compilation errors with `npm run build`
 - [ ] **Phase 1 (Media Hooks): `useMediaDevices` Implementation** (Next Up)
 - [ ] **Phase 2: 30 FPS Canvas Compositor Engine (`useCanvasCompositor`)**
 - [ ] **Phase 3: Web Audio DSP Pipeline & VU Meter (`useAudioDSP`)**
 - [ ] **Phase 4: MediaPipe AI Background Segmentation (`useVisionSegmentation`)**
-- [ ] **Phase 5: Recording Lifecycle, Pause/Resume & 5-Min Limit (`useRecordingSession`)**
+- [ ] **Phase 5: Recording Lifecycle, Pause/Resume & 30-Min Limit (`useRecordingSession`)**
 - [ ] **Phase 6: WebM Duration Fixer & Local Export / IndexedDB Integration**
 - [ ] **Phase 7: Studio React UI & Dark Glassmorphism Styling**
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
@@ -107,11 +116,12 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Noise Gate Step Change** | Audible clicking/popping artifacts | Use `gainNode.gain.setTargetAtTime()` with 10ms attack / 100ms release — never `gain.value = 0`. |
 | **Safari WebM Playback** | Shared videos fail to play in Safari/iOS | Detect MP4/AVC support at session start; prefer `video/mp4` if available; show compatibility notice on `/share/` page. |
 | **A/V Desync over Long Sessions** | Audio and video drift out of sync after ~15 min | Use delta-clamped RAF timer; enforce 30-min hard stop; UI warns at 15 min. |
+| **Neon Schema Drift** | Application code can fail when a schema change is deployed without its migration | Add a new ordered SQL file, run `npm run db:status`, `npm run db:migrate`, and `npm run db:verify`; never edit an applied migration. Initial schema was applied on 2026-10-10. |
 
 ---
 
 ## 6. Immediate Next Steps
 
-1. **Add authentication provider**: Install Clerk or NextAuth and add `middleware.ts` to protect all `/api/*` routes; add `user_id` scoping to all Route Handlers.
-2. Implement `src/hooks/useMediaDevices.ts` to acquire screen, camera, and microphone streams with error handling and track cleanup.
+1. **Complete Clerk setup**: add `CLERK_WEBHOOK_SIGNING_SECRET`, register `user.created`, `user.updated`, and `user.deleted`, add Clerk variables to Vercel, and test user synchronization.
+2. Implement `src/hooks/useMediaDevices.ts` to acquire screen, camera, microphone, and supported system-audio streams with error handling and track cleanup.
 3. Implement `src/hooks/useCanvasCompositor.ts` for the 30 FPS delta-clamped canvas compositing render loop and PiP positioning.

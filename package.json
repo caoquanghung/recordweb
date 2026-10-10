@@ -6,9 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:status": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs status",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs migrate",
+    "db:verify": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs verify"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.9.14",
     "@neondatabase/serverless": "^1.2.0",
     "@vercel/blob": "^2.8.1",
     "fix-webm-duration": "^1.0.6",

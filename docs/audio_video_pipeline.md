@@ -137,12 +137,14 @@ To ensure that paused time does not cause blank frames or audio-video drift:
   * `lastResumeTimestamp = performance.now()`.
   * `mediaRecorder.resume()`.
 
-### 4.2 The 5-Minute Safety Watchdog
+### 4.2 The 30-Minute Safety Watchdog
 * Every tick of the recording timer evaluates:
   $$\text{recordedTime} = \text{totalRecordedDuration} + (\text{performance.now()} - \text{lastResumeTimestamp})$$
-* If $\text{recordedTime} \ge 300,000 \text{ ms}$ (5 minutes):
+* If $\text{recordedTime} \ge 1,800,000 \text{ ms}$ (30 minutes):
   * Trigger `stopRecording()` immediately.
-  * Dispatch notification: *"Maximum recording limit of 5:00 reached. Finalizing recording..."*
+  * Dispatch notification: *"Maximum recording limit of 30:00 reached. Finalizing recording..."*
+* Emit an advisory at 15 minutes and a final warning when 60 seconds remain.
+* Paused time must not count toward the 30-minute active recording limit.
 
 ---
 

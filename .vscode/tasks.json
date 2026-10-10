@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Database: Migration Status",
+      "type": "npm",
+      "script": "db:status",
+      "problemMatcher": []
+    },
+    {
+      "label": "Database: Apply Migrations",
+      "type": "npm",
+      "script": "db:migrate",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
+      "label": "Database: Verify Schema",
+      "type": "npm",
+      "script": "db:verify",
+      "problemMatcher": []
+    }
+  ]
+}

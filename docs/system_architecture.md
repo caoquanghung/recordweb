@@ -48,7 +48,7 @@ flowchart TD
         end
     end
 
-    subgraph AuthLayer["Authentication Layer (Next.js Middleware)"]
+    subgraph AuthLayer["Authentication Layer (Clerk + Next.js Proxy)"]
         AuthSession["Session Token Validation\n(JWT / Session Cookie)"]
         RateLimit["Upload Rate Limiting\n(Per-User Quota)"]  
     end
@@ -246,12 +246,24 @@ stateDiagram-v2
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
   );
   CREATE INDEX idx_presets_user_id ON studio_presets(user_id);
+
+  -- Explicit user-to-user access; public links remain controlled by is_public
+  CREATE TABLE recording_shares (
+      recording_id UUID NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+      recipient_user_id VARCHAR(128) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      permission VARCHAR(32) NOT NULL DEFAULT 'viewer'
+          CHECK (permission IN ('viewer', 'viewer_download')),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      PRIMARY KEY (recording_id, recipient_user_id)
+  );
+  CREATE INDEX idx_recording_shares_recipient
+      ON recording_shares(recipient_user_id);
   ```
 
 ### 2.9 Authentication & Access Control Layer
-* **Provider**: **Clerk** (recommended) or **NextAuth/Auth.js** — integrates natively with Next.js App Router Middleware.
+* **Provider**: **Clerk**, integrated with the Next.js App Router.
 * **Session Enforcement**:
-  * Next.js Middleware (`middleware.ts`) validates session tokens on all `/api/*` routes before the Route Handler executes.
+  * Next.js 16 Proxy (`src/proxy.ts`) validates sessions and protects private pages and APIs before Route Handlers execute.
   * Route Handlers extract `userId` from the verified session and scope all DB queries to that `user_id`.
   * Anonymous or expired sessions receive `401 Unauthorized` responses.
 * **Upload Rate Limiting**:
@@ -259,6 +271,10 @@ stateDiagram-v2
 * **Public Share Links**:
   * A recording with `is_public = TRUE` is accessible via a public route (e.g., `/share/[recordingId]`).
   * The share route reads metadata from Neon and serves the Vercel Blob URL — no auth required for read-only playback.
+* **Direct User Sharing**:
+  * `recording_shares` grants a registered recipient `viewer` or `viewer_download` access without making the recording public.
+  * Owner, recipient, and anonymous-public checks are performed on the server; client-side hiding is never treated as authorization.
+  * Private Blob delivery must use private storage or short-lived signed access when implemented. An unlisted public Blob URL is not sufficient protection.
 
 ### 2.10 Codec & Browser Compatibility Strategy
 * **Risk 1 Mitigation (Safari / Apple WebM Playback)**:
@@ -275,8 +291,10 @@ src/
 ├── app/
 │   ├── layout.tsx                    # Root layout with font and metadata
 │   ├── page.tsx                      # Studio main page ("use client")
+│   ├── dashboard/page.tsx            # Recent recordings, presets, quick start
+│   ├── library/page.tsx              # Mine, shared, local, and cloud recordings
 │   ├── globals.css                   # Glassmorphic design tokens and reset
-│   ├── middleware.ts                 # Auth session validation for /api/* routes
+│   ├── proxy.ts                      # Clerk session handling and route protection
 │   ├── share/
 │   │   └── [recordingId]/page.tsx   # Public share page (read-only, no auth required)
 │   └── api/
@@ -284,6 +302,8 @@ src/
 │       │   └── route.ts              # Vercel Blob client upload token generation
 │       ├── recordings/
 │       │   └── route.ts              # Neon DB recording metadata CRUD
+│       ├── shares/
+│       │   └── route.ts              # Public toggle and direct-recipient grants
 │       └── presets/
 │           └── route.ts              # Neon DB studio presets CRUD
 ├── components/
@@ -303,7 +323,7 @@ src/
 │   ├── useCanvasCompositor.ts        # 30 FPS composition loop & PiP layout
 │   ├── useAudioDSP.ts                # Web Audio graph & DSP filtering
 │   ├── useVisionSegmentation.ts      # MediaPipe AI background removal
-│   └── useRecordingSession.ts        # MediaRecorder lifecycle & 5-min timer
+│   └── useRecordingSession.ts        # MediaRecorder lifecycle & 30-min active timer
 ├── lib/
 │   ├── db.ts                         # Neon Postgres client via @neondatabase/serverless
 │   ├── ebmlPatcher.ts                # Binary EBML duration patcher
@@ -324,7 +344,8 @@ src/
 | **R2: Main Thread Overload** | 1080p canvas + MediaPipe + React on one thread | Mitigated | MediaPipe runs on downscaled 256×256 canvas; OffscreenCanvas Worker upgrade path defined |
 | **R3: A/V Desync** | Clock drift between canvas stream and AudioContext over long recordings | Mitigated | Steady delta-clamped RAF timer; 30-min hard stop; UI warns at 15 min |
 | **R4: Noise Gate Popping** | Abrupt `gain.value = 0` causes audible clicks | Mitigated | Use `setTargetAtTime` with 10ms attack / 100ms release envelope |
-| **R5: Missing Auth & Access Control** | Any user could access any recording or spam uploads | Mitigated | Auth middleware on all `/api/*` routes; `user_id` FK in all tables; per-user rate limiting |
+| **R5: Missing Auth & Access Control** | Production auth is still a deny-all stub; sharing is not implemented | Open | Install a provider, add middleware/session checks, migrate user-owned tables, use durable rate limiting, and test cross-user denial |
+| **R6: Private Blob Exposure** | Application metadata may be private while the media URL remains public | Open | Match Blob visibility to recording privacy and use authorized or signed delivery for private recordings |
 
 ---
 

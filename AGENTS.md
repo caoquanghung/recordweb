@@ -52,7 +52,12 @@ recordweb/
 │   ├── audio_video_pipeline.md       # 30fps canvas, audio DSP & segmentation specs
 │   ├── ui_ux_specification.md        # Studio interface layout & design tokens
 │   ├── implementation_roadmap.md     # Development phases & verification plan
-│   └── deployment_and_database_guide.md # Step-by-step Neon, Blob & Vercel setup
+│   ├── database_migrations.md         # psql migration commands and safety workflow
+│   └── product_recommendations.md     # Product scope and UX recommendations
+├── database/
+│   └── migrations/                    # Ordered, immutable psql migration files
+├── scripts/
+│   └── db-migrate.mjs                 # Migration status/apply/verify runner
 ├── src/
 │   ├── app/                          # Next.js App Router
 │   │   ├── layout.tsx                # Root layout
@@ -82,6 +87,7 @@ recordweb/
 ├── .agents/                          # Agentic configurations
 │   ├── rules/                        # Hierarchical workspace rules
 │   │   ├── code_standards.md
+│   │   ├── database_management.md     # Fast DB lookup, migration, and query rules
 │   │   ├── media_audio_video.md
 │   │   └── memory_management.md      # Rules for updating MEMORY.md
 │   └── skills/                       # Project skills for testing & verification
@@ -91,7 +97,6 @@ recordweb/
 │           └── SKILL.md
 ├── MEMORY.md                         # Persistent agent memory & state bank
 ├── AGENTS.md                         # Project instructions for agents
-├── GEMINI.md                         # Agent configuration mirror
 ├── next.config.ts                    # Next.js configuration
 ├── tsconfig.json                     # TypeScript configuration
 └── package.json
@@ -110,6 +115,10 @@ Before completing any implementation step:
 6. Verify proper cleanup of `MediaStream` tracks (`track.stop()`) on stream replacement or unmount.
 7. Verify database serverless queries run without connection pool exhaustion using `@neondatabase/serverless`.
 8. Verify cloud uploads bypass 4.5MB serverless limits via direct client-to-blob streaming.
+
+### Database task startup
+
+For any Neon, SQL, migration, database type, authentication ownership, recording metadata, preset, or sharing task, first read [.agents/rules/database_management.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/.agents/rules/database_management.md). Use `database/migrations/` as the schema source of truth and use `npm run db:status`, `npm run db:migrate`, and `npm run db:verify` instead of editing Neon manually.
 
 ---
 

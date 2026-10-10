@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This document presents a comprehensive technical and functional analysis of the web-based recording studio application (**RecordWeb**). The system enables users to capture high-definition screen, webcam, and audio streams directly within a modern browser, perform real-time video compositing (Picture-in-Picture, background removal/blur), process audio through real-time DSP sound filters, and export recordings up to 5 minutes at 30 frames per second without requiring server-side rendering or external software like OBS.
+This document presents a comprehensive technical and functional analysis of the web-based recording studio application (**RecordWeb**). The system enables users to capture high-definition screen, webcam, and audio streams directly within a modern browser, perform real-time video compositing (Picture-in-Picture, background removal/blur), process audio through real-time DSP sound filters, and export recordings up to 30 minutes at 30 frames per second without requiring server-side rendering or external software like OBS.
 
 In addition, recordings can be exported locally or uploaded to **Vercel Blob** for cloud streaming links, with session metadata cataloged in **Neon Serverless Postgres** and deployed globally via **Vercel**.
 
@@ -16,8 +16,8 @@ In addition, recordings can be exported locally or uploaded to **Vercel Blob** f
   * **Screen Capture**: Implemented via `navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true })`. Allows capturing full screen, application window, or browser tab.
   * **Webcam Capture**: Implemented via `navigator.mediaDevices.getUserMedia({ video: { width: 1920, height: 1080, frameRate: 30 }, audio: false })`.
   * **Microphone Capture**: Implemented via `navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })`.
-  * **System Audio Capture**: Captured via the audio track of `getDisplayMedia` when the user enables "Share audio" (browser and OS-dependent, native in Chromium on Windows/macOS/Linux).
-  * **Feasibility**: **High**. Standardized across modern Chromium, Firefox, and Safari browsers.
+  * **System Audio Capture**: Captured via the audio track of `getDisplayMedia` when the browser exposes it and the user enables "Share audio". Availability depends on browser, operating system, and whether the user shares a tab, window, or entire display.
+  * **Feasibility**: **High on Chromium laptops**, with documented degradation on Firefox and Safari where system/tab audio support differs.
 
 ### 2.2 Pause, Resume, and Stream Merging
 * **Requirement**: Allow users to pause and resume recording, producing a single seamless output file.
@@ -27,15 +27,15 @@ In addition, recordings can be exported locally or uploaded to **Vercel Blob** f
   * **Single Source Merge**: Rather than saving individual file chunks and performing computationally expensive video concatenation with FFmpeg in WebAssembly, all active visual streams (Screen + Webcam) are rendered onto a unified `<canvas>` surface. Audio streams are combined in a `Web Audio API` destination node. Recording is captured directly from `canvas.captureStream(30)` combined with the mixed audio stream. Pausing and resuming operates directly on this single continuous pipeline.
   * **Feasibility**: **High** using Canvas + Web Audio API destination.
 
-### 2.3 30 FPS Lock & 5-Minute Duration Limit
-* **Requirement**: Strict 30 FPS playback/recording cadence and a maximum 5-minute video duration cap.
+### 2.3 30 FPS Lock & 30-Minute Duration Limit
+* **Requirement**: Strict 30 FPS playback/recording cadence and a maximum 30-minute active recording duration.
 * **Technical Implementation**:
   * **30 FPS Constraint**: The canvas compositing loop utilizes `requestAnimationFrame` with delta time regulation (`1000ms / 30fps ≈ 33.33ms`) and `canvas.captureStream(30)` to ensure a steady 30fps capture rate.
-  * **5-Minute Duration**: Precise tracking of cumulative active recording milliseconds.
+  * **30-Minute Duration**: Precise tracking of cumulative active recording milliseconds, excluding time spent paused.
   * **UX Safeguards**:
-    * Circular timer indicator counting down from `05:00` to `00:00`.
-    * Visual alert/warning pulse at `00:30` remaining.
-    * Automatic graceful invocation of `mediaRecorder.stop()` at exactly `05:00` without data corruption.
+    * Precision timer showing active time against the `30:00` maximum.
+    * A long-session advisory at 15 minutes and a strong warning with 60 seconds remaining.
+    * Automatic graceful invocation of `mediaRecorder.stop()` at exactly `30:00` active time without data corruption.
   * **Feasibility**: **High**.
 
 ### 2.4 Audio Filtering & Sound Processing
@@ -98,6 +98,48 @@ In addition, recordings can be exported locally or uploaded to **Vercel Blob** f
   * Automatic preview deployments for pull requests and instant zero-downtime production updates upon git push.
   * **Feasibility**: **High**. Standardized developer workflow.
 
+### 2.10 Authentication & Multi-User Isolation
+* **Requirement**: Support registration, login, authenticated cloud actions, and strict separation between users.
+* **Technical Implementation**:
+  * Use Clerk with `src/proxy.ts` for Next.js 16 session handling and protected-route checks.
+  * Use Clerk's async `auth()` helper in `src/lib/auth.ts` for verified server-side identity lookup.
+  * Protect dashboard and cloud management routes while keeping the local recording engine independent of cloud availability.
+  * Scope every recordings and presets query by the authenticated `user_id`.
+  * Synchronize authenticated identities into the Neon `users` table idempotently.
+  * Use durable per-user rate limiting for upload tokens before public launch.
+* **Feasibility**: **High**. SDK integration is complete; production release still requires Clerk environment variables and a configured, verified user-sync webhook.
+
+### 2.11 Presets, Dashboard & Recording Library
+* **Requirement**: Let returning users quickly load configurations and manage local, cloud, and shared recordings.
+* **Preset Contents**:
+  * Recording mode, output resolution, PiP shape/size/position, background mode, audio enhancement mode, and system-audio preference.
+  * Device identifiers may be stored as preferences, but the application must recover when a saved device is unavailable or permission is revoked.
+* **Library Capabilities**:
+  * Filters for Mine, Shared with Me, Local Only, and Cloud.
+  * Rename, download, share, and delete actions.
+  * Explicit local/cloud/recovery/uploading status indicators.
+* **Feasibility**: **High** using IndexedDB for local entries and authenticated Neon queries for cloud metadata.
+
+### 2.12 Sharing & Access Model
+* **Requirement**: Allow a user to share a recording publicly or with another registered user.
+* **Technical Implementation**:
+  * Recordings are private by default.
+  * `is_public` controls anonymous link access only.
+  * A separate `recording_shares` relation should represent user-to-user access with `viewer` and `viewer_download` roles for the MVP.
+  * `/share/[recordingId]` authorizes the owner, an explicit recipient, or an anonymous visitor only when the recording is public.
+  * Blob access policy must match application privacy. Private recordings must not rely only on an unguessable URL as authorization.
+* **Feasibility**: **High** for public Blob objects with application-level metadata gating; truly private media delivery may require private Blob access or signed download URLs.
+
+### 2.13 Recovery, Review & Export
+* **Requirement**: Prevent recording loss and make the completed output understandable before download or upload.
+* **Technical Implementation**:
+  * Start `MediaRecorder` with a short timeslice and checkpoint chunks plus session metadata to IndexedDB.
+  * Detect interrupted sessions on application startup and offer Recover or Discard.
+  * Repair WebM duration before preview, download, or upload.
+  * Show title, active duration, resolution, FPS, MIME type, file size, and storage state on the review screen.
+  * Treat trimming as a post-MVP non-destructive edit so it does not delay the reliable recording pipeline.
+* **Feasibility**: **Medium-High**. Completed-chunk recovery is feasible; the final seconds before a crash may be unavailable depending on the last emitted chunk.
+
 ---
 
 ## 3. Edge Cases & Risk Mitigation
@@ -111,6 +153,10 @@ In addition, recordings can be exported locally or uploaded to **Vercel Blob** f
 | **Sudden Tab Closure / Memory Limit** | Low | High | Stream chunks into IndexedDB in real time so completed video chunks can be recovered upon reload. |
 | **Large Video Upload Exceeds Serverless Limits** | High | High | Use direct client upload (`@vercel/blob/client`) so file streams straight from browser to edge blob storage without touching function memory. |
 | **Database Network Disconnection** | Low | Low | Offline-first approach: all recording and local downloads work completely offline; cloud sync updates asynchronously when online. |
+| **IndexedDB Storage Quota Exhausted** | Medium | High | Estimate available storage before recording, checkpoint failures visibly, preserve in-memory chunks, and prompt for immediate download. |
+| **Cross-User Data Access** | Medium | Critical | Verify server-side identity on every request and include `user_id` ownership conditions in every read, update, and delete query. |
+| **Public Link Exposes Private Media** | Medium | Critical | Keep recordings private by default and align Blob access with application authorization rather than treating URL secrecy as access control. |
+| **Preview Deployment Uses Production Data** | Medium | High | Use environment-scoped variables and isolated Neon preview branches where practical. |
 
 ---
 

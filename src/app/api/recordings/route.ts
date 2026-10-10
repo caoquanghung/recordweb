@@ -4,9 +4,9 @@ import { getSessionUserId, unauthorizedResponse } from '@/lib/auth';
 import { DbRecording } from '@/types/database';
 
 /** GET /api/recordings — Returns only the authenticated user's recordings. */
-export async function GET(request: NextRequest) {
+export async function GET() {
   // §2.9 — Auth gate
-  const userId = await getSessionUserId(request);
+  const userId = await getSessionUserId();
   if (!userId) return unauthorizedResponse();
 
   if (!isDbConfigured) {
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 /** POST /api/recordings — Saves recording metadata for the authenticated user. */
 export async function POST(request: NextRequest) {
   // §2.9 — Auth gate
-  const userId = await getSessionUserId(request);
+  const userId = await getSessionUserId();
   if (!userId) return unauthorizedResponse();
 
   if (!isDbConfigured) {
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 /** PATCH /api/recordings — Toggle is_public for a specific recording (share link). */
 export async function PATCH(request: NextRequest) {
   // §2.9 — Auth gate
-  const userId = await getSessionUserId(request);
+  const userId = await getSessionUserId();
   if (!userId) return unauthorizedResponse();
 
   if (!isDbConfigured) {
@@ -145,7 +145,7 @@ export async function PATCH(request: NextRequest) {
 /** DELETE /api/recordings — Deletes a recording owned by the authenticated user. */
 export async function DELETE(request: NextRequest) {
   // §2.9 — Auth gate
-  const userId = await getSessionUserId(request);
+  const userId = await getSessionUserId();
   if (!userId) return unauthorizedResponse();
 
   if (!isDbConfigured) {

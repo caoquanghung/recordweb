@@ -4,9 +4,9 @@ import { getSessionUserId, unauthorizedResponse } from '@/lib/auth';
 import { DbStudioPreset } from '@/types/database';
 
 /** GET /api/presets — Returns only the authenticated user's studio presets. */
-export async function GET(request: NextRequest) {
+export async function GET() {
   // §2.9 — Auth gate
-  const userId = await getSessionUserId(request);
+  const userId = await getSessionUserId();
   if (!userId) return unauthorizedResponse();
 
   if (!isDbConfigured) {
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 /** POST /api/presets — Creates a preset owned by the authenticated user. */
 export async function POST(request: NextRequest) {
   // §2.9 — Auth gate
-  const userId = await getSessionUserId(request);
+  const userId = await getSessionUserId();
   if (!userId) return unauthorizedResponse();
 
   if (!isDbConfigured) {
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 /** DELETE /api/presets — Deletes a preset owned by the authenticated user. */
 export async function DELETE(request: NextRequest) {
   // §2.9 — Auth gate
-  const userId = await getSessionUserId(request);
+  const userId = await getSessionUserId();
   if (!userId) return unauthorizedResponse();
 
   if (!isDbConfigured) {

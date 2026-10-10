@@ -1,6 +1,6 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUserId, unauthorizedResponse } from '@/lib/auth';
+import { getSessionUserId } from '@/lib/auth';
 
 // Simple in-memory rate limiter: max 10 upload tokens per user per hour.
 // Replace with a Redis-backed solution (e.g. Upstash) for production scale.
@@ -23,18 +23,6 @@ function checkRateLimit(userId: string): boolean {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // §2.9 — Auth gate: reject anonymous requests
-  const userId = await getSessionUserId(request);
-  if (!userId) return unauthorizedResponse();
-
-  // §2.9 — Per-user rate limiting to prevent blob quota abuse
-  if (!checkRateLimit(userId)) {
-    return NextResponse.json(
-      { error: `Upload rate limit exceeded (max ${MAX_UPLOADS_PER_HOUR}/hour).` },
-      { status: 429 }
-    );
-  }
-
   const body = (await request.json()) as HandleUploadBody;
 
   try {
@@ -42,6 +30,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       body,
       request,
       onBeforeGenerateToken: async () => {
+        // Token generation comes from the signed-in browser. The completion
+        // callback comes from Vercel Blob and is verified by handleUpload.
+        const userId = await getSessionUserId();
+        if (!userId) {
+          throw new Error('Unauthorized');
+        }
+
+        if (!checkRateLimit(userId)) {
+          throw new Error(
+            `Upload rate limit exceeded (max ${MAX_UPLOADS_PER_HOUR}/hour).`
+          );
+        }
+
         return {
           // §2.10 — Accept both MP4 (preferred) and WebM (fallback) per codec detection
           allowedContentTypes: ['video/mp4', 'video/webm'],
