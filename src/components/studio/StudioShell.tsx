@@ -6,7 +6,7 @@ import { useCanvasCompositor } from '@/hooks/useCanvasCompositor';
 import { useAudioDSP } from '@/hooks/useAudioDSP';
 import type { AudioDspPreset } from '@/hooks/useAudioDSP';
 import { useMediaDevices } from '@/hooks/useMediaDevices';
-import type { DbRecording, DbStudioPreset } from '@/types/database';
+import type { DbStudioPreset } from '@/types/database';
 import type {
   AudioFilterConfig,
   BackgroundRemovalMode,
@@ -115,11 +115,13 @@ export function StudioShell() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [capabilities, setCapabilities] = useState<BrowserCapabilities | null>(null);
   const [presets, setPresets] = useState<DbStudioPreset[]>([]);
-  const [recordings, setRecordings] = useState<DbRecording[]>([]);
   const [presetName, setPresetName] = useState('My studio preset');
   const [presetMessage, setPresetMessage] = useState('');
-  const [dataError, setDataError] = useState('');
   const [theme, setTheme] = useState<Theme>('dark');
+  const [sourcesOpen, setSourcesOpen] = useState(true);
+  const [effectsOpen, setEffectsOpen] = useState(false);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [effectsTab, setEffectsTab] = useState<'camera' | 'audio' | 'preset'>('camera');
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [selectedMicrophoneId, setSelectedMicrophoneId] = useState('');
   const [isConnectingSources, setIsConnectingSources] = useState(false);
@@ -197,23 +199,16 @@ export function StudioShell() {
     [mode]
   );
 
-  const loadCloudData = useCallback(async () => {
-    setDataError('');
+  const loadPresets = useCallback(async () => {
     try {
-      const [presetResponse, recordingResponse] = await Promise.all([
-        fetch('/api/presets', { cache: 'no-store' }),
-        fetch('/api/recordings', { cache: 'no-store' }),
-      ]);
+      const presetResponse = await fetch('/api/presets', { cache: 'no-store' });
       const presetJson = await presetResponse.json();
-      const recordingJson = await recordingResponse.json();
 
       if (!presetResponse.ok) throw new Error(presetJson.error ?? 'Could not load presets.');
-      if (!recordingResponse.ok) throw new Error(recordingJson.error ?? 'Could not load recordings.');
 
       setPresets(presetJson.presets ?? []);
-      setRecordings(recordingJson.recordings ?? []);
-    } catch (error) {
-      setDataError((error as Error).message);
+    } catch {
+      setPresets([]);
     }
   }, []);
 
@@ -226,9 +221,9 @@ export function StudioShell() {
   }, []);
 
   useEffect(() => {
-    const initialLoad = window.setTimeout(() => void loadCloudData(), 0);
+    const initialLoad = window.setTimeout(() => void loadPresets(), 0);
     return () => window.clearTimeout(initialLoad);
-  }, [loadCloudData]);
+  }, [loadPresets]);
 
   const toggleTheme = () => {
     const nextTheme: Theme = theme === 'dark' ? 'light' : 'dark';
@@ -249,6 +244,7 @@ export function StudioShell() {
       else await acquireCamera(selectedCameraId || undefined);
 
       await acquireMicrophone(selectedMicrophoneId || undefined);
+      setSourcesOpen(false);
     } finally {
       setIsConnectingSources(false);
     }
@@ -256,6 +252,13 @@ export function StudioShell() {
 
   const sourcesConnected = Boolean(screenStream || cameraStream || microphoneStream);
   const visualSourcesConnected = Boolean(screenStream || cameraStream);
+
+  useEffect(() => {
+    if (session === 'countdown' || session === 'recording') {
+      setSourcesOpen(false);
+      setEffectsOpen(false);
+    }
+  }, [session]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -365,7 +368,7 @@ export function StudioShell() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? 'Could not save preset.');
       setPresetMessage('Saved to Neon.');
-      await loadCloudData();
+      await loadPresets();
     } catch (error) {
       setPresetMessage((error as Error).message);
     }
