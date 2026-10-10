@@ -2,7 +2,9 @@
 
 ## 1. Design Aesthetics & Visual Philosophy
 
-RecordWeb is designed as a **modern, high-performance web broadcast studio** (reminiscent of professional tools like Loom, OBS Studio, and Linear). It employs a dark glassmorphic design language, precision typography, vibrant micro-animations, and instant visual feedback.
+RecordWeb is designed as a **modern, high-performance web broadcast studio** (reminiscent of professional tools like Loom, OBS Studio, and Linear). It employs an adaptive light/dark glassmorphic design language, precision typography, vibrant micro-animations, and instant visual feedback.
+
+Users can switch between light and dark appearance from the studio header. The preference is stored in `localStorage` under `recordweb-theme`; first-time visitors inherit their operating-system preference. Both themes must retain accessible contrast and identical interaction states.
 
 ### 1.1 Color Tokens & Theme Variables
 

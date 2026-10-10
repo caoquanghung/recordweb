@@ -164,3 +164,9 @@ Upon recording completion, the engine:
    * `0x4489` (Duration Element).
 3. Injects a float64 duration value calculated from `totalRecordedDuration`.
 4. Outputs the repaired `Blob` ready for instantaneous local download and scrubbable playback.
+
+### 5.3 MediaRecorder Encoding & Chunking Invariants
+* Select the best supported MIME type at runtime: prefer `video/webm; codecs=vp9,opus`, falling back to `video/webm`, then `video/mp4` for Safari.
+* Always start `MediaRecorder` with a chunk timeslice (e.g. `mediaRecorder.start(1000)`) so data is collected periodically instead of one monolithic blob at stop.
+* On `mediaRecorder.pause()`, immediately stop active duration accumulation; restore time tracking on `resume()`.
+* Never offer the raw WebM blob for download without running the EBML duration patcher, or the file will lack a seekable index header.

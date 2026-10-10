@@ -23,3 +23,8 @@
   - Loop through `stream.getTracks()` and invoke `track.stop()`.
 - Disconnect Web Audio nodes (`node.disconnect()`) when tearing down or reconfiguring filters to prevent audio memory leaks.
 - Close unused WebGL textures or canvas 2D contexts when switching background modes.
+
+## 4. Architecture & Memory Conformance
+- Treat [docs/system_architecture.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/docs/system_architecture.md) as the **authoritative** source for subsystem boundaries, data flow, and risk mitigations (R1–R5). All implementation MUST conform to it.
+- Treat [docs/audio_video_pipeline.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/docs/audio_video_pipeline.md) as the authority for the 30 FPS canvas compositor, Web Audio DSP graph, segmentation, and WebM repair.
+- Follow [MEMORY.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/MEMORY.md) as the persistent state bank: read it on startup and update it on milestones, decisions, and bugs, per [memory_management.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/.agents/rules/memory_management.md).

@@ -48,8 +48,8 @@ recordweb/
 ├── docs/                             # Technical specifications & architecture
 │   ├── requirements.md               # User requirements
 │   ├── requirements_analysis.md      # Detailed requirement breakdown
-│   ├── system_architecture.md        # Architectural subsystems & data flow
-│   ├── audio_video_pipeline.md       # 30fps canvas, audio DSP & segmentation specs
+│   ├── system_architecture.md        # AUTHORITATIVE architectural subsystems & data flow
+│   ├── audio_video_pipeline.md       # AUTHORITATIVE 30fps canvas, audio DSP & segmentation specs
 │   ├── ui_ux_specification.md        # Studio interface layout & design tokens
 │   ├── implementation_roadmap.md     # Development phases & verification plan
 │   ├── database_migrations.md         # psql migration commands and safety workflow
@@ -88,7 +88,6 @@ recordweb/
 │   ├── rules/                        # Hierarchical workspace rules
 │   │   ├── code_standards.md
 │   │   ├── database_management.md     # Fast DB lookup, migration, and query rules
-│   │   ├── media_audio_video.md
 │   │   └── memory_management.md      # Rules for updating MEMORY.md
 │   └── skills/                       # Project skills for testing & verification
 │       ├── media-pipeline-verifier/
@@ -120,6 +119,12 @@ Before completing any implementation step:
 
 For any Neon, SQL, migration, database type, authentication ownership, recording metadata, preset, or sharing task, first read [.agents/rules/database_management.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/.agents/rules/database_management.md). Use `database/migrations/` as the schema source of truth and use `npm run db:status`, `npm run db:migrate`, and `npm run db:verify` instead of editing Neon manually.
 
+### Architecture & memory compliance
+
+Before changing any subsystem, read [docs/system_architecture.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/docs/system_architecture.md). It is the **authoritative** source for subsystem boundaries, data flow, and risk mitigations (R1–R5); all implementation MUST conform to it. Media pipeline details are the authority in [docs/audio_video_pipeline.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/docs/audio_video_pipeline.md).
+
+Agents MUST also follow [MEMORY.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/MEMORY.md) as the persistent state bank: read it on startup and update it on milestones, decisions, and bugs, per [.agents/rules/memory_management.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/.agents/rules/memory_management.md).
+
 ---
 
 ## 5. Memory Synchronization Protocol
@@ -128,3 +133,13 @@ Agents must strictly adhere to [.agents/rules/memory_management.md](file:///User
 - **On Startup**: Read [MEMORY.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/MEMORY.md) to understand active phase and immediate next steps.
 - **On Milestone Completion**: Update the progress checklist and next tasks in [MEMORY.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/MEMORY.md).
 - **On New Decisions / Bugs**: Record architectural decisions or discovered browser quirks in [MEMORY.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/MEMORY.md).
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
