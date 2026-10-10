@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, isDbConfigured } from '@/lib/db';
 import { getSessionUserId, unauthorizedResponse } from '@/lib/auth';
 import { DbRecording } from '@/types/database';
+import { del } from '@vercel/blob';
 
 /** GET /api/recordings — Returns only the authenticated user's recordings. */
 export async function GET() {
@@ -155,11 +156,9 @@ export async function DELETE(request: NextRequest) {
   try {
     const { id } = await request.json();
     const sql = getDb();
-    // §2.9 — Scoped delete: user can only delete their own recordings
     const result = await sql`
-      DELETE FROM recordings
+      SELECT blob_pathname FROM recordings
       WHERE id = ${id} AND user_id = ${userId}
-      RETURNING blob_pathname;
     `;
 
     if (result.length === 0) {
@@ -169,8 +168,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Return blob_pathname so the client can call del(pathname) on Vercel Blob
-    return NextResponse.json({ deletedBlobPathname: result[0].blob_pathname });
+    const pathname = result[0].blob_pathname as string | null;
+    if (pathname) await del(pathname);
+    await sql`DELETE FROM recordings WHERE id = ${id} AND user_id = ${userId};`;
+    return NextResponse.json({ deletedBlobPathname: pathname });
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message },

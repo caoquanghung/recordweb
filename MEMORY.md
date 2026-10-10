@@ -10,7 +10,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 * **Core Capabilities**: Screen, webcam, and audio recording with real-time video compositing (PiP, AI background removal/blur), Web Audio DSP filtering, 30 FPS regulation, and dual local/cloud export.
 * **Technology Stack**:
   * **Framework**: Next.js 16 (App Router), React 19, TypeScript.
-  * **Styling**: Vanilla CSS (CSS Modules & Custom Properties, Dark Glassmorphism design tokens).
+  * **Styling**: Vanilla CSS (CSS Modules & Custom Properties, adaptive light/dark Glassmorphism design tokens).
   * **Vision AI**: Google MediaPipe Selfie Segmentation (`@mediapipe/selfie_segmentation`) via WebGL/WASM.
   * **Audio Processing**: Native Web Audio API (`AudioContext`, `BiquadFilterNode`, `DynamicsCompressorNode`, `AnalyserNode`).
   * **Video Repair**: Client-side EBML binary duration patching (`fix-webm-duration`).
@@ -43,7 +43,8 @@ This file serves as the persistent memory bank for AI agents working on **Record
 5. **Resilient Dual Storage**:
    * Local: Immediate direct download as `.webm` (with EBML duration fix in `src/lib/ebmlPatcher.ts`) + automatic IndexedDB session backup (`src/lib/idb.ts`).
    * Cloud: 1-click upload to Vercel Blob with shareable link + metadata in Neon Postgres via `src/app/api/recordings/route.ts`.
-6. **UI Standard**: Strictly Vanilla CSS (CSS Modules & custom properties) with dark studio glassmorphic aesthetic (tokens in `docs/ui_ux_specification.md`). No Tailwind or heavy CSS frameworks.
+6. **UI Standard**: Strictly Vanilla CSS (CSS Modules & custom properties) with adaptive light/dark studio glassmorphism (tokens in `docs/ui_ux_specification.md`). Theme defaults to the OS preference and persists in `localStorage` as `recordweb-theme`. No Tailwind or heavy CSS frameworks.
+7. **Documentation Source of Truth**: `docs/system_architecture.md` is authoritative for subsystem boundaries, data flow, and risks (R1–R5); `docs/audio_video_pipeline.md` is authoritative for the media pipeline. `MEMORY.md` is the persistent state bank. `AGENTS.md` requires agents to conform to these; no duplicate media pipeline rule file exists.
 
 ---
 
@@ -76,10 +77,10 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] `AGENTS.md` is the single agent instruction entry point; obsolete `GEMINI.md` was removed
   - [x] `.agents/rules/code_standards.md`
   - [x] `.agents/rules/database_management.md`
-  - [x] `.agents/rules/media_audio_video.md`
   - [x] `.agents/rules/memory_management.md`
   - [x] `.agents/skills/media-pipeline-verifier/SKILL.md`
   - [x] `.agents/skills/canvas-compositor-check/SKILL.md`
+  - [x] Consolidated the media/audio/video invariants into the authoritative `docs/audio_video_pipeline.md`; removed the duplicate `.agents/rules/media_audio_video.md`
 - [x] **Phase 1 (Scaffolding): Next.js 16 + React 19 + TypeScript Setup**:
   - [x] Initialized Next.js App Router with TypeScript and Turbopack
   - [x] Installed `@neondatabase/serverless`, `@vercel/blob`, `idb-keyval`, `fix-webm-duration`
@@ -89,11 +90,36 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added the `psql` migration runner, npm/VS Code tasks, and versioned SQL migrations (`scripts/db-migrate.mjs`, `database/migrations/`)
   - [x] Applied and verified `0001_user_owned_recordings` against Neon; repeat runs are idempotent
   - [x] Integrated Clerk provider, Proxy, sign-in/sign-up pages, server session helper, and verified webhook Route Handler
-  - [ ] Add `CLERK_WEBHOOK_SIGNING_SECRET` and register the production Clerk webhook for user synchronization
+  - [x] Added `CLERK_WEBHOOK_SIGNING_SECRET` and registered the Clerk webhook for user synchronization
   - [x] Verified zero TypeScript compilation errors with `npm run build`
-- [ ] **Phase 1 (Media Hooks): `useMediaDevices` Implementation** (Next Up)
-- [ ] **Phase 2: 30 FPS Canvas Compositor Engine (`useCanvasCompositor`)**
-- [ ] **Phase 3: Web Audio DSP Pipeline & VU Meter (`useAudioDSP`)**
+- [x] **Initial Studio UI Test Harness**:
+  - [x] Replaced the default `src/app/page.tsx` template with `<StudioShell />` and switched `src/app/globals.css` to dark studio tokens (`#080b12` / `#f4f5f8`, Geist font)
+  - [x] Added `src/components/studio/StudioShell.tsx` + `StudioShell.module.css`: authenticated dark studio shell with capture mode, camera, audio, and resolution controls
+  - [x] Added simulated countdown, record, pause, review, and 30-minute limit states with keyboard shortcuts (Space, Alt+S/M/C)
+  - [x] Added auth-gated `src/app/api/health/route.ts` (Clerk session + Neon `SELECT 1` + Blob token presence) consumed by the UI system-check panel
+  - [x] Added service health checks for Clerk, Neon, Vercel Blob configuration, and browser media capabilities
+  - [x] Connected preset save/load and recording library inspection to the existing authenticated APIs
+  - [x] Added a persisted light/dark theme switch with system-preference initialization and accessible theme tokens
+  - [ ] Replace simulated recording controls with the real recording-session hook
+- [ ] **Housekeeping**: `src/app/page.module.css` is now unused dead code (page renders `StudioShell`) and should be deleted.
+- [x] **Phase 1 (Media Hooks): `useMediaDevices` Implementation**:
+  - [x] Added screen, camera, microphone, and browser-supported system-audio acquisition with 30 FPS video constraints
+  - [x] Added device enumeration/hot-plug refresh, user-friendly permission/device errors, and external screen-share `ended` handling
+  - [x] Added strict replacement, disconnect, and unmount cleanup with `track.stop()`
+  - [x] Connected source selection, readiness states, system-audio detection, and live screen/camera previews to `StudioShell`
+- [x] **Phase 2: 30 FPS Canvas Compositor Engine (`useCanvasCompositor`)**:
+  - [x] Added delta-clamped 30 FPS canvas rendering with 720p/1080p 16:9 output and contained screen fitting
+  - [x] Added screen-only, webcam-only, and screen-plus-PiP composition into one `canvas.captureStream(30)` visual stream
+  - [x] Added circular/rounded PiP masks, 160/240/320px scaled sizes, four anchor presets, clamped pointer dragging, and keyboard nudging
+  - [x] Added development FPS diagnostics, paused/no-source render suspension, generated-stream cleanup, and a Phase 4 cutout fallback warning
+  - [x] Connected the composited canvas, position controls, live FPS, and stream readiness to `StudioShell`
+- [x] **Phase 3: Web Audio DSP Pipeline & VU Meter (`useAudioDSP`)**:
+  - [x] Added the microphone chain: 80Hz high-pass, 2.8kHz/+4dB presence EQ, 12kHz low-pass, -24dB/4:1 compressor, and smooth noise gate
+  - [x] Mixed browser-supported system audio through an independent gain path so vocal filters affect only the microphone
+  - [x] Added Natural, Voice Clarity, Noise Reduction, Podcast, and configurable Custom presets with smoothed live parameter changes
+  - [x] Added autoplay-safe context resume, click-free mute/gain changes, system volume, mixed-output VU metering, and one destination audio stream
+  - [x] Added complete node disconnection, animation-frame cancellation, generated-track cleanup, and `AudioContext.close()` teardown
+  - [x] Connected DSP controls, state, errors, meter, and mixed-track readiness to `StudioShell`
 - [ ] **Phase 4: MediaPipe AI Background Segmentation (`useVisionSegmentation`)**
 - [ ] **Phase 5: Recording Lifecycle, Pause/Resume & 30-Min Limit (`useRecordingSession`)**
 - [ ] **Phase 6: WebM Duration Fixer & Local Export / IndexedDB Integration**
@@ -117,11 +143,12 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Safari WebM Playback** | Shared videos fail to play in Safari/iOS | Detect MP4/AVC support at session start; prefer `video/mp4` if available; show compatibility notice on `/share/` page. |
 | **A/V Desync over Long Sessions** | Audio and video drift out of sync after ~15 min | Use delta-clamped RAF timer; enforce 30-min hard stop; UI warns at 15 min. |
 | **Neon Schema Drift** | Application code can fail when a schema change is deployed without its migration | Add a new ordered SQL file, run `npm run db:status`, `npm run db:migrate`, and `npm run db:verify`; never edit an applied migration. Initial schema was applied on 2026-10-10. |
+| **Conditional Canvas Mount** | Calling `captureStream()` before the source-driven preview canvas mounts produces no output stream | Reinitialize canvas capture when visual-source availability changes; the compositor owns and stops only its generated track. |
 
 ---
 
 ## 6. Immediate Next Steps
 
-1. **Complete Clerk setup**: add `CLERK_WEBHOOK_SIGNING_SECRET`, register `user.created`, `user.updated`, and `user.deleted`, add Clerk variables to Vercel, and test user synchronization.
-2. Implement `src/hooks/useMediaDevices.ts` to acquire screen, camera, microphone, and supported system-audio streams with error handling and track cleanup.
-3. Implement `src/hooks/useCanvasCompositor.ts` for the 30 FPS delta-clamped canvas compositing render loop and PiP positioning.
+1. Implement `src/hooks/useVisionSegmentation.ts` for camera background blur and cutout masking.
+2. Implement `src/hooks/useRecordingSession.ts` to record the compositor output plus the mixed audio track.
+3. Integrate EBML duration repair and IndexedDB recovery into the real recording lifecycle.
