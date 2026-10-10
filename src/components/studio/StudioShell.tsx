@@ -62,11 +62,6 @@ function formatDuration(seconds: number) {
   return `${minutes}:${remainder}`;
 }
 
-function formatBytes(bytes: number) {
-  if (bytes <= 0) return '0 MB';
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
 function Icon({ name }: { name: 'grid' | 'record' | 'library' | 'settings' | 'spark' | 'screen' | 'camera' | 'mic' | 'pause' | 'stop' | 'play' | 'cloud' | 'check' | 'refresh' | 'shield' | 'sun' | 'moon' }) {
   const paths: Record<string, React.ReactNode> = {
     grid: <><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></>,
@@ -254,14 +249,12 @@ export function StudioShell() {
   const visualSourcesConnected = Boolean(screenStream || cameraStream);
 
   useEffect(() => {
-    if (session === 'countdown' || session === 'recording') {
-      setSourcesOpen(false);
-      setEffectsOpen(false);
-    }
-  }, [session]);
-
-  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && diagnosticsOpen) {
+        setDiagnosticsOpen(false);
+        return;
+      }
+
       const target = event.target as HTMLElement | null;
       if (target?.matches('input, textarea, select, [contenteditable="true"]')) return;
 
@@ -285,7 +278,7 @@ export function StudioShell() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [session]);
+  }, [diagnosticsOpen, session]);
 
   useEffect(() => {
     if (session !== 'recording') return;
@@ -317,6 +310,8 @@ export function StudioShell() {
   const startUiTest = () => {
     setElapsed(0);
     setCountdown(3);
+    setSourcesOpen(false);
+    setEffectsOpen(false);
     setSession('countdown');
   };
 
@@ -425,20 +420,72 @@ export function StudioShell() {
               <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
             </button>
             <div className={styles.privacyPill}><Icon name="shield" /> Local until you upload</div>
-            <button className={styles.secondaryButton} onClick={runSystemCheck} disabled={healthState === 'checking'}>
-              <Icon name="refresh" />
-              {healthState === 'checking' ? 'Checking…' : 'Run system check'}
+            <button
+              className={styles.secondaryButton}
+              onClick={() => {
+                setDiagnosticsOpen(true);
+                if (healthState === 'idle') void runSystemCheck();
+              }}
+            >
+              <Icon name="shield" />
+              Diagnostics
             </button>
           </div>
         </header>
 
-        <div className={styles.prototypeNotice} role="note">
-          <span>UI test harness</span>
-          Live source previews are connected. Recording controls still simulate state until the compositor and recorder are added.
+        <div className={styles.workspaceToolbar}>
+          <div className={styles.drawerActions} aria-label="Workspace panels">
+            <button
+              className={`${styles.drawerButton} ${sourcesOpen ? styles.drawerButtonActive : ''}`}
+              onClick={() => {
+                setSourcesOpen((value) => !value);
+                if (!sourcesOpen && window.innerWidth < 1440) setEffectsOpen(false);
+              }}
+              aria-pressed={sourcesOpen}
+            >
+              <Icon name="screen" /> Sources
+            </button>
+            <button
+              className={`${styles.drawerButton} ${effectsOpen ? styles.drawerButtonActive : ''}`}
+              onClick={() => {
+                setEffectsOpen((value) => !value);
+                if (!effectsOpen && window.innerWidth < 1440) setSourcesOpen(false);
+              }}
+              aria-pressed={effectsOpen}
+            >
+              <Icon name="spark" /> Effects
+            </button>
+          </div>
+          <div className={styles.liveSummary}>
+            <span className={sourcesConnected ? styles.summaryReady : styles.summaryIdle} />
+            {sourcesConnected ? 'Sources connected' : 'Connect sources to begin'}
+          </div>
         </div>
 
-        <div className={styles.studioGrid}>
-          <aside className={styles.leftPanel}>
+        {session === 'review' ? (
+          <section className={styles.reviewWorkspace}>
+            <div className={styles.reviewHero}>
+              <div className={styles.reviewIcon}><Icon name="check" /></div>
+              <div>
+                <span className={styles.reviewEyebrow}>Recording complete</span>
+                <h2>Your recording is ready to review</h2>
+                <p>{formatDuration(elapsed)} captured in {resolution} at 30 FPS.</p>
+              </div>
+            </div>
+            <div className={styles.reviewPreview}>
+              <div><Icon name="play" /></div>
+              <strong>Preview will appear here</strong>
+              <span>The recording pipeline will attach the finalized media in Phase 5.</span>
+            </div>
+            <div className={styles.reviewActions}>
+              <button className={styles.reviewPrimary} onClick={() => setSession('setup')}>Record another</button>
+              <button className={styles.reviewSecondary} disabled>Download video</button>
+              <button className={styles.reviewSecondary} disabled>Upload to cloud</button>
+            </div>
+          </section>
+        ) : (
+        <div className={`${styles.studioGrid} ${!sourcesOpen ? styles.sourcesClosed : ''} ${!effectsOpen ? styles.effectsClosed : ''}`}>
+          {sourcesOpen && <aside className={styles.leftPanel}>
             <section className={styles.panelSection}>
               <div className={styles.sectionHeading}>
                 <div><span>01</span><h2>Capture mode</h2></div>
@@ -449,7 +496,10 @@ export function StudioShell() {
                   <button
                     key={item.value}
                     className={`${styles.modeButton} ${mode === item.value ? styles.modeButtonActive : ''}`}
-                    onClick={() => setMode(item.value)}
+                    onClick={() => {
+                      setMode(item.value);
+                      if (item.value === 'screen-only' && effectsTab === 'camera') setEffectsTab('audio');
+                    }}
                     aria-pressed={mode === item.value}
                   >
                     <span className={styles.modeIcon}><Icon name={item.value === 'webcam-only' ? 'camera' : 'screen'} /></span>
@@ -511,7 +561,7 @@ export function StudioShell() {
                 <span>30 FPS</span><span>16:9</span><span>30 min max</span>
               </div>
             </section>
-          </aside>
+          </aside>}
 
           <section className={styles.stageColumn}>
             <div className={styles.stageToolbar}>
@@ -550,14 +600,6 @@ export function StudioShell() {
               )}
 
               {session === 'countdown' && <div className={styles.countdownOverlay}><span>{countdown}</span><small>Get ready</small></div>}
-              {session === 'review' && (
-                <div className={styles.reviewOverlay}>
-                  <div className={styles.reviewIcon}><Icon name="check" /></div>
-                  <strong>UI flow complete</strong>
-                  <p>{formatDuration(elapsed)} simulated · no media was recorded</p>
-                  <button onClick={() => setSession('setup')}>Return to setup</button>
-                </div>
-              )}
 
               <div className={styles.stageCorner}>Preview · {activeMode.detail}{compositeStream ? ' · composite stream ready' : ''}</div>
             </div>
@@ -568,7 +610,7 @@ export function StudioShell() {
                 <div><strong>{formatDuration(elapsed)}</strong><small>/ 30:00</small></div>
               </div>
               <div className={styles.controlDivider} />
-              {session === 'setup' || session === 'review' ? (
+              {session === 'setup' ? (
                 <button className={styles.recordButton} onClick={startUiTest}><Icon name="record" /> Start UI test</button>
               ) : (
                 <>
@@ -592,8 +634,22 @@ export function StudioShell() {
             <div className={styles.shortcutHint}>Space pause/resume · Alt+S finish · controls are simulation-only</div>
           </section>
 
-          <aside className={styles.rightPanel}>
-            <section className={styles.inspectorSection}>
+          {effectsOpen && <aside className={styles.rightPanel}>
+            <div className={styles.effectTabs} role="tablist" aria-label="Effect controls">
+              {(['camera', 'audio', 'preset'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  role="tab"
+                  aria-selected={effectsTab === tab}
+                  className={effectsTab === tab ? styles.effectTabActive : ''}
+                  onClick={() => setEffectsTab(tab)}
+                  disabled={tab === 'camera' && mode === 'screen-only'}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            {effectsTab === 'camera' && <section className={styles.inspectorSection}>
               <div className={styles.inspectorTitle}><div><Icon name="spark" /><h2>Camera style</h2></div><span>Live</span></div>
               <label className={styles.fieldLabel}>Background</label>
               <div className={styles.choiceGrid}>
@@ -637,9 +693,9 @@ export function StudioShell() {
                   <button key={size} onClick={() => setPipSize(size)} className={pipSize === size ? styles.segmentActive : ''}>{size[0].toUpperCase()}</button>
                 ))}
               </div>
-            </section>
+            </section>}
 
-            <section className={styles.inspectorSection}>
+            {effectsTab === 'audio' && <section className={styles.inspectorSection}>
               <div className={styles.inspectorTitle}><div><Icon name="mic" /><h2>Voice</h2></div><span>{audioState === 'running' ? 'Live' : 'DSP'}</span></div>
               <div className={styles.audioModes}>
                 {audioModes.map((item) => (
@@ -690,9 +746,9 @@ export function StudioShell() {
               </div>
               {mixedAudioStream && <p className={styles.audioReady}>Mixed audio track ready for recording</p>}
               {audioError && <p className={styles.sourceError} role="alert">{audioError}</p>}
-            </section>
+            </section>}
 
-            <section className={styles.inspectorSection}>
+            {effectsTab === 'preset' && <section className={styles.inspectorSection}>
               <div className={styles.inspectorTitle}><div><Icon name="cloud" /><h2>Preset test</h2></div><span>{presets.length}</span></div>
               <input className={styles.textInput} value={presetName} onChange={(event) => setPresetName(event.target.value)} aria-label="Preset name" />
               <button className={styles.savePresetButton} onClick={savePreset}>Save current setup</button>
@@ -702,50 +758,34 @@ export function StudioShell() {
                   <button key={preset.id} onClick={() => applyPreset(preset)}><span>{preset.preset_name}</span><small>Load</small></button>
                 ))}
               </div>
-            </section>
-          </aside>
+            </section>}
+          </aside>}
         </div>
+        )}
 
-        <section className={styles.bottomGrid}>
-          <div className={styles.healthCard}>
-            <div className={styles.cardHeader}>
-              <div><span className={styles.cardIcon}><Icon name="shield" /></span><div><h2>System readiness</h2><p>Authenticated server and browser checks</p></div></div>
-              <button onClick={runSystemCheck}>{healthState === 'checking' ? 'Checking…' : 'Refresh'}</button>
-            </div>
-            <div className={styles.checkGrid}>
-              <div><StatusDot ok={health?.auth === 'authenticated'} /><span>Clerk session</span><strong>{health?.auth === 'authenticated' ? 'Connected' : 'Not checked'}</strong></div>
-              <div><StatusDot ok={health?.database === 'connected'} /><span>Neon database</span><strong>{health?.database ?? 'Not checked'}</strong></div>
-              <div><StatusDot ok={health?.blob === 'configured'} /><span>Vercel Blob</span><strong>{health?.blob ?? 'Not checked'}</strong></div>
-              <div><StatusDot ok={Boolean(capabilities?.screenCapture)} /><span>Screen capture</span><strong>{capabilities ? (capabilities.screenCapture ? 'Supported' : 'Unavailable') : 'Not checked'}</strong></div>
-              <div><StatusDot ok={Boolean(capabilities?.cameraAndMic)} /><span>Camera + microphone</span><strong>{capabilities ? (capabilities.cameraAndMic ? 'Supported' : 'Unavailable') : 'Not checked'}</strong></div>
-              <div><StatusDot ok={Boolean(capabilities?.mediaRecorder)} /><span>MediaRecorder</span><strong>{capabilities ? (capabilities.mediaRecorder ? 'Supported' : 'Unavailable') : 'Not checked'}</strong></div>
-              <div><StatusDot ok={Boolean(capabilities?.indexedDb)} /><span>IndexedDB</span><strong>{capabilities ? (capabilities.indexedDb ? 'Supported' : 'Unavailable') : 'Not checked'}</strong></div>
-              <div><StatusDot ok={Boolean(capabilities?.fileSystemSave)} /><span>Direct file save</span><strong>{capabilities ? (capabilities.fileSystemSave ? 'Supported' : 'Download fallback') : 'Not checked'}</strong></div>
-            </div>
-          </div>
-
-          <div className={styles.libraryCard}>
-            <div className={styles.cardHeader}>
-              <div><span className={styles.cardIcon}><Icon name="library" /></span><div><h2>Cloud recordings</h2><p>Live data from your Neon account</p></div></div>
-              <button onClick={loadCloudData}>Reload</button>
-            </div>
-            {dataError ? (
-              <div className={styles.emptyState}><strong>Cloud data unavailable</strong><span>{dataError}</span></div>
-            ) : recordings.length === 0 ? (
-              <div className={styles.emptyState}><strong>No recordings yet</strong><span>Your first uploaded recording will appear here.</span></div>
-            ) : (
-              <div className={styles.recordingList}>
-                {recordings.slice(0, 3).map((recording) => (
-                  <div key={recording.id}>
-                    <span className={styles.recordingThumb}><Icon name="play" /></span>
-                    <span><strong>{recording.title}</strong><small>{formatDuration(recording.duration_seconds)} · {formatBytes(recording.file_size_bytes)}</small></span>
-                    <em>{recording.storage_url ? 'Cloud' : 'Metadata'}</em>
-                  </div>
-                ))}
+        {diagnosticsOpen && (
+          <div className={styles.drawerBackdrop} role="presentation" onMouseDown={() => setDiagnosticsOpen(false)}>
+            <aside className={styles.diagnosticsDrawer} role="dialog" aria-modal="true" aria-labelledby="diagnostics-title" onMouseDown={(event) => event.stopPropagation()}>
+              <div className={styles.diagnosticsHeader}>
+                <div><span>Preflight</span><h2 id="diagnostics-title">System diagnostics</h2><p>Confirm browser and cloud readiness before recording.</p></div>
+                <button onClick={() => setDiagnosticsOpen(false)} aria-label="Close diagnostics">×</button>
               </div>
-            )}
+              <div className={styles.diagnosticsList}>
+                <div><StatusDot ok={health?.auth === 'authenticated'} /><span>Clerk session</span><strong>{health?.auth === 'authenticated' ? 'Connected' : 'Not checked'}</strong></div>
+                <div><StatusDot ok={health?.database === 'connected'} /><span>Neon database</span><strong>{health?.database ?? 'Not checked'}</strong></div>
+                <div><StatusDot ok={health?.blob === 'configured'} /><span>Vercel Blob</span><strong>{health?.blob ?? 'Not checked'}</strong></div>
+                <div><StatusDot ok={Boolean(capabilities?.screenCapture)} /><span>Screen capture</span><strong>{capabilities ? (capabilities.screenCapture ? 'Supported' : 'Unavailable') : 'Not checked'}</strong></div>
+                <div><StatusDot ok={Boolean(capabilities?.cameraAndMic)} /><span>Camera and microphone</span><strong>{capabilities ? (capabilities.cameraAndMic ? 'Supported' : 'Unavailable') : 'Not checked'}</strong></div>
+                <div><StatusDot ok={Boolean(capabilities?.mediaRecorder)} /><span>MediaRecorder</span><strong>{capabilities ? (capabilities.mediaRecorder ? 'Supported' : 'Unavailable') : 'Not checked'}</strong></div>
+                <div><StatusDot ok={Boolean(capabilities?.indexedDb)} /><span>Local recovery</span><strong>{capabilities ? (capabilities.indexedDb ? 'Supported' : 'Unavailable') : 'Not checked'}</strong></div>
+                <div><StatusDot ok={Boolean(capabilities?.fileSystemSave)} /><span>Direct file save</span><strong>{capabilities ? (capabilities.fileSystemSave ? 'Supported' : 'Download fallback') : 'Not checked'}</strong></div>
+              </div>
+              <button className={styles.diagnosticsRefresh} onClick={runSystemCheck} disabled={healthState === 'checking'}>
+                <Icon name="refresh" /> {healthState === 'checking' ? 'Checking…' : 'Run checks again'}
+              </button>
+            </aside>
           </div>
-        </section>
+        )}
 
         <div className={styles.srOnly} aria-live="polite">Session status: {sessionLabel}</div>
       </section>

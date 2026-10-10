@@ -124,6 +124,8 @@ This file serves as the persistent memory bank for AI agents working on **Record
 - [ ] **Phase 5: Recording Lifecycle, Pause/Resume & 30-Min Limit (`useRecordingSession`)**
 - [ ] **Phase 6: WebM Duration Fixer & Local Export / IndexedDB Integration**
 - [ ] **Phase 7: Studio React UI & Dark Glassmorphism Styling**
+  - [x] Implemented the preview-first Studio layout: collapsible Sources/Effects panels, tabbed effect controls, sticky recording dock, dedicated review workspace, and on-demand diagnostics drawer
+  - [x] Added responsive desktop/tablet/mobile panel behavior while preserving adaptive light/dark theme tokens and Vanilla CSS Modules
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
 - [ ] **Phase 9: Vercel Deployment & Verification**
 
@@ -149,6 +151,6 @@ This file serves as the persistent memory bank for AI agents working on **Record
 
 ## 6. Immediate Next Steps
 
-1. Implement `src/hooks/useVisionSegmentation.ts` for camera background blur and cutout masking.
-2. Implement `src/hooks/useRecordingSession.ts` to record the compositor output plus the mixed audio track.
-3. Integrate EBML duration repair and IndexedDB recovery into the real recording lifecycle.
+1. Connect the dedicated review workspace to the finalized recording blob, download action, and direct Vercel Blob upload flow.
+2. Perform authenticated browser QA for responsive layout, media permissions, 30 FPS stability, pause/resume, and diagnostics states.
+3. Complete Phase 8 integration tests for Neon metadata persistence and direct client-to-Blob uploads.
