@@ -121,6 +121,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added complete node disconnection, animation-frame cancellation, generated-track cleanup, and `AudioContext.close()` teardown
   - [x] Connected DSP controls, state, errors, meter, and mixed-track readiness to `StudioShell`
 - [ ] **Phase 4: MediaPipe AI Background Segmentation (`useVisionSegmentation`)**
+  - [x] Declared and locked `@mediapipe/selfie_segmentation@0.1.1675465747` as a production dependency so clean Vercel installs resolve the runtime and bundled TypeScript declarations
 - [ ] **Phase 5: Recording Lifecycle, Pause/Resume & 30-Min Limit (`useRecordingSession`)**
 - [ ] **Phase 6: WebM Duration Fixer & Local Export / IndexedDB Integration**
 - [ ] **Phase 7: Studio React UI & Dark Glassmorphism Styling**
@@ -146,6 +147,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **A/V Desync over Long Sessions** | Audio and video drift out of sync after ~15 min | Use delta-clamped RAF timer; enforce 30-min hard stop; UI warns at 15 min. |
 | **Neon Schema Drift** | Application code can fail when a schema change is deployed without its migration | Add a new ordered SQL file, run `npm run db:status`, `npm run db:migrate`, and `npm run db:verify`; never edit an applied migration. Initial schema was applied on 2026-10-10. |
 | **Conditional Canvas Mount** | Calling `captureStream()` before the source-driven preview canvas mounts produces no output stream | Reinitialize canvas capture when visual-source availability changes; the compositor owns and stops only its generated track. |
+| **Extraneous MediaPipe Package** | Local builds may resolve `@mediapipe/selfie_segmentation` from `node_modules` while clean Vercel builds fail with TS2307 | Keep the exact MediaPipe package version declared in both `package.json` and `package-lock.json`; verify with `npm ls` and `npm run build`. |
 
 ---
 
