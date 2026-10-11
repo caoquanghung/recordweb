@@ -122,9 +122,9 @@
 
 .workspace {
   width: 100%;
-  max-width: 1880px;
+  max-width: 1760px;
   margin: 0 auto;
-  padding: 24px clamp(20px, 2.4vw, 42px) 44px;
+  padding: 22px clamp(20px, 2.2vw, 38px) 44px;
 }
 
 .topbar {
@@ -1509,23 +1509,39 @@
 }
 
 .studioGrid {
-  grid-template-columns: 280px minmax(0, 1fr) 300px;
-  grid-template-areas: "sources stage effects";
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  grid-template-areas:
+    "stage sources"
+    "stage effects";
+  column-gap: clamp(18px, 1.6vw, 24px);
+  row-gap: 18px;
+}
+
+.leftPanel,
+.rightPanel {
+  align-self: start;
+  max-height: calc(100vh - 178px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
 }
 
 .leftPanel { grid-area: sources; }
-.stageColumn { grid-area: stage; }
+.stageColumn {
+  grid-area: stage;
+  align-self: start;
+}
 .rightPanel { grid-area: effects; }
 
 .studioGrid.sourcesClosed {
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
   grid-template-areas: "stage effects";
 }
 
 .studioGrid.effectsClosed {
-  grid-template-columns: 280px minmax(0, 1fr);
-  grid-template-areas: "sources stage";
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  grid-template-areas: "stage sources";
 }
 
 .studioGrid.sourcesClosed.effectsClosed {
@@ -1888,12 +1904,13 @@
   50% { opacity: .55; transform: scale(.82); }
 }
 
-@media (max-width: 1439px) {
+@media (max-width: 1120px) {
   .studioGrid {
-    grid-template-columns: 270px minmax(0, 1fr);
-    grid-template-areas: "sources stage";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "stage";
   }
 
+  .leftPanel,
   .rightPanel {
     position: fixed;
     top: 92px;

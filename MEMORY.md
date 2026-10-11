@@ -132,6 +132,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added IndexedDB draft discovery and one-click recovery into a repaired, locally persisted recording
 - [x] **Phase 7: Studio React UI & Dark Glassmorphism Styling**
   - [x] Implemented the preview-first Studio layout: collapsible Sources/Effects panels, tabbed effect controls, sticky recording dock, dedicated review workspace, and on-demand diagnostics drawer
+  - [x] Corrected the default Studio grid so the preview remains the primary left column and Sources/Effects align at the top of a single right inspector rail; viewports at or below 1120px use overlay drawers
   - [x] Added responsive desktop/tablet/mobile panel behavior while preserving adaptive light/dark theme tokens and Vanilla CSS Modules
   - [x] Connected recording/recovery status, real preview, download, upload progress, and publish/share actions to the review workspace
   - [x] Added functional Dashboard, Library, and Settings routes with shared navigation, responsive light/dark styling, quick starts, preset launch/delete, local/cloud/shared recording filters, playback, scoped deletion, diagnostics, and local storage visibility
