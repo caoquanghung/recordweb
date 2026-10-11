@@ -1,12 +1,22 @@
 'use client';
 
 import { UserButton } from '@clerk/nextjs';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { upload } from '@vercel/blob/client';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCanvasCompositor } from '@/hooks/useCanvasCompositor';
 import { useAudioDSP } from '@/hooks/useAudioDSP';
 import type { AudioDspPreset } from '@/hooks/useAudioDSP';
 import { useMediaDevices } from '@/hooks/useMediaDevices';
-import type { DbStudioPreset } from '@/types/database';
+import { useRecordingSession } from '@/hooks/useRecordingSession';
+import { useVisionSegmentation } from '@/hooks/useVisionSegmentation';
+import { repairWebmDuration } from '@/lib/ebmlPatcher';
+import {
+  deleteRecordingDraft,
+  getRecordingDrafts,
+  saveLocalRecording,
+  type RecordingDraft,
+} from '@/lib/idb';
+import type { DbRecording, DbStudioPreset } from '@/types/database';
 import type {
   AudioFilterConfig,
   BackgroundRemovalMode,
@@ -14,11 +24,13 @@ import type {
   PipSize,
   RecordingMode,
 } from '@/types/media';
+import type { RecordingMetadata } from '@/types/recording';
 import styles from './StudioShell.module.css';
 
-type SessionState = 'setup' | 'countdown' | 'recording' | 'paused' | 'review';
+type SessionState = 'setup' | 'countdown' | 'recording' | 'paused' | 'processing' | 'review';
 type CheckState = 'idle' | 'checking' | 'ready' | 'error';
 type Theme = 'light' | 'dark';
+type UploadState = 'idle' | 'uploading' | 'saving' | 'ready' | 'error';
 
 interface HealthResponse {
   auth: 'authenticated';
@@ -101,9 +113,7 @@ export function StudioShell() {
   const [pipSize, setPipSize] = useState<PipSize>('medium');
   const [audioMode, setAudioMode] = useState('Voice clarity');
   const [resolution, setResolution] = useState('1920x1080');
-  const [session, setSession] = useState<SessionState>('setup');
-  const [countdown, setCountdown] = useState(3);
-  const [elapsed, setElapsed] = useState(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [micMuted, setMicMuted] = useState(false);
   const [cameraVisible, setCameraVisible] = useState(true);
   const [healthState, setHealthState] = useState<CheckState>('idle');
@@ -120,6 +130,14 @@ export function StudioShell() {
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [selectedMicrophoneId, setSelectedMicrophoneId] = useState('');
   const [isConnectingSources, setIsConnectingSources] = useState(false);
+  const [recoveredRecording, setRecoveredRecording] = useState<RecordingMetadata | null>(null);
+  const [recoveryDrafts, setRecoveryDrafts] = useState<RecordingDraft[]>([]);
+  const [recoveryMessage, setRecoveryMessage] = useState('');
+  const [uploadState, setUploadState] = useState<UploadState>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [cloudRecording, setCloudRecording] = useState<DbRecording | null>(null);
+  const recoveredPreviewUrlRef = useRef<string | null>(null);
   const [micGain, setMicGain] = useState(1);
   const [systemVolume, setSystemVolume] = useState(1);
   const [customAudioConfig, setCustomAudioConfig] = useState<AudioFilterConfig>({
@@ -166,6 +184,16 @@ export function StudioShell() {
     customConfig: customAudioConfig,
   });
 
+  const {
+    effectCanvas,
+    state: segmentationState,
+    error: segmentationError,
+    inferenceFps,
+  } = useVisionSegmentation(
+    mode === 'screen-only' || !cameraVisible ? null : cameraStream,
+    background,
+  );
+
   const compositorResolution = resolution === '1920x1080'
     ? { width: 1920, height: 1080 }
     : { width: 1280, height: 720 };
@@ -186,8 +214,36 @@ export function StudioShell() {
     pipShape,
     pipSize,
     cameraVisible,
-    paused: session === 'paused',
+    cameraEffectCanvas: effectCanvas,
   });
+
+  const {
+    status: recordingStatus,
+    elapsedMs,
+    warning: recordingWarning,
+    error: recordingError,
+    recording: completedRecording,
+    start: startRecording,
+    pause: pauseRecording,
+    resume: resumeRecording,
+    stop: stopRecording,
+    reset: resetRecording,
+  } = useRecordingSession({
+    videoStream: compositeStream,
+    audioStream: mixedAudioStream,
+    resolution,
+    fps: 30,
+  });
+
+  const activeRecording = completedRecording ?? recoveredRecording;
+  const session: SessionState = countdown !== null
+    ? 'countdown'
+    : activeRecording
+      ? 'review'
+      : recordingStatus === 'recording' || recordingStatus === 'paused' || recordingStatus === 'processing'
+        ? recordingStatus
+        : 'setup';
+  const elapsed = activeRecording?.durationSeconds ?? elapsedMs / 1000;
 
   const activeMode = useMemo(
     () => modes.find((item) => item.value === mode) ?? modes[0],
@@ -219,6 +275,19 @@ export function StudioShell() {
     const initialLoad = window.setTimeout(() => void loadPresets(), 0);
     return () => window.clearTimeout(initialLoad);
   }, [loadPresets]);
+
+  useEffect(() => {
+    const loadDrafts = window.setTimeout(() => {
+      void getRecordingDrafts()
+        .then(setRecoveryDrafts)
+        .catch((error) => setRecoveryMessage(`Could not inspect recovery data: ${(error as Error).message}`));
+    }, 0);
+    return () => window.clearTimeout(loadDrafts);
+  }, []);
+
+  useEffect(() => () => {
+    if (recoveredPreviewUrlRef.current) URL.revokeObjectURL(recoveredPreviewUrlRef.current);
+  }, []);
 
   const toggleTheme = () => {
     const nextTheme: Theme = theme === 'dark' ? 'light' : 'dark';
@@ -260,11 +329,12 @@ export function StudioShell() {
 
       if ((event.code === 'Space' || (event.altKey && event.key.toLowerCase() === 'p')) && (session === 'recording' || session === 'paused')) {
         event.preventDefault();
-        setSession(session === 'paused' ? 'recording' : 'paused');
+        if (session === 'paused') resumeRecording();
+        else pauseRecording();
       }
       if (event.altKey && event.key.toLowerCase() === 's' && (session === 'recording' || session === 'paused')) {
         event.preventDefault();
-        setSession('review');
+        stopRecording();
       }
       if (event.altKey && event.key.toLowerCase() === 'm') {
         event.preventDefault();
@@ -278,41 +348,174 @@ export function StudioShell() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [diagnosticsOpen, session]);
+  }, [diagnosticsOpen, pauseRecording, resumeRecording, session, stopRecording]);
 
   useEffect(() => {
-    if (session !== 'recording') return;
-    const timer = window.setInterval(() => {
-      setElapsed((current) => {
-        if (current >= 1799) {
-          setSession('review');
-          return 1800;
-        }
-        return current + 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [session]);
-
-  useEffect(() => {
-    if (session !== 'countdown') return;
+    if (countdown === null) return;
     const timer = window.setTimeout(() => {
       if (countdown <= 1) {
-        setSession('recording');
-        setCountdown(3);
+        setCountdown(null);
+        void startRecording();
       } else {
-        setCountdown((value) => value - 1);
+        setCountdown((value) => value === null ? null : value - 1);
       }
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [countdown, session]);
+  }, [countdown, startRecording]);
 
-  const startUiTest = () => {
-    setElapsed(0);
+  const startUiTest = async () => {
+    if (!compositeStream?.getVideoTracks().length) {
+      setRecoveryMessage('Connect a screen or camera source before recording.');
+      setSourcesOpen(true);
+      return;
+    }
+    if (recoveredPreviewUrlRef.current) {
+      URL.revokeObjectURL(recoveredPreviewUrlRef.current);
+      recoveredPreviewUrlRef.current = null;
+    }
+    setRecoveredRecording(null);
+    resetRecording();
+    setCloudRecording(null);
+    setUploadState('idle');
+    setUploadMessage('');
+    setRecoveryMessage('');
+    await resumeAudio();
     setCountdown(3);
     setSourcesOpen(false);
     setEffectsOpen(false);
-    setSession('countdown');
+  };
+
+  const recoverLatestDraft = async () => {
+    const draft = recoveryDrafts[0];
+    if (!draft) return;
+    setRecoveryMessage('Recovering the latest recording…');
+    try {
+      const rawBlob = new Blob(draft.chunks, { type: draft.mimeType || 'video/webm' });
+      const blob = rawBlob.type.includes('webm')
+        ? await repairWebmDuration(rawBlob, draft.durationMs)
+        : rawBlob;
+      if (recoveredPreviewUrlRef.current) URL.revokeObjectURL(recoveredPreviewUrlRef.current);
+      const previewUrl = URL.createObjectURL(blob);
+      recoveredPreviewUrlRef.current = previewUrl;
+      const recording: RecordingMetadata = {
+        id: draft.id,
+        localId: draft.id,
+        title: `Recovered recording ${new Date(draft.startedAt).toLocaleString()}`,
+        durationSeconds: draft.durationMs / 1000,
+        fileSizeBytes: blob.size,
+        resolution,
+        fps: 30,
+        mimeType: blob.type,
+        createdAt: draft.startedAt,
+        blob,
+        previewUrl,
+      };
+      await saveLocalRecording(recording);
+      await deleteRecordingDraft(draft.id);
+      setRecoveredRecording(recording);
+      setRecoveryDrafts((current) => current.filter((item) => item.id !== draft.id));
+      setRecoveryMessage('Recovery complete. The recording is saved locally.');
+    } catch (error) {
+      setRecoveryMessage(`Recovery failed: ${(error as Error).message}`);
+    }
+  };
+
+  const resetReview = () => {
+    if (recoveredPreviewUrlRef.current) {
+      URL.revokeObjectURL(recoveredPreviewUrlRef.current);
+      recoveredPreviewUrlRef.current = null;
+    }
+    setRecoveredRecording(null);
+    resetRecording();
+    setCloudRecording(null);
+    setUploadState('idle');
+    setUploadProgress(0);
+    setUploadMessage('');
+  };
+
+  const downloadRecording = () => {
+    if (!activeRecording?.blob) return;
+    const temporaryUrl = activeRecording.previewUrl ?? URL.createObjectURL(activeRecording.blob);
+    const extension = activeRecording.mimeType.includes('mp4') ? 'mp4' : 'webm';
+    const anchor = document.createElement('a');
+    anchor.href = temporaryUrl;
+    anchor.download = `recordweb-${activeRecording.id}.${extension}`;
+    anchor.click();
+    if (!activeRecording.previewUrl) URL.revokeObjectURL(temporaryUrl);
+  };
+
+  const uploadRecording = async () => {
+    if (!activeRecording?.blob) return;
+    setUploadState('uploading');
+    setUploadProgress(0);
+    setUploadMessage('Uploading directly to Vercel Blob…');
+    try {
+      const extension = activeRecording.mimeType.includes('mp4') ? 'mp4' : 'webm';
+      const blob = await upload(`recordings/${activeRecording.id}.${extension}`, activeRecording.blob, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
+        contentType: activeRecording.mimeType,
+        multipart: true,
+        onUploadProgress: ({ percentage }) => setUploadProgress(Math.round(percentage)),
+      });
+      setUploadState('saving');
+      setUploadMessage('Upload complete. Saving metadata to Neon…');
+      const response = await fetch('/api/recordings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: activeRecording.title,
+          duration_seconds: activeRecording.durationSeconds,
+          file_size_bytes: activeRecording.fileSizeBytes,
+          resolution: activeRecording.resolution,
+          fps: activeRecording.fps,
+          mime_type: activeRecording.mimeType,
+          local_id: activeRecording.localId,
+          storage_url: blob.url,
+          blob_pathname: blob.pathname,
+          is_public: false,
+          settings: {
+            recordingMode: mode,
+            pipShape,
+            pipSize,
+            pipPosition,
+            bgRemovalMode: background,
+            audioMode,
+          },
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.recording) {
+        throw new Error(data.error ?? data.message ?? 'Neon did not return the saved metadata.');
+      }
+      setCloudRecording(data.recording);
+      setUploadState('ready');
+      setUploadProgress(100);
+      setUploadMessage('Stored in Vercel Blob and indexed in Neon. Sharing is private by default.');
+    } catch (error) {
+      setUploadState('error');
+      setUploadMessage(`Cloud save failed: ${(error as Error).message}`);
+    }
+  };
+
+  const publishAndCopyLink = async () => {
+    if (!cloudRecording) return;
+    setUploadMessage('Enabling the public share link…');
+    try {
+      const response = await fetch('/api/recordings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: cloudRecording.id, is_public: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? 'Could not update sharing access.');
+      setCloudRecording(data.recording);
+      const shareUrl = `${window.location.origin}/share/${cloudRecording.id}`;
+      await navigator.clipboard.writeText(shareUrl);
+      setUploadMessage('Public share link copied to the clipboard.');
+    } catch (error) {
+      setUploadMessage(`Could not publish: ${(error as Error).message}`);
+    }
   };
 
   const runSystemCheck = async () => {
@@ -384,6 +587,7 @@ export function StudioShell() {
     countdown: 'Starting',
     recording: 'Recording',
     paused: 'Paused',
+    processing: 'Finalizing',
     review: 'Review',
   }[session];
 
@@ -462,6 +666,22 @@ export function StudioShell() {
           </div>
         </div>
 
+        {(recoveryDrafts.length > 0 || recoveryMessage || recordingWarning || recordingError) && (
+          <div className={styles.sessionNotice} role="status">
+            <div>
+              <strong>
+                {recoveryDrafts.length > 0
+                  ? `${recoveryDrafts.length} recoverable recording${recoveryDrafts.length === 1 ? '' : 's'} found`
+                  : recordingError ? 'Recording error' : 'Session update'}
+              </strong>
+              <span>{recordingError ?? recordingWarning ?? recoveryMessage ?? 'Restore the newest IndexedDB checkpoint.'}</span>
+            </div>
+            {recoveryDrafts.length > 0 && (
+              <button type="button" onClick={() => void recoverLatestDraft()}>Recover latest</button>
+            )}
+          </div>
+        )}
+
         {session === 'review' ? (
           <section className={styles.reviewWorkspace}>
             <div className={styles.reviewHero}>
@@ -473,14 +693,38 @@ export function StudioShell() {
               </div>
             </div>
             <div className={styles.reviewPreview}>
-              <div><Icon name="play" /></div>
-              <strong>Preview will appear here</strong>
-              <span>The recording pipeline will attach the finalized media in Phase 5.</span>
+              {activeRecording?.previewUrl ? (
+                <video
+                  className={styles.reviewVideo}
+                  src={activeRecording.previewUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                />
+              ) : (
+                <><div><Icon name="play" /></div><strong>Preparing preview…</strong></>
+              )}
             </div>
             <div className={styles.reviewActions}>
-              <button className={styles.reviewPrimary} onClick={() => setSession('setup')}>Record another</button>
-              <button className={styles.reviewSecondary} disabled>Download video</button>
-              <button className={styles.reviewSecondary} disabled>Upload to cloud</button>
+              <div className={styles.reviewStatus} aria-live="polite">
+                {uploadState === 'uploading' && <progress max="100" value={uploadProgress} />}
+                <span>{uploadMessage || 'This recording is available locally until you upload it.'}</span>
+              </div>
+              <button className={styles.reviewSecondary} onClick={resetReview}>Record another</button>
+              <button className={styles.reviewSecondary} onClick={downloadRecording}>Download video</button>
+              {cloudRecording ? (
+                <button className={styles.reviewPrimary} onClick={() => void publishAndCopyLink()}>
+                  {cloudRecording.is_public ? 'Copy public link' : 'Make public & copy link'}
+                </button>
+              ) : (
+                <button
+                  className={styles.reviewPrimary}
+                  onClick={() => void uploadRecording()}
+                  disabled={uploadState === 'uploading' || uploadState === 'saving'}
+                >
+                  {uploadState === 'uploading' ? `Uploading ${uploadProgress}%` : uploadState === 'saving' ? 'Saving metadata…' : 'Upload to cloud'}
+                </button>
+              )}
             </div>
           </section>
         ) : (
@@ -599,7 +843,7 @@ export function StudioShell() {
                 </div>
               )}
 
-              {session === 'countdown' && <div className={styles.countdownOverlay}><span>{countdown}</span><small>Get ready</small></div>}
+              {session === 'countdown' && countdown !== null && <div className={styles.countdownOverlay}><span>{countdown}</span><small>Get ready</small></div>}
 
               <div className={styles.stageCorner}>Preview · {activeMode.detail}{compositeStream ? ' · composite stream ready' : ''}</div>
             </div>
@@ -611,18 +855,18 @@ export function StudioShell() {
               </div>
               <div className={styles.controlDivider} />
               {session === 'setup' ? (
-                <button className={styles.recordButton} onClick={startUiTest}><Icon name="record" /> Start UI test</button>
+                <button className={styles.recordButton} onClick={() => void startUiTest()}><Icon name="record" /> Start recording</button>
               ) : (
                 <>
                   <button
                     className={styles.roundControl}
-                    onClick={() => setSession(session === 'paused' ? 'recording' : 'paused')}
-                    disabled={session === 'countdown'}
+                    onClick={session === 'paused' ? resumeRecording : pauseRecording}
+                    disabled={session === 'countdown' || session === 'processing'}
                     aria-label={session === 'paused' ? 'Resume' : 'Pause'}
                   >
                     <Icon name={session === 'paused' ? 'play' : 'pause'} />
                   </button>
-                  <button className={styles.stopControl} onClick={() => setSession('review')} disabled={session === 'countdown'} aria-label="Stop">
+                  <button className={styles.stopControl} onClick={stopRecording} disabled={session === 'countdown' || session === 'processing'} aria-label="Stop">
                     <Icon name="stop" />
                   </button>
                 </>
@@ -631,7 +875,7 @@ export function StudioShell() {
               <button className={`${styles.roundControl} ${micMuted ? styles.controlOff : ''}`} onClick={() => setMicMuted((value) => !value)} aria-label="Toggle microphone"><Icon name="mic" /></button>
               <button className={`${styles.roundControl} ${!cameraVisible ? styles.controlOff : ''}`} onClick={() => setCameraVisible((value) => !value)} aria-label="Toggle camera"><Icon name="camera" /></button>
             </div>
-            <div className={styles.shortcutHint}>Space pause/resume · Alt+S finish · controls are simulation-only</div>
+            <div className={styles.shortcutHint}>Space pause/resume · Alt+S finish · video is checkpointed to IndexedDB</div>
           </section>
 
           {effectsOpen && <aside className={styles.rightPanel}>
@@ -687,6 +931,11 @@ export function StudioShell() {
               </div>
               {compositorRunning && <p className={styles.compositorHint}>Drag the camera on the canvas, or focus it and use arrow keys. Hold Shift for larger steps.</p>}
               {compositorWarning && <p className={styles.compositorWarning}>{compositorWarning}</p>}
+              {background !== 'original' && (
+                <p className={segmentationError ? styles.compositorWarning : styles.compositorHint}>
+                  AI background: {segmentationError ?? (segmentationState === 'running' ? `${inferenceFps || '—'} inference FPS` : segmentationState)}
+                </p>
+              )}
               <label className={styles.fieldLabel}>Size</label>
               <div className={styles.segmented}>
                 {(['small', 'medium', 'large'] as PipSize[]).map((size) => (

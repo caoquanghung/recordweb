@@ -2,97 +2,51 @@
 
 ## 1. High-Level Architecture Overview
 
-RecordWeb is built with **Next.js (App Router)**, **React**, and **TypeScript**, operating via a high-performance hybrid architecture:
-- **Client-Side Core (React + TypeScript)**: 100% of real-time media acquisition, WebGL neural vision segmentation, Web Audio DSP filtering, 30 FPS canvas compositing, and WebM encoding run locally inside the user's browser for zero latency and privacy.
-- **Serverless Cloud Layer (Next.js Route Handlers + Vercel)**: Hosted on **Vercel** with Next.js App Router API handlers (`src/app/api/*`) connected to **Neon Serverless Postgres** for recording metadata and **Vercel Blob** for direct client-to-edge video object storage.
-- **Authentication Layer**: All cloud interactions (upload tokens, DB writes, share links) are gated behind an authentication session. Unauthenticated requests are rejected at the Route Handler level.
+RecordWeb is a full-stack **Next.js 16 App Router**, **React 19**, and **TypeScript** application. It does not have a separate Express or Nest backend. The browser application, request proxy, Server Components, and serverless Route Handlers live in this repository and deploy together on Vercel.
+
+- **Browser client**: `StudioShell` coordinates all interactive UI and the custom media hooks. Screen/camera capture, MediaPipe segmentation, Web Audio DSP, 30 FPS canvas composition, MediaRecorder encoding, EBML repair, and IndexedDB recovery run on the user's device.
+- **Request boundary**: `src/proxy.ts` uses Clerk to protect private pages and API routes before they execute. Public exceptions include sign-in/up, Clerk webhooks, the share page, and the Vercel Blob callback route.
+- **Server application**: Next.js Route Handlers in `src/app/api/**/route.ts` implement health checks, preset CRUD, recording metadata CRUD, share grants, upload-token authorization, and Clerk user synchronization. The dynamic share page is a request-time Server Component with its own server-side access query.
+- **Managed persistence**: Neon stores users, recording metadata, presets, and share grants. Vercel Blob stores video objects. IndexedDB stores local recording drafts and finalized local recordings.
+- **Security boundary**: `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, and Clerk server secrets are consumed only by server code. Client Components call same-origin APIs and never query Neon directly.
 
 ```mermaid
-flowchart TD
-    subgraph BrowserRuntime["Browser Client Runtime (100% Local on User Device)"]
-        subgraph ClientCapture["1. Media Capture"]
-            ScreenSrc["Screen / Window Stream\n(getDisplayMedia)"]
-            CamSrc["Webcam Stream\n(getUserMedia)"]
-            MicSrc["Microphone Stream\n(getUserMedia)"]
-            SysAudioSrc["System / Tab Audio Track"]
-        end
+flowchart LR
+    User["User"] --> Studio["StudioShell Client Component"]
 
-        subgraph ClientProcessing["2. Real-Time Processing (React Hooks)"]
-            subgraph VisionEngine["useVisionSegmentation"]
-                AISeg["MediaPipe Selfie Segmentation\n(Client WebGL / WASM, 256x256 canvas)"]
-                CamMask["Alpha Mask & Feathering"]
-            end
-
-            subgraph AudioEngine["useAudioDSP"]
-                HighPass["High-Pass Filter (80Hz)"]
-                Peaking["Vocal Peaking (2.8kHz)"]
-                LowPass["Low-Pass Filter (12kHz)"]
-                Comp["Dynamics Compressor"]
-                NoiseGate["Noise Gate\n(smooth setTargetAtTime)"]
-                AudioMixer["Audio Destination Mixer"]
-                AudioMeter["AnalyserNode (VU Meter)"]
-            end
-
-            subgraph CanvasEngine["useCanvasCompositor"]
-                CanvasComp["Local HTML5 Canvas\n(1920x1080 @ 30 FPS locked)\nOptional: OffscreenCanvas Worker"]
-            end
-        end
-
-        subgraph ClientRecording["3. Output & Local Storage (useRecordingSession)"]
-            CompStream["canvas.captureStream(30)"]
-            MergedStream["Combined MediaStream\n(Composited Video + Mixed Audio)"]
-            MediaRec["MediaRecorder Engine\n(In-Browser Video Encoding)\nCodec: MP4/AVC if supported, WebM fallback"]
-            DurationFix["WebM EBML Duration Patcher"]
-            IDB["IndexedDB Session Cache\n(Local Browser Storage)"]
-            FileExport["Local File Export\n(Direct Disk Download)"]
-        end
+    subgraph Browser["Browser runtime"]
+        Studio --> Devices["useMediaDevices"]
+        Devices --> Vision["useVisionSegmentation"]
+        Devices --> Audio["useAudioDSP"]
+        Vision --> Canvas["useCanvasCompositor"]
+        Devices --> Canvas
+        Canvas --> Recorder["useRecordingSession"]
+        Audio --> Recorder
+        Recorder --> Repair["EBML repair"]
+        Recorder --> IDB[("IndexedDB drafts + recordings")]
+        Repair --> Review["Preview and local download"]
     end
 
-    subgraph AuthLayer["Authentication Layer (Clerk + Next.js Proxy)"]
-        AuthSession["Session Token Validation\n(JWT / Session Cookie)"]
-        RateLimit["Upload Rate Limiting\n(Per-User Quota)"]  
-    end
+    Studio -->|"same-origin fetch /api/*"| Proxy["Clerk Next.js Proxy"]
+    Proxy --> Routes["Next.js Route Handlers"]
+    Routes --> Auth["Clerk server session"]
+    Routes --> DbClient["src/lib/db.ts"]
+    DbClient --> Neon[("Neon Postgres")]
 
-    subgraph ServerlessCloud["Cloud Services (Vercel & Neon - Post-Recording Only)"]
-        VercelCDN["Vercel Edge CDN\n(Serves Web App on Page Load)"]
-        NextAPIRoutes["Next.js Route Handlers\n(app/api/upload, app/api/recordings)"]
-        VercelBlob[("Vercel Blob Storage\n(@vercel/blob/client Direct Upload)")]
-        NeonDB[("Neon Serverless Postgres\n(@neondatabase/serverless Pool)")]
-    end
+    Studio -->|"request upload authorization"| UploadRoute["/api/upload"]
+    UploadRoute --> Auth
+    Studio -->|"direct multipart video upload"| Blob[("Vercel Blob")]
+    Studio -->|"POST Blob URL + metadata"| Routes
 
-    %% Initial Load
-    VercelCDN -. "Serves App Bundle (Initial Load)" .-> BrowserRuntime
+    ShareRequest["GET /share/[recordingId]"] --> Proxy
+    Proxy --> SharePage["Request-time Server Component"]
+    SharePage --> Auth
+    SharePage --> DbClient
+    SharePage -->|"render authorized player HTML"| SharePlayer["Browser video player"]
+    SharePlayer -->|"request public object URL"| Blob
 
-    %% Capture to Processing
-    ScreenSrc --> CanvasComp
-    CamSrc --> AISeg
-    AISeg --> CamMask
-    CamMask --> CanvasComp
-
-    MicSrc --> HighPass
-    HighPass --> Peaking
-    Peaking --> LowPass
-    LowPass --> Comp
-    Comp --> NoiseGate
-    NoiseGate --> AudioMixer
-    NoiseGate --> AudioMeter
-    SysAudioSrc --> AudioMixer
-
-    %% Composition to MediaRecorder
-    CanvasComp --> CompStream
-    CompStream --> MergedStream
-    AudioMixer --> MergedStream
-    MergedStream --> MediaRec
-    MediaRec --> DurationFix
-    DurationFix --> IDB
-    DurationFix --> FileExport
-
-    %% Auth-gated Cloud Operations (Post-Recording)
-    DurationFix -. "1. Request Upload Token (Auth Required)" .-> AuthSession
-    AuthSession -. "Token + Rate Limit Check" .-> RateLimit
-    RateLimit -. "Authorized Token" .-> NextAPIRoutes
-    DurationFix -. "2. Direct Video Upload (with token)" .-> VercelBlob
-    NextAPIRoutes <--> NeonDB
+    Clerk["Clerk webhook"] --> Webhook["/api/webhooks/clerk"]
+    Webhook --> DbClient
 ```
 
 ---
@@ -112,7 +66,7 @@ flowchart TD
 * **Role**: Blends multiple video feeds into a single coherent 30fps video stream.
 * **Layout Modes**:
   1. **Screen Only**: Screen feed scaled to canvas preserving aspect ratio with letterboxing/pillarboxing if needed.
-  2. **Webcam Only**: Centered camera feed with optional background blur or virtual background.
+  2. **Webcam Only**: Centered camera feed with optional background blur or transparent cutout.
   3. **Picture-in-Picture (PiP Studio)**: Full-size screen capture with overlay camera bubble.
      * Shape: Circular badge, rounded rectangle, or cutout silhouette (AI background removed).
      * Position: Configurable (Bottom-Right, Bottom-Left, Top-Right, Top-Left, or custom drag position).
@@ -132,8 +86,8 @@ flowchart TD
   * **Original**: Unaltered webcam feed.
   * **Background Blur**: Blurs pixels outside the subject mask using canvas filter `blur(12px)`.
   * **Background Removal (Transparent PiP)**: Masks out background pixels completely, rendering the subject floating directly above screen content.
-  * **Virtual Background**: Draws custom image, gradient, or solid color behind the subject mask.
 * **Performance**: Inference canvas is always scaled to **256×256** before running segmentation. The resulting mask is upscaled and composited onto the full 1920×1080 canvas output.
+* **Current boundary**: The shared `BackgroundRemovalMode` type still includes `virtual`, but the current Studio UI exposes only `original`, `blur`, and `cutout`; virtual-image backgrounds are not implemented.
 
 ### 2.4 Web Audio DSP Pipeline (`useAudioDSP.ts`)
 * **Role**: Mixes, filters, enhances, and analyzes audio signals before recording.
@@ -171,9 +125,10 @@ stateDiagram-v2
     Recording --> Stopped: Stop Clicked OR 30:00 Reached
     Paused --> Stopped: Stop Clicked
     Stopped --> Finalizing: Fix WebM Metadata & Chunks Merge
-    Finalizing --> Review: Recording Ready (Local & Cloud Sync)
+    Finalizing --> Review: Save Locally & Create Preview
     Review --> Idle: Discard / Reset
-    Review --> Exported: Downloaded / Cloud Uploaded
+    Review --> Exported: Downloaded
+    Review --> CloudSaved: Direct Blob Upload + Neon Metadata
 ```
 
 * **Risk 3 Mitigation (A/V Desync over Long Recordings)**:
@@ -184,8 +139,8 @@ stateDiagram-v2
 ### 2.6 Persistence & Local Storage Subsystem (`idb.ts` & `ebmlPatcher.ts`)
 * **Chunk Aggregation**: Gathers data chunks emitted during `mediaRecorder.ondataavailable` (emitted every 1000ms for safety).
 * **Metadata Repair**: Standard browser `MediaRecorder` writes `Duration: 0` or NaN to WebM EBML headers for live streams. The patcher parses EBML elements and injects the exact recorded duration, making the resulting video fully seekable in all players.
-* **Session Cache (IndexedDB)**: Stores the recorded blob in IndexedDB `RecordingsStore` with unique recording metadata to prevent accidental loss upon browser reload.
-* **Direct Local Export**: Allows users to download the video file immediately to their local drive as `.webm`.
+* **Session Cache (IndexedDB)**: `src/lib/idb.ts` stores per-second drafts under `recordweb_draft_*` keys and finalized local recordings under `recordweb_rec_*` keys. The Studio detects drafts on load and can recover the newest draft.
+* **Direct Local Export**: Allows users to download the finalized video as `.mp4` when the browser recorded MP4 or `.webm` when it used the WebM fallback.
 
 ### 2.7 Cloud Video Storage Subsystem (Vercel Blob)
 * **Role**: Object storage for hosting recorded video files and generating shareable playback links.
@@ -197,6 +152,7 @@ stateDiagram-v2
     3. Client streams the binary video blob directly from the browser to Vercel's global edge blob storage via `upload()` from `@vercel/blob/client`.
     4. Vercel Blob returns a permanent public HTTPS video URL.
     5. The resulting `storage_url` is stored in Neon Postgres alongside recording metadata.
+* **Current upload guard**: `/api/upload` accepts MP4/WebM up to 300 MB and uses an in-memory limit of 10 token requests per user per hour. The limiter is instance-local and must be replaced by durable storage before multi-instance production scale.
 * **Future Upgrade Path**: If Vercel Blob bandwidth costs grow, swap for **Cloudflare R2** via S3 presigned URLs (zero egress fees).
 
 ### 2.8 Cloud Database Subsystem (Neon Serverless Postgres)
@@ -270,7 +226,8 @@ stateDiagram-v2
   * The `/api/upload` Route Handler enforces per-user upload rate limits (e.g., max 10 uploads/hour) to prevent blob storage quota abuse.
 * **Public Share Links**:
   * A recording with `is_public = TRUE` is accessible via a public route (e.g., `/share/[recordingId]`).
-  * The share route reads metadata from Neon and serves the Vercel Blob URL — no auth required for read-only playback.
+  * `src/app/share/[recordingId]/page.tsx` is a request-time Server Component. It queries Neon and renders only when the recording is public, owned by the current user, or granted to the current user.
+  * Anonymous public playback is allowed, but the current public Blob URL remains independently reachable by anyone who obtains it.
 * **Direct User Sharing**:
   * `recording_shares` grants a registered recipient `viewer` or `viewer_download` access without making the recording public.
   * Owner, recipient, and anonymous-public checks are performed on the server; client-side hiding is never treated as authorization.
@@ -281,7 +238,7 @@ stateDiagram-v2
   * On session start, detect codec support: `MediaRecorder.isTypeSupported('video/mp4;codecs=avc1,mp4a.40.2')`.
   * If MP4/AVC is supported (Chromium 130+), prefer `video/mp4` as the `MediaRecorder` MIME type. Fall back to `video/webm;codecs=vp9,opus`.
   * Store the actual `mime_type` in the `recordings` table so the client and player know which container to expect.
-  * For shared videos played in Safari, the public `/share/[recordingId]` page includes `<source>` fallbacks and displays a "Best viewed in Chrome" notice if the stored MIME type is WebM.
+  * The public `/share/[recordingId]` page renders the stored Blob URL in a native `<video>` element and displays a WebM compatibility notice when applicable. It does not currently provide a transcoded fallback source.
   * **Advanced (Future)**: Integrate an async cloud transcode step (via a Vercel background function) to convert WebM → MP4 post-upload if cross-platform sharing becomes a primary feature.
 
 ### 2.11 Next.js Project Structure & App Router Architecture
@@ -289,35 +246,31 @@ stateDiagram-v2
 ```text
 src/
 ├── app/
-│   ├── layout.tsx                    # Root layout with font and metadata
-│   ├── page.tsx                      # Studio main page ("use client")
-│   ├── dashboard/page.tsx            # Recent recordings, presets, quick start
-│   ├── library/page.tsx              # Mine, shared, local, and cloud recordings
-│   ├── globals.css                   # Glassmorphic design tokens and reset
-│   ├── proxy.ts                      # Clerk session handling and route protection
+│   ├── layout.tsx                    # Server root layout, ClerkProvider, fonts, theme bootstrap
+│   ├── page.tsx                      # Server page that renders the client StudioShell
+│   ├── globals.css                   # Global reset and shared theme tokens
+│   ├── auth.module.css               # Shared Clerk page presentation
+│   ├── sign-in/[[...sign-in]]/       # Clerk sign-in route
+│   ├── sign-up/[[...sign-up]]/       # Clerk sign-up route
 │   ├── share/
-│   │   └── [recordingId]/page.tsx   # Public share page (read-only, no auth required)
+│   │   └── [recordingId]/
+│   │       ├── page.tsx              # Server-side access check and video player
+│   │       └── share.module.css
 │   └── api/
+│       ├── health/route.ts           # Clerk, Neon, and Blob configuration health
 │       ├── upload/
 │       │   └── route.ts              # Vercel Blob client upload token generation
 │       ├── recordings/
 │       │   └── route.ts              # Neon DB recording metadata CRUD
 │       ├── shares/
-│       │   └── route.ts              # Public toggle and direct-recipient grants
-│       └── presets/
-│           └── route.ts              # Neon DB studio presets CRUD
+│       │   └── route.ts              # Direct-recipient grant CRUD
+│       ├── presets/
+│       │   └── route.ts              # Neon DB studio preset CRUD
+│       └── webhooks/clerk/route.ts   # Clerk user synchronization into Neon
 ├── components/
-│   ├── studio/
-│   │   ├── StudioStage.tsx           # 16:9 Live Canvas preview + overlays
-│   │   ├── ControlDock.tsx           # Floating REC bar, timer, pause/resume
-│   │   ├── SourceSelector.tsx        # Screen / Camera / PiP selector
-│   │   ├── FilterPanel.tsx           # DSP sound filter toggles and gain
-│   │   ├── CameraSettings.tsx        # PiP shape, size, background mode
-│   │   ├── VuMeter.tsx               # Audio levels visualizer
-│   │   └── CountdownOverlay.tsx      # 3-2-1 animated countdown
-│   └── review/
-│       ├── ReviewModal.tsx           # Video playback player and export buttons
-│       └── RecordingsDrawer.tsx      # Dual-tab local IndexedDB & cloud history
+│   └── studio/
+│       ├── StudioShell.tsx           # Client UI and orchestration for all media hooks
+│       └── StudioShell.module.css    # Responsive Studio and review styling
 ├── hooks/
 │   ├── useMediaDevices.ts            # Screen & camera stream lifecycle
 │   ├── useCanvasCompositor.ts        # 30 FPS composition loop & PiP layout
@@ -325,14 +278,94 @@ src/
 │   ├── useVisionSegmentation.ts      # MediaPipe AI background removal
 │   └── useRecordingSession.ts        # MediaRecorder lifecycle & 30-min active timer
 ├── lib/
+│   ├── auth.ts                       # Server-only Clerk session response helpers
 │   ├── db.ts                         # Neon Postgres client via @neondatabase/serverless
 │   ├── ebmlPatcher.ts                # Binary EBML duration patcher
 │   └── idb.ts                        # IndexedDB wrapper for session backup
-└── types/
-    ├── media.ts                      # Stream and filter configuration types
-    ├── recording.ts                  # Recording metadata and chunk types
-    └── database.ts                   # Neon DB model interfaces
+├── types/
+│   ├── media.ts                      # Stream and filter configuration types
+│   ├── recording.ts                  # Recording metadata and chunk types
+│   └── database.ts                   # Neon DB model interfaces
+└── proxy.ts                          # Clerk route protection and public-route exceptions
 ```
+
+The current repository does **not** yet contain the planned Dashboard, Library, split Studio subcomponents, or separate review components described in earlier design proposals. Their behavior is currently consolidated in `StudioShell.tsx`; future extraction must preserve the hook boundaries and data flow documented here.
+
+### 2.12 Runtime Boundaries and Call Graph
+
+| Layer | Current files | Executes in | Responsibility |
+| :--- | :--- | :--- | :--- |
+| Root pages/layout | `src/app/layout.tsx`, `src/app/page.tsx` | Next.js server by default | Build the document shell and render `StudioShell` |
+| Interactive UI | `src/components/studio/StudioShell.tsx` | Browser | Own UI state, coordinate hooks, call APIs, preview/download/upload recordings |
+| Media domain logic | `src/hooks/*` | Browser | Capture, segmentation, DSP, canvas composition, encoding, timers, and cleanup |
+| Local persistence | `src/lib/idb.ts`, `src/lib/ebmlPatcher.ts` | Browser when imported by client code | Draft recovery, finalized local storage, WebM duration repair |
+| Request proxy | `src/proxy.ts` | Vercel request boundary | Clerk session enforcement and public-route selection |
+| API backend | `src/app/api/**/route.ts` | Vercel serverless runtime | Validate sessions/input, apply ownership rules, call Neon/Blob services, return JSON |
+| Server-rendered sharing | `src/app/share/[recordingId]/page.tsx` | Next.js server runtime | Resolve viewer identity, enforce read access, and render playback HTML |
+| Server helpers | `src/lib/auth.ts`, `src/lib/db.ts` | Server only | Read Clerk session and construct the Neon SQL client |
+| External persistence | Neon and Vercel Blob | Managed cloud services | Relational metadata and video objects |
+
+Backend business logic is currently intentionally thin and lives directly in Route Handlers. There is no separate `services/` or `server/` domain layer yet. Media-processing logic is not backend logic: it is browser-side domain logic in React hooks.
+
+#### Same-origin API request flow
+
+```mermaid
+sequenceDiagram
+    participant UI as StudioShell (browser)
+    participant Proxy as src/proxy.ts
+    participant API as app/api/*/route.ts
+    participant Auth as Clerk
+    participant DB as Neon
+
+    UI->>Proxy: fetch('/api/...') + session cookie
+    Proxy->>Auth: Validate protected route session
+    Auth-->>Proxy: Authenticated user
+    Proxy->>API: Continue request
+    API->>Auth: Read userId with auth()
+    API->>DB: User-scoped parameterized SQL
+    DB-->>API: Rows/result
+    API-->>UI: NextResponse JSON
+```
+
+The browser automatically includes the same-origin Clerk session cookie. Route Handlers still read the session and scope database queries by `user_id`; hiding controls in React is never used as authorization.
+
+#### Direct Blob upload flow
+
+```mermaid
+sequenceDiagram
+    participant UI as StudioShell
+    participant Upload as /api/upload
+    participant Clerk
+    participant Blob as Vercel Blob
+    participant Metadata as /api/recordings
+    participant Neon
+
+    UI->>Upload: Request upload authorization
+    Upload->>Clerk: Verify user session
+    Upload-->>UI: Short-lived client upload authorization
+    UI->>Blob: Multipart video bytes directly
+    Blob-->>UI: url + pathname
+    UI->>Metadata: POST recording metadata + Blob identifiers
+    Metadata->>Neon: INSERT with authenticated user_id
+    Neon-->>Metadata: Recording row
+    Metadata-->>UI: JSON recording
+```
+
+The video body never passes through `/api/recordings`; only metadata does. This is the key boundary that avoids Vercel serverless request-body limits.
+
+### 2.13 Current HTTP Surface
+
+| Route | Methods | Caller | Authentication and responsibility |
+| :--- | :--- | :--- | :--- |
+| `/api/health` | `GET` | Studio diagnostics | Authenticated; checks Clerk, Neon connectivity, and Blob configuration |
+| `/api/presets` | `GET`, `POST`, `DELETE` | Studio preset controls | Authenticated; all reads/writes are scoped to the current `user_id` |
+| `/api/recordings` | `GET`, `POST`, `PATCH`, `DELETE` | Studio/cloud-library clients | Authenticated; metadata CRUD, public-link toggle, and owned Blob deletion |
+| `/api/shares` | `GET`, `POST`, `DELETE` | Future recipient-sharing UI or API client | Authenticated; owner-only direct-recipient grants with `viewer` or `viewer_download` permission |
+| `/api/upload` | `POST` | `@vercel/blob/client` | Public at Proxy level for Blob callbacks; token generation verifies Clerk and applies limits internally |
+| `/api/webhooks/clerk` | `POST` | Clerk | Public at Proxy level; request signature is verified before synchronizing Neon users |
+| `/share/[recordingId]` | `GET` page request | Browser/navigation | Public route; Server Component authorizes anonymous-public, owner, or direct-recipient access |
+
+At present, `StudioShell` actively calls `/api/health`, `/api/presets`, `/api/upload`, and `POST`/`PATCH /api/recordings`. The `GET`/`DELETE /api/recordings` and `/api/shares` endpoints exist for upcoming Library and direct-recipient management UI, which are not present yet.
 
 ---
 
@@ -340,11 +373,11 @@ src/
 
 | Risk | Description | Status | Solution |
 | :--- | :--- | :--- | :--- |
-| **R1: Safari WebM Playback** | Safari can't play WebM/Opus blobs | Mitigated | Detect MP4/AVC support at runtime; prefer MP4; fallback gracefully; show compatibility notice on share page |
-| **R2: Main Thread Overload** | 1080p canvas + MediaPipe + React on one thread | Mitigated | MediaPipe runs on downscaled 256×256 canvas; OffscreenCanvas Worker upgrade path defined |
+| **R1: Safari WebM Playback** | Safari can't play WebM/Opus blobs | Partially mitigated | Prefer MP4/AVC when MediaRecorder supports it; fall back to WebM and show a compatibility notice. No transcoding fallback exists yet |
+| **R2: Main Thread Overload** | 1080p canvas + MediaPipe + React on one thread | Partially mitigated | MediaPipe runs at 256×256 with adaptive inference cadence; OffscreenCanvas/Worker remains a future upgrade |
 | **R3: A/V Desync** | Clock drift between canvas stream and AudioContext over long recordings | Mitigated | Steady delta-clamped RAF timer; 30-min hard stop; UI warns at 15 min |
 | **R4: Noise Gate Popping** | Abrupt `gain.value = 0` causes audible clicks | Mitigated | Use `setTargetAtTime` with 10ms attack / 100ms release envelope |
-| **R5: Missing Auth & Access Control** | Production auth is still a deny-all stub; sharing is not implemented | Open | Install a provider, add middleware/session checks, migrate user-owned tables, use durable rate limiting, and test cross-user denial |
+| **R5: Auth & Access Control** | Cross-user metadata access or unauthorized upload | Implemented; QA pending | Clerk Proxy and Route Handler checks are active; queries are user-scoped; share-page access is checked server-side. Cross-user browser tests and durable rate limiting remain |
 | **R6: Private Blob Exposure** | Application metadata may be private while the media URL remains public | Open | Match Blob visibility to recording privacy and use authorized or signed delivery for private recordings |
 
 ---

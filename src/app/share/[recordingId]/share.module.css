@@ -1,0 +1,158 @@
+.page {
+  min-height: 100vh;
+  padding: clamp(20px, 4vw, 52px);
+  color: #f4f5f8;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(124, 109, 242, 0.18), transparent 34rem),
+    #080b12;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.header {
+  width: min(1120px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 auto 22px;
+}
+
+.brand {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  color: white;
+  background: linear-gradient(145deg, #9083ff, #5f4bd3);
+  font-size: 18px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.header div,
+.footer div {
+  display: grid;
+  gap: 2px;
+}
+
+.header span,
+.footer span {
+  color: #929bad;
+  font-size: 12px;
+}
+
+.header strong,
+.footer strong {
+  font-size: 13px;
+  text-transform: capitalize;
+}
+
+.card,
+.emptyState {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 20px;
+  background: rgba(17, 22, 34, 0.9);
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.heading,
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px;
+}
+
+.heading > div:first-child > span {
+  color: #9b8cff;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.heading h1 {
+  margin-top: 5px;
+  font-size: clamp(22px, 4vw, 36px);
+  letter-spacing: -0.04em;
+}
+
+.metadata {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.metadata span {
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  color: #929bad;
+  font-size: 11px;
+}
+
+.video,
+.emptyVideo {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: grid;
+  place-items: center;
+  color: #929bad;
+  background: #05070c;
+}
+
+.video {
+  object-fit: contain;
+}
+
+.footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.download {
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: white;
+  background: linear-gradient(135deg, #7867ec, #5f4ccb);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.emptyState {
+  padding: 44px;
+  text-align: center;
+}
+
+.emptyState span {
+  color: #9b8cff;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.emptyState h1 {
+  margin: 10px 0;
+}
+
+.emptyState p {
+  color: #929bad;
+}
+
+@media (max-width: 680px) {
+  .heading,
+  .footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .metadata {
+    justify-content: flex-start;
+  }
+}

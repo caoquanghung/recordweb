@@ -68,6 +68,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 - [x] **Requirements Analysis & Architecture Specs**:
   - [x] `docs/requirements_analysis.md`
   - [x] `docs/system_architecture.md` (**Risk mitigations R1-R5 applied**)
+  - [x] Synchronized `docs/system_architecture.md` with the implemented repository: actual client/server boundaries, `src/proxy.ts`, current file tree, Route Handler inventory, direct Blob upload flow, request-time share authorization, and open R6 public-Blob exposure
   - [x] `docs/audio_video_pipeline.md`
   - [x] `docs/ui_ux_specification.md`
   - [x] `docs/implementation_roadmap.md`
@@ -120,14 +121,24 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added autoplay-safe context resume, click-free mute/gain changes, system volume, mixed-output VU metering, and one destination audio stream
   - [x] Added complete node disconnection, animation-frame cancellation, generated-track cleanup, and `AudioContext.close()` teardown
   - [x] Connected DSP controls, state, errors, meter, and mixed-track readiness to `StudioShell`
-- [ ] **Phase 4: MediaPipe AI Background Segmentation (`useVisionSegmentation`)**
+- [x] **Phase 4: MediaPipe AI Background Segmentation (`useVisionSegmentation`)**
   - [x] Declared and locked `@mediapipe/selfie_segmentation@0.1.1675465747` as a production dependency so clean Vercel installs resolve the runtime and bundled TypeScript declarations
-- [ ] **Phase 5: Recording Lifecycle, Pause/Resume & 30-Min Limit (`useRecordingSession`)**
-- [ ] **Phase 6: WebM Duration Fixer & Local Export / IndexedDB Integration**
-- [ ] **Phase 7: Studio React UI & Dark Glassmorphism Styling**
+  - [x] Connected the 256px MediaPipe effect canvas to webcam-only and PiP compositor paths with visible inference/error diagnostics
+- [x] **Phase 5: Recording Lifecycle, Pause/Resume & 30-Min Limit (`useRecordingSession`)**
+  - [x] Replaced UI simulation with the real composited-video/mixed-audio MediaRecorder lifecycle, active-time timer, pause/resume, warnings, and hard stop
+  - [x] Added MP4/AVC preference where supported with WebM fallback and kept the live canvas preview rendering while recording is paused
+- [x] **Phase 6: WebM Duration Fixer & Local Export / IndexedDB Integration**
+  - [x] Connected finalized recordings to review playback and local download after WebM duration repair
+  - [x] Added IndexedDB draft discovery and one-click recovery into a repaired, locally persisted recording
+- [x] **Phase 7: Studio React UI & Dark Glassmorphism Styling**
   - [x] Implemented the preview-first Studio layout: collapsible Sources/Effects panels, tabbed effect controls, sticky recording dock, dedicated review workspace, and on-demand diagnostics drawer
   - [x] Added responsive desktop/tablet/mobile panel behavior while preserving adaptive light/dark theme tokens and Vanilla CSS Modules
+  - [x] Connected recording/recovery status, real preview, download, upload progress, and publish/share actions to the review workspace
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
+  - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
+  - [x] Added a request-time authorized `/share/[recordingId]` page for public, owner, `viewer`, and `viewer_download` access
+  - [x] Verified the live Neon migration status and schema with `npm run db:status` and `npm run db:verify`
+  - [ ] Run an authenticated browser upload/playback test against the connected Vercel Blob store
 - [ ] **Phase 9: Vercel Deployment & Verification**
 
 ---
@@ -148,11 +159,12 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Neon Schema Drift** | Application code can fail when a schema change is deployed without its migration | Add a new ordered SQL file, run `npm run db:status`, `npm run db:migrate`, and `npm run db:verify`; never edit an applied migration. Initial schema was applied on 2026-10-10. |
 | **Conditional Canvas Mount** | Calling `captureStream()` before the source-driven preview canvas mounts produces no output stream | Reinitialize canvas capture when visual-source availability changes; the compositor owns and stops only its generated track. |
 | **Extraneous MediaPipe Package** | Local builds may resolve `@mediapipe/selfie_segmentation` from `node_modules` while clean Vercel builds fail with TS2307 | Keep the exact MediaPipe package version declared in both `package.json` and `package-lock.json`; verify with `npm ls` and `npm run build`. |
+| **Public Blob URL vs Page Authorization** | The share page enforces owner/public/direct-recipient access, but anyone who obtains the underlying URL can fetch an object from a public Blob store | Treat public-link publishing as intentional exposure; migrate to a private Blob store plus an authorized delivery endpoint before handling sensitive recordings. |
 
 ---
 
 ## 6. Immediate Next Steps
 
-1. Connect the dedicated review workspace to the finalized recording blob, download action, and direct Vercel Blob upload flow.
-2. Perform authenticated browser QA for responsive layout, media permissions, 30 FPS stability, pause/resume, and diagnostics states.
-3. Complete Phase 8 integration tests for Neon metadata persistence and direct client-to-Blob uploads.
+1. Perform authenticated browser QA for screen/camera permissions, MediaPipe effects, 30 FPS stability, pause/resume, recovery, and WebM/MP4 playback.
+2. Upload a real recording to the connected Vercel Blob store, confirm Neon metadata, then verify private-owner and public-link behavior in a signed-out browser.
+3. Decide whether sensitive recordings require a private Blob store and authorized media-delivery endpoint instead of public Blob URLs.

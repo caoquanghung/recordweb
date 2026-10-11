@@ -143,3 +143,38 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+
+## UI Modification Safety Rules
+
+When the task involves UI redesign, visual improvements, or styling changes, strictly follow these rules:
+
+### 1. Scope of Changes
+- Only modify the presentation layer, including React components (`.tsx`), styles (`.css`), and layout-related files.
+- Preserve existing functionality and user interactions.
+- Prefer minimal, targeted changes over unnecessary refactoring.
+
+### 2. Protected Components
+Do not modify the following unless explicitly authorized:
+- Recording logic and session management.
+- Media capture, audio DSP, video processing, and compositing pipelines.
+- Backend APIs, request/response contracts, and route handlers.
+- Authentication and authorization logic.
+- Database schema, migrations, and queries.
+- Storage and upload mechanisms.
+- Environment variables and deployment configuration.
+
+### 3. Exceptions
+If a UI change requires modifying any protected component:
+1. Explain why the modification is necessary.
+2. Identify the affected files.
+3. Describe potential risks and side effects.
+4. Request explicit approval before proceeding.
+
+### 4. Verification
+- Ensure existing functionality remains unchanged.
+- Preserve component props, event handlers, and state transitions unless explicitly requested otherwise.
+- Run available type checks, linting, or build validation when appropriate.
+- Summarize the files changed and confirm whether any protected components were affected.
+
+**Core Principle:** UI changes must not introduce unintended behavioral or architectural changes.

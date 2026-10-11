@@ -1654,6 +1654,15 @@
     linear-gradient(145deg, var(--panel-raised), var(--panel-solid));
 }
 
+.reviewVideo {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 17px;
+  background: #05070c;
+  object-fit: contain;
+}
+
 .reviewPreview > div {
   width: 62px;
   height: 62px;
@@ -1672,9 +1681,25 @@
 
 .reviewActions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 10px;
   padding: 16px;
+}
+
+.reviewStatus {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.reviewStatus progress {
+  width: min(280px, 100%);
+  height: 5px;
+  accent-color: var(--primary-bright);
 }
 
 .reviewPrimary,
@@ -1699,10 +1724,51 @@
   border: 1px solid var(--line);
   color: var(--muted);
   background: transparent;
+  cursor: pointer;
 }
 
-.reviewSecondary:disabled {
+.reviewSecondary:disabled,
+.reviewPrimary:disabled {
+  cursor: wait;
   opacity: 0.5;
+}
+
+.sessionNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(246, 184, 74, 0.24);
+  border-radius: 12px;
+  color: var(--text);
+  background: rgba(246, 184, 74, 0.06);
+}
+
+.sessionNotice > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.sessionNotice strong {
+  font-size: 12px;
+}
+
+.sessionNotice span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.sessionNotice button {
+  flex: 0 0 auto;
+  padding: 8px 11px;
+  border: 1px solid rgba(246, 184, 74, 0.32);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(246, 184, 74, 0.1);
+  cursor: pointer;
 }
 
 .drawerBackdrop {

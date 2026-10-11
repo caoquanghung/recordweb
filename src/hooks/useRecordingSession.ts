@@ -9,6 +9,8 @@ const MAX_ACTIVE_MS = 30 * 60 * 1000;
 const WARNING_ACTIVE_MS = 15 * 60 * 1000;
 const FINAL_WARNING_ACTIVE_MS = 29 * 60 * 1000;
 const MIME_CANDIDATES = [
+  'video/mp4;codecs=avc1,mp4a.40.2',
+  'video/mp4',
   'video/webm;codecs=vp9,opus',
   'video/webm;codecs=vp8,opus',
   'video/webm',
