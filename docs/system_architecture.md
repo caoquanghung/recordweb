@@ -4,7 +4,7 @@
 
 RecordWeb is a full-stack **Next.js 16 App Router**, **React 19**, and **TypeScript** application. It does not have a separate Express or Nest backend. The browser application, request proxy, Server Components, and serverless Route Handlers live in this repository and deploy together on Vercel.
 
-- **Browser client**: `StudioShell` coordinates all interactive UI and the custom media hooks. Screen/camera capture, MediaPipe segmentation, Web Audio DSP, 30 FPS canvas composition, MediaRecorder encoding, EBML repair, and IndexedDB recovery run on the user's device.
+- **Browser client**: The root `MediaSessionProvider` owns screen/camera/microphone streams across route navigation, while `StudioShell` coordinates recording UI and the remaining media hooks. Screen/camera capture, MediaPipe segmentation, Web Audio DSP, 30 FPS canvas composition, MediaRecorder encoding, EBML repair, and IndexedDB recovery run on the user's device.
 - **Request boundary**: `src/proxy.ts` uses Clerk to protect private pages and API routes before they execute. Public exceptions include sign-in/up, Clerk webhooks, the share page, and the Vercel Blob callback route.
 - **Server application**: Next.js Route Handlers in `src/app/api/**/route.ts` implement health checks, preset CRUD, recording metadata CRUD, share grants, upload-token authorization, and Clerk user synchronization. The dynamic share page is a request-time Server Component with its own server-side access query.
 - **Managed persistence**: Neon stores users, recording metadata, presets, and share grants. Vercel Blob stores video objects. IndexedDB stores local recording drafts and finalized local recordings.
@@ -13,9 +13,12 @@ RecordWeb is a full-stack **Next.js 16 App Router**, **React 19**, and **TypeScr
 ```mermaid
 flowchart LR
     User["User"] --> Studio["StudioShell Client Component"]
+    User --> GlobalControl["GlobalMediaControl"]
 
     subgraph Browser["Browser runtime"]
-        Studio --> Devices["useMediaDevices"]
+        Provider["MediaSessionProvider"] --> Devices["useMediaDevices"]
+        Studio --> Provider
+        GlobalControl --> Provider
         Devices --> Vision["useVisionSegmentation"]
         Devices --> Audio["useAudioDSP"]
         Vision --> Canvas["useCanvasCompositor"]
@@ -55,6 +58,7 @@ flowchart LR
 
 ### 2.1 Media Acquisition Hook (`useMediaDevices.ts`)
 * **Role**: Initializes, configures, and monitors hardware devices (cameras, displays, microphones).
+* **Ownership**: `MediaSessionProvider` mounts the hook once in the root layout. This keeps the active raw streams addressable while users visit Dashboard, Library, or Settings, and `GlobalMediaControl` can stop individual sources or all tracks from any page. The provider still stops every owned track when the root application unmounts.
 * **Key Responsibilities**:
   * Requesting screen capture with custom resolution preferences (`1920x1080` standard, frame rate `30fps`).
   * Requesting camera capture with user-selected video inputs (`deviceId`).
@@ -274,9 +278,10 @@ src/
 │   ├── app/                          # Shared navigation and authenticated workspace shell
 │   ├── dashboard/                    # Dashboard data loading and quick-start UI
 │   ├── library/                      # Recording cards, preview, deletion, and sharing controls
+│   ├── media/                        # Root media provider and global disconnect control
 │   ├── settings/                     # Theme, local storage, and cloud diagnostics UI
 │   └── studio/
-│       ├── StudioShell.tsx           # Client UI and orchestration for all media hooks
+│       ├── StudioShell.tsx           # Client UI consuming the shared media session
 │       └── StudioShell.module.css    # Responsive Studio and review styling
 ├── hooks/
 │   ├── useMediaDevices.ts            # Screen & camera stream lifecycle
@@ -302,8 +307,9 @@ Dashboard, Library, Settings, and shared navigation are implemented as dedicated
 
 | Layer | Current files | Executes in | Responsibility |
 | :--- | :--- | :--- | :--- |
-| Root pages/layout | `src/app/layout.tsx`, `src/app/page.tsx` | Next.js server by default | Build the document shell and render `StudioShell` |
-| Interactive UI | `src/components/studio/StudioShell.tsx` | Browser | Own UI state, coordinate hooks, call APIs, preview/download/upload recordings |
+| Root pages/layout | `src/app/layout.tsx`, `src/app/page.tsx` | Next.js server by default | Build the document shell and mount the client media-session boundary |
+| Shared media session | `src/components/media/*` | Browser | Own raw capture streams across routes and expose global per-source/all-source disconnect controls |
+| Interactive UI | `src/components/studio/StudioShell.tsx` | Browser | Consume the shared media session, own Studio UI state, coordinate processing hooks, call APIs, and preview/download/upload recordings |
 | Product management UI | `src/components/dashboard`, `src/components/library`, `src/components/settings` | Browser | Load cloud/local catalogs, launch presets, manage recordings and recipients, persist theme, run diagnostics |
 | Media domain logic | `src/hooks/*` | Browser | Capture, segmentation, DSP, canvas composition, encoding, timers, and cleanup |
 | Local persistence | `src/lib/idb.ts`, `src/lib/ebmlPatcher.ts` | Browser when imported by client code | Draft recovery, finalized local storage, WebM duration repair |

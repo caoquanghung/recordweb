@@ -3,10 +3,10 @@
 import { upload } from '@vercel/blob/client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppNavigation } from '@/components/app/AppNavigation';
+import { useMediaSession } from '@/components/media/MediaSessionProvider';
 import { useCanvasCompositor } from '@/hooks/useCanvasCompositor';
 import { useAudioDSP } from '@/hooks/useAudioDSP';
 import type { AudioDspPreset } from '@/hooks/useAudioDSP';
-import { useMediaDevices } from '@/hooks/useMediaDevices';
 import { useRecordingSession } from '@/hooks/useRecordingSession';
 import { useVisionSegmentation } from '@/hooks/useVisionSegmentation';
 import { repairWebmDuration } from '@/lib/ebmlPatcher';
@@ -173,7 +173,7 @@ export function StudioShell() {
     stopScreen,
     stopCamera,
     clearError: clearMediaError,
-  } = useMediaDevices();
+  } = useMediaSession();
 
   const {
     outputStream: mixedAudioStream,

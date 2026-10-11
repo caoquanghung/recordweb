@@ -2,6 +2,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import { GlobalMediaControl } from "@/components/media/GlobalMediaControl";
+import { MediaSessionProvider } from "@/components/media/MediaSessionProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,7 +28,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Script id="recordweb-theme" strategy="beforeInteractive">
           {`try{const saved=localStorage.getItem('recordweb-theme');const theme=saved==='light'||saved==='dark'?saved:(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=theme}catch{document.documentElement.dataset.theme='dark'}`}
         </Script>
-        <ClerkProvider>{children}</ClerkProvider>
+        <ClerkProvider>
+          <MediaSessionProvider>
+            {children}
+            <GlobalMediaControl />
+          </MediaSessionProvider>
+        </ClerkProvider>
       </body>
     </html>
   );
