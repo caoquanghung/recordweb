@@ -68,6 +68,14 @@ const audioPresetByLabel: Record<string, AudioDspPreset> = {
   Custom: 'custom',
 };
 
+type BlobVideoContentType = 'video/mp4' | 'video/webm';
+
+function getBlobVideoContentType(mimeType: string): BlobVideoContentType {
+  const baseType = mimeType.split(';', 1)[0].trim().toLowerCase();
+  if (baseType === 'video/mp4' || baseType === 'video/webm') return baseType;
+  throw new Error(`Unsupported video content type: ${mimeType || 'unknown'}`);
+}
+
 function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
   const remainder = Math.floor(seconds % 60).toString().padStart(2, '0');
@@ -486,11 +494,14 @@ export function StudioShell() {
     setUploadProgress(0);
     setUploadMessage('Uploading directly to Vercel Blob…');
     try {
-      const extension = activeRecording.mimeType.includes('mp4') ? 'mp4' : 'webm';
+      const uploadContentType = getBlobVideoContentType(activeRecording.mimeType);
+      const extension = uploadContentType === 'video/mp4' ? 'mp4' : 'webm';
       const blob = await upload(`recordings/${activeRecording.id}.${extension}`, activeRecording.blob, {
         access: 'public',
         handleUploadUrl: '/api/upload',
-        contentType: activeRecording.mimeType,
+        // Vercel validates this value against the exact token allowlist. Keep
+        // codec details in Neon metadata, but send the base HTTP media type.
+        contentType: uploadContentType,
         multipart: true,
         onUploadProgress: ({ percentage }) => setUploadProgress(Math.round(percentage)),
       });
