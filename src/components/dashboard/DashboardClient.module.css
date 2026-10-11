@@ -1,0 +1,108 @@
+.primaryAction,
+.recoveryBanner a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 10px;
+  color: white;
+  background: linear-gradient(135deg, var(--primary-bright), var(--primary));
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.recoveryBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(246, 184, 74, 0.25);
+  border-radius: 14px;
+  background: rgba(246, 184, 74, 0.06);
+}
+
+.recoveryBanner div { display: grid; gap: 4px; }
+.recoveryBanner strong { font-size: 13px; }
+.recoveryBanner span { color: var(--muted); font-size: 12px; }
+
+.message { margin-bottom: 16px; color: var(--amber); font-size: 12px; }
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.statsGrid article,
+.section {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(18px);
+}
+
+.statsGrid article { display: grid; gap: 6px; padding: 18px; }
+.statsGrid span, .sectionHeading span { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.statsGrid strong { font-size: 26px; letter-spacing: -.04em; }
+.statsGrid small { color: var(--dim); font-size: 11px; }
+
+.section { padding: 18px; margin-bottom: 18px; }
+.sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 15px; }
+.sectionHeading div { display: grid; gap: 4px; }
+.sectionHeading h2 { font-size: 16px; }
+.sectionHeading a { color: var(--primary-bright); font-size: 11px; text-decoration: none; }
+
+.quickGrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.quickGrid button {
+  min-height: 126px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--panel-raised);
+  text-align: left;
+  cursor: pointer;
+  transition: 160ms ease;
+}
+.quickGrid button:hover { transform: translateY(-2px); border-color: rgba(124, 109, 242, .38); }
+.quickGrid button > span { color: var(--primary-bright); font: 700 10px/1 var(--font-geist-mono), monospace; }
+.quickGrid strong { margin-top: auto; font-size: 13px; }
+.quickGrid small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+
+.contentGrid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, .8fr); gap: 18px; }
+.list { display: grid; gap: 8px; }
+.listRow, .presetRow { min-height: 58px; display: grid; align-items: center; gap: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
+.listRow { grid-template-columns: auto minmax(0, 1fr) auto auto; color: var(--text); text-decoration: none; }
+.presetRow { grid-template-columns: minmax(0, 1fr) auto auto; }
+.listRow div, .presetRow div { min-width: 0; display: grid; gap: 4px; }
+.listRow strong, .presetRow strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.listRow small, .presetRow small { color: var(--muted); font-size: 10px; }
+.listRow > span { color: var(--muted); font-size: 11px; }
+.listRow em { color: var(--green); font-size: 9px; font-style: normal; text-transform: uppercase; }
+.formatBadge { display: grid; place-items: center; width: 42px; height: 34px; border-radius: 7px; color: var(--primary-bright) !important; background: rgba(124, 109, 242, .12); font-weight: 750; }
+.presetRow button { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--text); background: transparent; font-size: 10px; cursor: pointer; }
+.presetRow .dangerText { color: var(--red); }
+.empty { padding: 22px 8px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+@media (max-width: 1100px) {
+  .statsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .quickGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .contentGrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 680px) {
+  .recoveryBanner { align-items: flex-start; flex-direction: column; }
+  .statsGrid { grid-template-columns: 1fr 1fr; }
+  .quickGrid { grid-template-columns: 1fr 1fr; }
+  .listRow { grid-template-columns: auto minmax(0, 1fr); }
+  .listRow > span:not(.formatBadge), .listRow em { display: none; }
+}

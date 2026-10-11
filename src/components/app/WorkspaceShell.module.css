@@ -1,0 +1,89 @@
+.shell {
+  --page-bg: #080b12;
+  --panel: rgba(17, 22, 34, 0.88);
+  --panel-solid: #111622;
+  --panel-raised: #171d2b;
+  --line: rgba(255, 255, 255, 0.075);
+  --line-strong: rgba(255, 255, 255, 0.13);
+  --primary: #7c6df2;
+  --primary-bright: #9b8cff;
+  --green: #48d7a1;
+  --red: #ff5263;
+  --amber: #f6b84a;
+  --text: #f4f5f8;
+  --muted: #929bad;
+  --dim: #5f6879;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  color: var(--text);
+  background: radial-gradient(circle at 58% -20%, rgba(124, 109, 242, 0.12), transparent 42rem), var(--page-bg);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.workspace {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 32px clamp(20px, 3vw, 52px) 52px;
+}
+
+.header {
+  min-height: 86px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--primary-bright);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.header h1 {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 640;
+  letter-spacing: -0.05em;
+}
+
+.header p {
+  max-width: 680px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.actions { display: flex; align-items: center; gap: 10px; }
+
+:global(html[data-theme='light']) .shell {
+  --page-bg: #f4f6fb;
+  --panel: rgba(255, 255, 255, 0.9);
+  --panel-solid: #ffffff;
+  --panel-raised: #f8f9fd;
+  --line: rgba(22, 31, 49, 0.09);
+  --line-strong: rgba(22, 31, 49, 0.16);
+  --primary: #6553da;
+  --primary-bright: #5e4fd1;
+  --green: #168865;
+  --red: #d33d4d;
+  --amber: #a96e10;
+  --text: #171c27;
+  --muted: #626d80;
+  --dim: #8a94a5;
+  background: radial-gradient(circle at 58% -20%, rgba(101, 83, 218, 0.1), transparent 42rem), var(--page-bg);
+}
+
+@media (max-width: 680px) {
+  .shell { display: block; padding-bottom: 66px; }
+  .workspace { padding: 24px 16px 34px; }
+  .header { flex-direction: column; }
+  .actions { width: 100%; flex-wrap: wrap; }
+}

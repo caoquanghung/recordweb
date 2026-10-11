@@ -1914,28 +1914,6 @@
 }
 
 @media (max-width: 900px) {
-  .appShell {
-    grid-template-columns: 1fr;
-  }
-
-  .navigation {
-    position: sticky;
-    top: 0;
-    width: 100%;
-    height: 60px;
-    flex-direction: row;
-    padding: 9px 16px;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .brandMark { width: 36px; height: 36px; }
-  .navStack, .navBottom { flex-direction: row; margin: 0; }
-  .navStack { margin-left: 22px; }
-  .navBottom { margin-left: auto; }
-  .navButton { width: 36px; height: 36px; }
-  .navButtonActive::before { display: none; }
-
   .workspace { padding: 18px; }
   .studioGrid,
   .studioGrid.sourcesClosed,
@@ -1960,6 +1938,7 @@
 }
 
 @media (max-width: 680px) {
+  .appShell { display: block; padding-bottom: 66px; }
   .topbar { align-items: flex-start; }
   .topbarActions { align-items: flex-end; flex-direction: column; }
   .privacyPill { display: none; }

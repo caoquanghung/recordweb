@@ -1,8 +1,8 @@
 'use client';
 
-import { UserButton } from '@clerk/nextjs';
 import { upload } from '@vercel/blob/client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppNavigation } from '@/components/app/AppNavigation';
 import { useCanvasCompositor } from '@/hooks/useCanvasCompositor';
 import { useAudioDSP } from '@/hooks/useAudioDSP';
 import type { AudioDspPreset } from '@/hooks/useAudioDSP';
@@ -275,6 +275,42 @@ export function StudioShell() {
     const initialLoad = window.setTimeout(() => void loadPresets(), 0);
     return () => window.clearTimeout(initialLoad);
   }, [loadPresets]);
+
+  useEffect(() => {
+    const applyPendingSetup = window.setTimeout(() => {
+      try {
+        const quickStart = localStorage.getItem('recordweb-quick-start');
+        if (quickStart) {
+          const configuration = JSON.parse(quickStart) as {
+            mode?: RecordingMode;
+            background?: BackgroundRemovalMode;
+            audioMode?: string;
+          };
+          if (configuration.mode && modes.some((item) => item.value === configuration.mode)) setMode(configuration.mode);
+          if (configuration.background && backgrounds.some((item) => item.value === configuration.background)) setBackground(configuration.background);
+          if (configuration.audioMode && audioModes.includes(configuration.audioMode)) setAudioMode(configuration.audioMode);
+          localStorage.removeItem('recordweb-quick-start');
+        }
+
+        const pendingPreset = localStorage.getItem('recordweb-pending-preset');
+        if (pendingPreset) {
+          const preset = JSON.parse(pendingPreset) as DbStudioPreset;
+          setPipShape(preset.pip_shape as PipShape);
+          setPipSize(preset.pip_size as PipSize);
+          setBackground(preset.bg_removal_mode as BackgroundRemovalMode);
+          const filters = preset.filters_config as { mode?: string; resolution?: string };
+          if (filters.mode) setAudioMode(filters.mode);
+          if (filters.resolution) setResolution(filters.resolution);
+          setPresetMessage(`Loaded “${preset.preset_name}” from Dashboard.`);
+          localStorage.removeItem('recordweb-pending-preset');
+        }
+      } catch {
+        localStorage.removeItem('recordweb-quick-start');
+        localStorage.removeItem('recordweb-pending-preset');
+      }
+    }, 0);
+    return () => window.clearTimeout(applyPendingSetup);
+  }, []);
 
   useEffect(() => {
     const loadDrafts = window.setTimeout(() => {
@@ -593,18 +629,7 @@ export function StudioShell() {
 
   return (
     <main className={styles.appShell}>
-      <aside className={styles.navigation} aria-label="Primary navigation">
-        <div className={styles.brandMark} aria-label="RecordWeb">R</div>
-        <nav className={styles.navStack}>
-          <button className={`${styles.navButton} ${styles.navButtonActive}`} aria-label="Studio" title="Studio"><Icon name="record" /></button>
-          <button className={styles.navButton} aria-label="Dashboard (coming soon)" title="Dashboard — coming soon" disabled><Icon name="grid" /></button>
-          <button className={styles.navButton} aria-label="Library (coming soon)" title="Library — coming soon" disabled><Icon name="library" /></button>
-        </nav>
-        <div className={styles.navBottom}>
-          <button className={styles.navButton} aria-label="Settings (coming soon)" title="Settings — coming soon" disabled><Icon name="settings" /></button>
-          <UserButton />
-        </div>
-      </aside>
+      <AppNavigation active="studio" />
 
       <section className={styles.workspace}>
         <header className={styles.topbar}>

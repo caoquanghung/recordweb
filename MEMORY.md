@@ -101,7 +101,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added service health checks for Clerk, Neon, Vercel Blob configuration, and browser media capabilities
   - [x] Connected preset save/load and recording library inspection to the existing authenticated APIs
   - [x] Added a persisted light/dark theme switch with system-preference initialization and accessible theme tokens
-  - [ ] Replace simulated recording controls with the real recording-session hook
+  - [x] Replaced simulated recording controls with the real recording-session hook
 - [ ] **Housekeeping**: `src/app/page.module.css` is now unused dead code (page renders `StudioShell`) and should be deleted.
 - [x] **Phase 1 (Media Hooks): `useMediaDevices` Implementation**:
   - [x] Added screen, camera, microphone, and browser-supported system-audio acquisition with 30 FPS video constraints
@@ -134,6 +134,8 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Implemented the preview-first Studio layout: collapsible Sources/Effects panels, tabbed effect controls, sticky recording dock, dedicated review workspace, and on-demand diagnostics drawer
   - [x] Added responsive desktop/tablet/mobile panel behavior while preserving adaptive light/dark theme tokens and Vanilla CSS Modules
   - [x] Connected recording/recovery status, real preview, download, upload progress, and publish/share actions to the review workspace
+  - [x] Added functional Dashboard, Library, and Settings routes with shared navigation, responsive light/dark styling, quick starts, preset launch/delete, local/cloud/shared recording filters, playback, scoped deletion, diagnostics, and local storage visibility
+  - [x] Added owner sharing controls that resolve registered recipients by email, grant `viewer` or `viewer_download`, list recipients, and revoke access
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
   - [x] Added a request-time authorized `/share/[recordingId]` page for public, owner, `viewer`, and `viewer_download` access

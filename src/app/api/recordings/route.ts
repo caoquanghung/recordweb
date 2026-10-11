@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, isDbConfigured } from '@/lib/db';
 import { getSessionUserId, unauthorizedResponse } from '@/lib/auth';
-import { DbRecording } from '@/types/database';
+import { DbRecording, DbSharedRecording } from '@/types/database';
 import { del } from '@vercel/blob';
 
 /** GET /api/recordings — Returns only the authenticated user's recordings. */
@@ -26,7 +26,20 @@ export async function GET() {
       ORDER BY created_at DESC
       LIMIT 50;
     `;
-    return NextResponse.json({ recordings: rows as DbRecording[] });
+    const sharedRows = await sql`
+      SELECT r.*, u.email AS owner_email, u.display_name AS owner_display_name,
+             rs.permission AS share_permission
+      FROM recording_shares rs
+      JOIN recordings r ON r.id = rs.recording_id
+      JOIN users u ON u.id = r.user_id
+      WHERE rs.recipient_user_id = ${userId}
+      ORDER BY r.created_at DESC
+      LIMIT 50;
+    `;
+    return NextResponse.json({
+      recordings: rows as DbRecording[],
+      sharedRecordings: sharedRows as DbSharedRecording[],
+    });
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message },

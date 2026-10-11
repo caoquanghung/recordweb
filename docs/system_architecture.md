@@ -250,6 +250,9 @@ src/
 │   ├── page.tsx                      # Server page that renders the client StudioShell
 │   ├── globals.css                   # Global reset and shared theme tokens
 │   ├── auth.module.css               # Shared Clerk page presentation
+│   ├── dashboard/page.tsx            # Dashboard entry for quick starts and recent data
+│   ├── library/page.tsx              # Local, owned-cloud, and shared recording management
+│   ├── settings/page.tsx             # Theme, local storage, diagnostics, and privacy settings
 │   ├── sign-in/[[...sign-in]]/       # Clerk sign-in route
 │   ├── sign-up/[[...sign-up]]/       # Clerk sign-up route
 │   ├── share/
@@ -268,6 +271,10 @@ src/
 │       │   └── route.ts              # Neon DB studio preset CRUD
 │       └── webhooks/clerk/route.ts   # Clerk user synchronization into Neon
 ├── components/
+│   ├── app/                          # Shared navigation and authenticated workspace shell
+│   ├── dashboard/                    # Dashboard data loading and quick-start UI
+│   ├── library/                      # Recording cards, preview, deletion, and sharing controls
+│   ├── settings/                     # Theme, local storage, and cloud diagnostics UI
 │   └── studio/
 │       ├── StudioShell.tsx           # Client UI and orchestration for all media hooks
 │       └── StudioShell.module.css    # Responsive Studio and review styling
@@ -289,7 +296,7 @@ src/
 └── proxy.ts                          # Clerk route protection and public-route exceptions
 ```
 
-The current repository does **not** yet contain the planned Dashboard, Library, split Studio subcomponents, or separate review components described in earlier design proposals. Their behavior is currently consolidated in `StudioShell.tsx`; future extraction must preserve the hook boundaries and data flow documented here.
+Dashboard, Library, Settings, and shared navigation are implemented as dedicated routes and client components. The Studio stage, source/effect controls, and review behavior remain consolidated in `StudioShell.tsx`; future extraction must preserve the hook boundaries and data flow documented here.
 
 ### 2.12 Runtime Boundaries and Call Graph
 
@@ -297,6 +304,7 @@ The current repository does **not** yet contain the planned Dashboard, Library, 
 | :--- | :--- | :--- | :--- |
 | Root pages/layout | `src/app/layout.tsx`, `src/app/page.tsx` | Next.js server by default | Build the document shell and render `StudioShell` |
 | Interactive UI | `src/components/studio/StudioShell.tsx` | Browser | Own UI state, coordinate hooks, call APIs, preview/download/upload recordings |
+| Product management UI | `src/components/dashboard`, `src/components/library`, `src/components/settings` | Browser | Load cloud/local catalogs, launch presets, manage recordings and recipients, persist theme, run diagnostics |
 | Media domain logic | `src/hooks/*` | Browser | Capture, segmentation, DSP, canvas composition, encoding, timers, and cleanup |
 | Local persistence | `src/lib/idb.ts`, `src/lib/ebmlPatcher.ts` | Browser when imported by client code | Draft recovery, finalized local storage, WebM duration repair |
 | Request proxy | `src/proxy.ts` | Vercel request boundary | Clerk session enforcement and public-route selection |
@@ -360,12 +368,12 @@ The video body never passes through `/api/recordings`; only metadata does. This 
 | `/api/health` | `GET` | Studio diagnostics | Authenticated; checks Clerk, Neon connectivity, and Blob configuration |
 | `/api/presets` | `GET`, `POST`, `DELETE` | Studio preset controls | Authenticated; all reads/writes are scoped to the current `user_id` |
 | `/api/recordings` | `GET`, `POST`, `PATCH`, `DELETE` | Studio/cloud-library clients | Authenticated; metadata CRUD, public-link toggle, and owned Blob deletion |
-| `/api/shares` | `GET`, `POST`, `DELETE` | Future recipient-sharing UI or API client | Authenticated; owner-only direct-recipient grants with `viewer` or `viewer_download` permission |
+| `/api/shares` | `GET`, `POST`, `DELETE` | Library sharing controls | Authenticated; owner-only email lookup and direct-recipient grants with `viewer` or `viewer_download` permission |
 | `/api/upload` | `POST` | `@vercel/blob/client` | Public at Proxy level for Blob callbacks; token generation verifies Clerk and applies limits internally |
 | `/api/webhooks/clerk` | `POST` | Clerk | Public at Proxy level; request signature is verified before synchronizing Neon users |
 | `/share/[recordingId]` | `GET` page request | Browser/navigation | Public route; Server Component authorizes anonymous-public, owner, or direct-recipient access |
 
-At present, `StudioShell` actively calls `/api/health`, `/api/presets`, `/api/upload`, and `POST`/`PATCH /api/recordings`. The `GET`/`DELETE /api/recordings` and `/api/shares` endpoints exist for upcoming Library and direct-recipient management UI, which are not present yet.
+`StudioShell` calls `/api/health`, `/api/presets`, `/api/upload`, and `POST`/`PATCH /api/recordings`. Dashboard and Library use `GET`/`DELETE /api/recordings`; Library also uses `/api/shares` for email-based recipient grants and revocation.
 
 ---
 

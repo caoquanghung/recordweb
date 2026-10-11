@@ -24,6 +24,21 @@ export interface DbRecording {
   created_at: string;
 }
 
+export interface DbSharedRecording extends DbRecording {
+  owner_email: string;
+  owner_display_name: string | null;
+  share_permission: 'viewer' | 'viewer_download';
+}
+
+export interface DbRecordingShare {
+  recording_id: string;
+  recipient_user_id: string;
+  permission: 'viewer' | 'viewer_download';
+  created_at: string;
+  email: string;
+  display_name: string | null;
+}
+
 /** Mirrors the `studio_presets` table. */
 export interface DbStudioPreset {
   id: string;

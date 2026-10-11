@@ -1,0 +1,64 @@
+.primaryAction, .refreshButton { min-height: 40px; padding: 0 14px; border-radius: 9px; font-size: 12px; font-weight: 650; }
+.primaryAction { display: inline-flex; align-items: center; color: white; background: linear-gradient(135deg, var(--primary-bright), var(--primary)); text-decoration: none; }
+.refreshButton { border: 1px solid var(--line); color: var(--text); background: var(--panel); cursor: pointer; }
+.tabs { display: flex; gap: 6px; padding: 5px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); width: fit-content; max-width: 100%; overflow-x: auto; }
+.tabs button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; font-size: 11px; white-space: nowrap; cursor: pointer; }
+.tabs button span { min-width: 20px; padding: 2px 5px; border-radius: 8px; background: rgba(124,109,242,.12); font-size: 9px; }
+.tabs .tabActive { color: var(--text); background: rgba(124,109,242,.14); }
+.message { margin: -4px 0 16px; color: var(--amber); font-size: 12px; }
+.recordingGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: 0 18px 55px rgba(0,0,0,.12); }
+.thumbnail { width: 100%; aspect-ratio: 16/8; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; border: 0; color: var(--text); background: radial-gradient(circle at 50% 45%, rgba(124,109,242,.2), transparent 35%), linear-gradient(145deg,var(--panel-raised),var(--panel-solid)); cursor: pointer; }
+.thumbnail span { padding: 5px 7px; border-radius: 6px; color: var(--primary-bright); background: rgba(124,109,242,.14); font-size: 9px; font-weight: 750; letter-spacing: .08em; }
+.thumbnail strong { font-size: 12px; }
+.cardBody { display: grid; gap: 13px; padding: 15px; }
+.cardTitle { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.cardTitle > div { min-width: 0; display: grid; gap: 4px; }
+.cardTitle strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.cardTitle span { color: var(--muted); font-size: 10px; }
+.cardTitle em { flex: 0 0 auto; padding: 4px 6px; border-radius: 5px; font-size: 8px; font-style: normal; font-weight: 750; text-transform: uppercase; }
+.localStatus { color: var(--amber); background: rgba(246,184,74,.1); }
+.privateStatus { color: var(--green); background: rgba(72,215,161,.09); }
+.publicStatus { color: var(--primary-bright); background: rgba(124,109,242,.12); }
+.sharedStatus { color: #46d6e7; background: rgba(70,214,231,.09); }
+.metadata { display: flex; gap: 6px; flex-wrap: wrap; }
+.metadata span { padding: 4px 6px; border-radius: 5px; color: var(--muted); background: rgba(255,255,255,.035); font-size: 9px; }
+.cardActions { display: flex; gap: 7px; flex-wrap: wrap; }
+.cardActions button, .cardActions a { min-height: 31px; display: inline-flex; align-items: center; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--text); background: transparent; font-size: 9px; text-decoration: none; cursor: pointer; }
+.cardActions .danger { color: var(--red); }
+.empty { min-height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; border: 1px dashed var(--line-strong); border-radius: 16px; color: var(--muted); font-size: 12px; }
+.empty strong { color: var(--text); font-size: 15px; }
+.modalBackdrop { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px; background: rgba(4,6,11,.72); backdrop-filter: blur(8px); }
+.previewModal, .shareModal { width: min(840px,100%); max-height: calc(100vh - 40px); overflow: auto; border: 1px solid var(--line-strong); border-radius: 18px; color: var(--text); background: var(--panel-solid); box-shadow: 0 30px 100px rgba(0,0,0,.45); }
+.previewModal video { width: 100%; display: block; aspect-ratio: 16/9; background: #05070c; }
+.modalHeader { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 18px; border-bottom: 1px solid var(--line); }
+.modalHeader div { min-width: 0; display: grid; gap: 4px; }
+.modalHeader span { color: var(--primary-bright); font-size: 9px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+.modalHeader h2 { overflow: hidden; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
+.modalHeader > button { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 9px; color: var(--text); background: transparent; font-size: 20px; cursor: pointer; }
+.publicControl { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 10px; padding: 18px; border-bottom: 1px solid var(--line); }
+.publicControl div { display: grid; gap: 4px; }
+.publicControl strong { font-size: 12px; }
+.publicControl span { color: var(--muted); font-size: 11px; }
+.publicControl button, .grantForm > button { min-height: 36px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); background: rgba(124,109,242,.09); font-size: 10px; cursor: pointer; }
+.grantForm { display: grid; grid-template-columns: minmax(0,1fr) 180px auto; align-items: end; gap: 10px; padding: 18px; border-bottom: 1px solid var(--line); }
+.grantForm label { display: grid; gap: 6px; }
+.grantForm label > span { color: var(--muted); font-size: 10px; }
+.grantForm input, .grantForm select { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); background: var(--panel-raised); }
+.grantForm button:disabled { opacity: .5; cursor: wait; }
+.recipientList { display: grid; gap: 8px; padding: 18px; }
+.recipientHeading, .recipientList > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.recipientHeading span { color: var(--muted); font-size: 10px; }
+.recipientList > p { color: var(--muted); font-size: 11px; }
+.recipientList > div:not(.recipientHeading) { padding: 10px; border: 1px solid var(--line); border-radius: 9px; }
+.recipientList > div > div { min-width: 0; display: grid; gap: 3px; }
+.recipientList strong { font-size: 11px; }
+.recipientList span { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; }
+.recipientList button { border: 0; color: var(--red); background: transparent; font-size: 10px; cursor: pointer; }
+
+@media (max-width: 1100px) { .recordingGrid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 680px) {
+  .recordingGrid { grid-template-columns: 1fr; }
+  .publicControl, .grantForm { grid-template-columns: 1fr; align-items: stretch; }
+  .modalBackdrop { padding: 10px; }
+}
