@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
     "db:status": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs status",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs migrate",
     "db:verify": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs verify"
@@ -23,6 +26,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

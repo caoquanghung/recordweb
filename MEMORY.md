@@ -140,6 +140,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
   - [x] Added a request-time authorized `/share/[recordingId]` page for public, owner, `viewer`, and `viewer_download` access
   - [x] Verified the live Neon migration status and schema with `npm run db:status` and `npm run db:verify`
+  - [x] Added a Chromium Playwright E2E harness with fake camera/microphone devices, local/deployed base URL support, and an anonymous sign-in smoke test
   - [ ] Run an authenticated browser upload/playback test against the connected Vercel Blob store
 - [ ] **Phase 9: Vercel Deployment & Verification**
 
@@ -162,11 +163,12 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Conditional Canvas Mount** | Calling `captureStream()` before the source-driven preview canvas mounts produces no output stream | Reinitialize canvas capture when visual-source availability changes; the compositor owns and stops only its generated track. |
 | **Extraneous MediaPipe Package** | Local builds may resolve `@mediapipe/selfie_segmentation` from `node_modules` while clean Vercel builds fail with TS2307 | Keep the exact MediaPipe package version declared in both `package.json` and `package-lock.json`; verify with `npm ls` and `npm run build`. |
 | **Public Blob URL vs Page Authorization** | The share page enforces owner/public/direct-recipient access, but anyone who obtains the underlying URL can fetch an object from a public Blob store | Treat public-link publishing as intentional exposure; migrate to a private Blob store plus an authorized delivery endpoint before handling sensitive recordings. |
+| **Clerk Dev Proxy Origin** | Playwright requests through `127.0.0.1` can trigger Clerk development-proxy socket resets | Use `http://localhost:3000` consistently for the Playwright base URL and local web server. |
 
 ---
 
 ## 6. Immediate Next Steps
 
-1. Perform authenticated browser QA for screen/camera permissions, MediaPipe effects, 30 FPS stability, pause/resume, recovery, and WebM/MP4 playback.
+1. Add a dedicated Clerk test account and Playwright `storageState`, then automate authenticated Studio and Library flows.
 2. Upload a real recording to the connected Vercel Blob store, confirm Neon metadata, then verify private-owner and public-link behavior in a signed-out browser.
 3. Decide whether sensitive recordings require a private Blob store and authorized media-delivery endpoint instead of public Blob URLs.
