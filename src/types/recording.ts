@@ -9,6 +9,20 @@ export type RecordingStatus =
   | 'processing'
   | 'ready';
 
+export type RecordingAssetKind = 'composite' | 'webcam' | 'screen' | 'audio';
+
+export interface RecordingAssetMetadata {
+  kind: RecordingAssetKind;
+  fileSizeBytes: number;
+  mimeType: string;
+  resolution?: string;
+  fps?: number;
+  sampleRateHz?: number;
+  blob?: Blob;
+  storageUrl?: string | null;
+  blobPathname?: string | null;
+}
+
 export interface RecordingSettingsSnapshot {
   recordingMode: RecordingMode;
   pipConfig: PipConfig;
@@ -32,4 +46,5 @@ export interface RecordingMetadata {
   settings?: RecordingSettingsSnapshot;
   blob?: Blob;
   previewUrl?: string;
+  assets?: Partial<Record<RecordingAssetKind, RecordingAssetMetadata>>;
 }

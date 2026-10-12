@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDb, isDbConfigured } from '@/lib/db';
-import type { DbRecording } from '@/types/database';
+import type { DbRecording, DbRecordingAsset } from '@/types/database';
 import styles from './share.module.css';
 
 // Access checks depend on the current Clerk session and must run for each request.
@@ -60,6 +60,14 @@ export default async function SharePage({ params }: PageProps<'/share/[recording
   const recording = rows[0] as AccessibleRecording;
   const canDownload = recording.access_permission === 'owner'
     || recording.access_permission === 'viewer_download';
+  const assetRows = canDownload
+    ? await sql`
+        SELECT * FROM recording_assets
+        WHERE recording_id = ${recording.id}
+        ORDER BY created_at ASC;
+      ` as DbRecordingAsset[]
+    : [];
+  const sourceAssets = assetRows.filter((asset) => asset.kind !== 'composite');
 
   return (
     <main className={styles.page}>
@@ -95,6 +103,18 @@ export default async function SharePage({ params }: PageProps<'/share/[recording
           />
         ) : (
           <div className={styles.emptyVideo}>This recording does not have an uploaded video.</div>
+        )}
+
+        {sourceAssets.length > 0 && (
+          <section className={styles.sourceAssets} aria-label="Recording source files">
+            <div><span>Source files</span><strong>Original session assets</strong></div>
+            {sourceAssets.map((asset) => (
+              <a key={asset.id} href={asset.storage_url} download>
+                <strong>{asset.kind === 'webcam' ? 'Webcam 720p' : asset.kind === 'screen' ? 'Screen 1080p' : 'Audio master'}</strong>
+                <span>{asset.mime_type.split(';')[0]}</span>
+              </a>
+            ))}
+          </section>
         )}
 
         <footer className={styles.footer}>

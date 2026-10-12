@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WorkspaceShell } from '@/components/app/WorkspaceShell';
 import { deleteLocalRecording, getAllLocalRecordings } from '@/lib/idb';
 import type { DbRecording, DbRecordingShare, DbSharedRecording } from '@/types/database';
-import type { RecordingMetadata } from '@/types/recording';
+import type { RecordingAssetKind, RecordingMetadata } from '@/types/recording';
 import styles from './LibraryClient.module.css';
 
 type LibraryTab = 'mine' | 'shared' | 'local' | 'cloud';
@@ -19,6 +19,13 @@ function formatDuration(seconds: number) {
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function extensionForMimeType(mimeType: string) {
+  const baseType = mimeType.split(';', 1)[0].toLowerCase();
+  if (baseType === 'audio/mp4') return 'm4a';
+  if (baseType.endsWith('/mp4')) return 'mp4';
+  return 'webm';
 }
 
 export function LibraryClient() {
@@ -83,14 +90,21 @@ export function LibraryClient() {
   const visibleShared = tab === 'shared' ? shared : [];
   const visibleCount = visibleLocal.length + visibleCloud.length + visibleShared.length;
 
-  const downloadLocal = (recording: RecordingMetadata) => {
-    if (!recording.blob) return;
-    const url = recording.previewUrl ?? URL.createObjectURL(recording.blob);
+  const downloadLocal = (recording: RecordingMetadata, kind: RecordingAssetKind = 'composite') => {
+    const asset = kind === 'composite'
+      ? recording.assets?.composite
+      : recording.assets?.[kind];
+    const blob = asset?.blob ?? (kind === 'composite' ? recording.blob : undefined);
+    const mimeType = asset?.mimeType ?? recording.mimeType;
+    if (!blob) return;
+    const url = kind === 'composite' && recording.previewUrl
+      ? recording.previewUrl
+      : URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `recordweb-${recording.id}.${recording.mimeType.includes('mp4') ? 'mp4' : 'webm'}`;
+    anchor.download = `recordweb-${recording.id}-${kind}.${extensionForMimeType(mimeType)}`;
     anchor.click();
-    if (!recording.previewUrl) URL.revokeObjectURL(url);
+    if (url !== recording.previewUrl) URL.revokeObjectURL(url);
   };
 
   const removeLocal = async (recording: RecordingMetadata) => {
@@ -227,7 +241,14 @@ export function LibraryClient() {
             <div className={styles.cardBody}>
               <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{new Date(recording.createdAt).toLocaleString()}</span></div><em className={styles.localStatus}>Local only</em></div>
               <div className={styles.metadata}><span>{formatDuration(recording.durationSeconds)}</span><span>{recording.resolution}</span><span>{formatBytes(recording.fileSizeBytes)}</span></div>
-              <div className={styles.cardActions}><button onClick={() => recording.previewUrl && setPreview({ title: recording.title, url: recording.previewUrl, canDownload: true })}>Preview</button><button onClick={() => downloadLocal(recording)}>Download</button><button className={styles.danger} onClick={() => void removeLocal(recording)}>Delete local</button></div>
+              <div className={styles.cardActions}>
+                <button onClick={() => recording.previewUrl && setPreview({ title: recording.title, url: recording.previewUrl, canDownload: true })}>Preview</button>
+                <button onClick={() => downloadLocal(recording)}>Composite</button>
+                {(['webcam', 'screen', 'audio'] as RecordingAssetKind[]).map((kind) => recording.assets?.[kind]?.blob && (
+                  <button key={kind} onClick={() => downloadLocal(recording, kind)}>{kind}</button>
+                ))}
+                <button className={styles.danger} onClick={() => void removeLocal(recording)}>Delete local</button>
+              </div>
             </div>
           </article>
         ))}
@@ -240,7 +261,7 @@ export function LibraryClient() {
             <div className={styles.cardBody}>
               <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{new Date(recording.created_at).toLocaleString()}</span></div><em className={recording.is_public ? styles.publicStatus : styles.privateStatus}>{recording.is_public ? 'Public link' : 'Private cloud'}</em></div>
               <div className={styles.metadata}><span>{formatDuration(Number(recording.duration_seconds))}</span><span>{recording.resolution}</span><span>{formatBytes(Number(recording.file_size_bytes))}</span></div>
-              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link><button onClick={() => void openSharing(recording)}>Share</button><button onClick={() => void togglePublic(recording)}>{recording.is_public ? 'Make private' : 'Make public'}</button><button className={styles.danger} onClick={() => void removeCloud(recording)}>Delete cloud</button></div>
+              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link><button onClick={() => void openSharing(recording)}>Share</button>{recording.assets?.filter((asset) => asset.kind !== 'composite').map((asset) => <a key={asset.id} href={asset.storage_url} download>{asset.kind}</a>)}<button onClick={() => void togglePublic(recording)}>{recording.is_public ? 'Make private' : 'Make public'}</button><button className={styles.danger} onClick={() => void removeCloud(recording)}>Delete cloud</button></div>
             </div>
           </article>
         ))}
@@ -253,7 +274,7 @@ export function LibraryClient() {
             <div className={styles.cardBody}>
               <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{recording.owner_email}</span></div><em className={styles.sharedStatus}>{recording.share_permission === 'viewer_download' ? 'View + download' : 'View only'}</em></div>
               <div className={styles.metadata}><span>{formatDuration(Number(recording.duration_seconds))}</span><span>{recording.resolution}</span><span>{new Date(recording.created_at).toLocaleDateString()}</span></div>
-              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link>{recording.share_permission === 'viewer_download' && recording.storage_url && <a href={recording.storage_url} download>Download</a>}</div>
+              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link>{recording.share_permission === 'viewer_download' && recording.storage_url && <a href={recording.storage_url} download>Composite</a>}{recording.share_permission === 'viewer_download' && recording.assets?.filter((asset) => asset.kind !== 'composite').map((asset) => <a key={asset.id} href={asset.storage_url} download>{asset.kind}</a>)}</div>
             </div>
           </article>
         ))}

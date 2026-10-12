@@ -162,6 +162,9 @@ if (command === "verify") {
       IF to_regclass('public.recording_shares') IS NULL THEN
         RAISE EXCEPTION 'Missing table: recording_shares';
       END IF;
+      IF to_regclass('public.recording_assets') IS NULL THEN
+        RAISE EXCEPTION 'Missing table: recording_assets';
+      END IF;
       IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public'

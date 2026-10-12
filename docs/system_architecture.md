@@ -4,7 +4,7 @@
 
 RecordWeb is a full-stack **Next.js 16 App Router**, **React 19**, and **TypeScript** application. It does not have a separate Express or Nest backend. The browser application, request proxy, Server Components, and serverless Route Handlers live in this repository and deploy together on Vercel.
 
-- **Browser client**: The root `MediaSessionProvider` owns screen/camera/microphone streams across route navigation, while `StudioShell` coordinates recording UI and the remaining media hooks. Screen/camera capture, MediaPipe segmentation, Web Audio DSP, 30 FPS canvas composition, MediaRecorder encoding, EBML repair, and IndexedDB recovery run on the user's device.
+- **Browser client**: The root `MediaSessionProvider` owns screen/camera/microphone streams across route navigation, while `StudioShell` coordinates recording UI and the remaining media hooks. Screen/camera capture, source normalization, MediaPipe segmentation, Web Audio DSP, 30 FPS canvas composition, coordinated multi-asset MediaRecorder encoding, EBML repair, and IndexedDB recovery run on the user's device.
 - **Request boundary**: `src/proxy.ts` uses Clerk to protect private pages and API routes before they execute. Public exceptions include sign-in/up, Clerk webhooks, the share page, and the Vercel Blob callback route.
 - **Server application**: Next.js Route Handlers in `src/app/api/**/route.ts` implement health checks, preset CRUD, recording metadata CRUD, share grants, upload-token authorization, and Clerk user synchronization. The dynamic share page is a request-time Server Component with its own server-side access query.
 - **Managed persistence**: Neon stores users, recording metadata, presets, and share grants. Vercel Blob stores video objects. IndexedDB stores local recording drafts and finalized local recordings.
@@ -23,7 +23,9 @@ flowchart LR
         Devices --> Audio["useAudioDSP"]
         Vision --> Canvas["useCanvasCompositor"]
         Devices --> Canvas
+        Devices --> Normalized["useNormalizedVideoStream<br/>720p webcam + 1080p screen"]
         Canvas --> Recorder["useRecordingSession"]
+        Normalized --> Recorder
         Audio --> Recorder
         Recorder --> Repair["EBML repair"]
         Recorder --> IDB[("IndexedDB drafts + recordings")]
@@ -38,8 +40,8 @@ flowchart LR
 
     Studio -->|"request upload authorization"| UploadRoute["/api/upload"]
     UploadRoute --> Auth
-    Studio -->|"direct multipart video upload"| Blob[("Vercel Blob")]
-    Studio -->|"POST Blob URL + metadata"| Routes
+    Studio -->|"direct multipart media uploads"| Blob[("Vercel Blob")]
+    Studio -->|"POST asset URLs + metadata"| Routes
 
     ShareRequest["GET /share/[recordingId]"] --> Proxy
     Proxy --> SharePage["Request-time Server Component"]
@@ -139,12 +141,18 @@ stateDiagram-v2
   * The canvas frame loop must be driven by a **steady delta-clamped RAF timer**. Raw `requestAnimationFrame` throttles when the browser tab is hidden, starving the canvas stream and causing video to fall behind audio.
   * A session timer fires `stopRecording()` hard at **30 minutes** to prevent unchecked clock drift.
   * UI prominently warns users when a session exceeds 15 minutes, recommending shorter sessions for best sync quality.
+* **Coordinated asset outputs**:
+  * Composite: 1080p compositor video plus processed master audio.
+  * Webcam: raw camera normalized to 1280×720 at 30 FPS, without audio or Studio effects.
+  * Screen: raw display normalized to 1920×1080 at 30 FPS, without webcam or duplicated audio.
+  * Audio: the processed master audio without a video track.
+  * Each available asset has its own `MediaRecorder`; pause, resume, stop, active-time limits, and finalization are coordinated by one session state machine. The implementation never places multiple video tracks in one recorder.
 
 ### 2.6 Persistence & Local Storage Subsystem (`idb.ts` & `ebmlPatcher.ts`)
-* **Chunk Aggregation**: Gathers data chunks emitted during `mediaRecorder.ondataavailable` (emitted every 1000ms for safety).
+* **Chunk Aggregation**: Gathers per-asset data chunks emitted during each `mediaRecorder.ondataavailable` callback (every 1000ms for safety).
 * **Metadata Repair**: Standard browser `MediaRecorder` writes `Duration: 0` or NaN to WebM EBML headers for live streams. The patcher parses EBML elements and injects the exact recorded duration, making the resulting video fully seekable in all players.
-* **Session Cache (IndexedDB)**: `src/lib/idb.ts` stores per-second drafts under `recordweb_draft_*` keys and finalized local recordings under `recordweb_rec_*` keys. The Studio detects drafts on load and can recover the newest draft.
-* **Direct Local Export**: Allows users to download the finalized video as `.mp4` when the browser recorded MP4 or `.webm` when it used the WebM fallback.
+* **Session Cache (IndexedDB)**: `src/lib/idb.ts` stores drafts keyed by session and asset kind under `recordweb_draft_*` keys and finalized local recordings under `recordweb_rec_*` keys. The Studio detects drafts on load and can recover the newest draft, including any available source assets.
+* **Direct Local Export**: Allows users to download the composite and each available webcam, screen, or audio asset using an extension that matches the browser-produced container.
 
 ### 2.7 Cloud Video Storage Subsystem (Vercel Blob)
 * **Role**: Object storage for hosting recorded video files and generating shareable playback links.
@@ -153,10 +161,10 @@ stateDiagram-v2
   * **Upload Protocol** (Risk 5 auth-gated):
     1. Client invokes Next.js route `/api/upload` with a valid auth session to request an authorized upload client token.
     2. Route Handler validates the user session and enforces per-user rate limits before issuing the token.
-    3. Client streams the binary video blob directly from the browser to Vercel's global edge blob storage via `upload()` from `@vercel/blob/client`.
-    4. Vercel Blob returns a permanent public HTTPS video URL.
-    5. The resulting `storage_url` is stored in Neon Postgres alongside recording metadata.
-* **Current upload guard**: `/api/upload` accepts MP4/WebM up to 300 MB and uses an in-memory limit of 10 token requests per user per hour. The limiter is instance-local and must be replaced by durable storage before multi-instance production scale.
+    3. Client streams each binary media asset directly from the browser to Vercel's global edge blob storage via `upload()` from `@vercel/blob/client`.
+    4. Vercel Blob returns a permanent public HTTPS URL and pathname for each object.
+    5. The composite URL remains on `recordings`; source URLs are stored as child rows in `recording_assets`.
+* **Current upload guard**: `/api/upload` accepts MP4/WebM video and audio assets up to 300 MB and uses an in-memory limit of 40 token requests per user per hour. The limiter is instance-local and must be replaced by durable storage before multi-instance production scale.
 * **Future Upgrade Path**: If Vercel Blob bandwidth costs grow, swap for **Cloudflare R2** via S3 presigned URLs (zero egress fees).
 
 ### 2.8 Cloud Database Subsystem (Neon Serverless Postgres)
@@ -193,6 +201,26 @@ stateDiagram-v2
   );
   CREATE INDEX idx_recordings_user_id ON recordings(user_id);
 
+  -- Separate uploaded media assets; composite remains mirrored on recordings
+  CREATE TABLE recording_assets (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      recording_id UUID NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+      kind VARCHAR(32) NOT NULL
+          CHECK (kind IN ('composite', 'webcam', 'screen', 'audio')),
+      storage_url TEXT NOT NULL,
+      blob_pathname TEXT NOT NULL,
+      mime_type VARCHAR(128) NOT NULL,
+      file_size_bytes BIGINT NOT NULL,
+      resolution VARCHAR(32),
+      fps INTEGER,
+      sample_rate_hz INTEGER,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      UNIQUE (recording_id, kind)
+  );
+  CREATE INDEX idx_recording_assets_recording_id
+      ON recording_assets(recording_id);
+
   -- Studio presets table (per-user)
   CREATE TABLE studio_presets (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -227,7 +255,7 @@ stateDiagram-v2
   * Route Handlers extract `userId` from the verified session and scope all DB queries to that `user_id`.
   * Anonymous or expired sessions receive `401 Unauthorized` responses.
 * **Upload Rate Limiting**:
-  * The `/api/upload` Route Handler enforces per-user upload rate limits (e.g., max 10 uploads/hour) to prevent blob storage quota abuse.
+  * The `/api/upload` Route Handler currently enforces an instance-local limit of 40 authorization requests per user per hour so a session can upload up to four media objects. Production multi-instance enforcement requires durable shared state.
 * **Public Share Links**:
   * A recording with `is_public = TRUE` is accessible via a public route (e.g., `/share/[recordingId]`).
   * `src/app/share/[recordingId]/page.tsx` is a request-time Server Component. It queries Neon and renders only when the recording is public, owned by the current user, or granted to the current user.
@@ -285,10 +313,11 @@ src/
 │       └── StudioShell.module.css    # Responsive Studio and review styling
 ├── hooks/
 │   ├── useMediaDevices.ts            # Screen & camera stream lifecycle
+│   ├── useNormalizedVideoStream.ts    # Fixed-size clean webcam/screen source canvases
 │   ├── useCanvasCompositor.ts        # 30 FPS composition loop & PiP layout
 │   ├── useAudioDSP.ts                # Web Audio graph & DSP filtering
 │   ├── useVisionSegmentation.ts      # MediaPipe AI background removal
-│   └── useRecordingSession.ts        # MediaRecorder lifecycle & 30-min active timer
+│   └── useRecordingSession.ts        # Coordinated multi-asset recorders & 30-min timer
 ├── lib/
 │   ├── auth.ts                       # Server-only Clerk session response helpers
 │   ├── db.ts                         # Neon Postgres client via @neondatabase/serverless
@@ -311,7 +340,7 @@ Dashboard, Library, Settings, and shared navigation are implemented as dedicated
 | Shared media session | `src/components/media/*` | Browser | Own raw capture streams across routes and expose global per-source/all-source disconnect controls |
 | Interactive UI | `src/components/studio/StudioShell.tsx` | Browser | Consume the shared media session, own Studio UI state, coordinate processing hooks, call APIs, and preview/download/upload recordings |
 | Product management UI | `src/components/dashboard`, `src/components/library`, `src/components/settings` | Browser | Load cloud/local catalogs, launch presets, manage recordings and recipients, persist theme, run diagnostics |
-| Media domain logic | `src/hooks/*` | Browser | Capture, segmentation, DSP, canvas composition, encoding, timers, and cleanup |
+| Media domain logic | `src/hooks/*` | Browser | Capture, source normalization, segmentation, DSP, canvas composition, multi-asset encoding, timers, and cleanup |
 | Local persistence | `src/lib/idb.ts`, `src/lib/ebmlPatcher.ts` | Browser when imported by client code | Draft recovery, finalized local storage, WebM duration repair |
 | Request proxy | `src/proxy.ts` | Vercel request boundary | Clerk session enforcement and public-route selection |
 | API backend | `src/app/api/**/route.ts` | Vercel serverless runtime | Validate sessions/input, apply ownership rules, call Neon/Blob services, return JSON |
@@ -357,15 +386,17 @@ sequenceDiagram
     UI->>Upload: Request upload authorization
     Upload->>Clerk: Verify user session
     Upload-->>UI: Short-lived client upload authorization
-    UI->>Blob: Multipart video bytes directly
-    Blob-->>UI: url + pathname
-    UI->>Metadata: POST recording metadata + Blob identifiers
-    Metadata->>Neon: INSERT with authenticated user_id
+    loop Composite and available source assets
+        UI->>Blob: Multipart media bytes directly
+        Blob-->>UI: url + pathname
+    end
+    UI->>Metadata: POST parent metadata + asset identifiers
+    Metadata->>Neon: INSERT recording + recording_assets with authenticated user_id
     Neon-->>Metadata: Recording row
     Metadata-->>UI: JSON recording
 ```
 
-The video body never passes through `/api/recordings`; only metadata does. This is the key boundary that avoids Vercel serverless request-body limits.
+Media bodies never pass through `/api/recordings`; only metadata does. This is the key boundary that avoids Vercel serverless request-body limits.
 
 ### 2.13 Current HTTP Surface
 

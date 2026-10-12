@@ -33,6 +33,15 @@ function renderLoop(currentTime) {
     3. Floating Silhouette (Alpha-masked cutout from background segmentation).
   * **Interactive Placement**: Real-time repositioning across 4 screen anchors (Top-Left, Top-Right, Bottom-Left, Bottom-Right) or manual drag-and-drop coordinates.
 
+### 1.3 Clean Source Normalization
+
+`useNormalizedVideoStream` creates independent, fixed-rate source canvases without modifying the raw tracks owned by `MediaSessionProvider`:
+
+* Webcam frames are contained in a `1280×720` canvas at 30 FPS. Black letterboxing preserves the camera aspect ratio, and Studio background effects are not applied.
+* Screen frames are contained in a `1920×1080` canvas at 30 FPS. Letterboxing or pillarboxing preserves the selected surface aspect ratio.
+* Each normalization canvas exposes one generated video track through `canvas.captureStream(30)`. Cleanup stops only that generated track; raw device tracks remain owned by the media-session provider.
+* Normalization runs only while a recording is being prepared or active to avoid permanent extra rendering work.
+
 ---
 
 ## 2. Background Segmentation & Virtual Studio Engine
@@ -131,11 +140,11 @@ To ensure that paused time does not cause blank frames or audio-video drift:
   * `totalRecordedDuration`: Active recording time (ms).
   * `lastResumeTimestamp`: Timestamp when recording last transitioned to active.
 * While paused:
-  * Audio nodes continue processing locally, but `mediaRecorder.pause()` suspends stream ingestion.
+  * Audio nodes continue processing locally, but every active asset recorder is paused so stream ingestion stops together.
   * Canvas render loop continues displaying preview to the user, but canvas frame updates to `MediaRecorder` are frozen or ignored.
 * On resume:
   * `lastResumeTimestamp = performance.now()`.
-  * `mediaRecorder.resume()`.
+  * Resume every active asset recorder as one coordinated operation.
 
 ### 4.2 The 30-Minute Safety Watchdog
 * Every tick of the recording timer evaluates:
@@ -166,7 +175,11 @@ Upon recording completion, the engine:
 4. Outputs the repaired `Blob` ready for instantaneous local download and scrubbable playback.
 
 ### 5.3 MediaRecorder Encoding & Chunking Invariants
-* Select the best supported MIME type at runtime: prefer `video/webm; codecs=vp9,opus`, falling back to `video/webm`, then `video/mp4` for Safari.
-* Always start `MediaRecorder` with a chunk timeslice (e.g. `mediaRecorder.start(1000)`) so data is collected periodically instead of one monolithic blob at stop.
-* On `mediaRecorder.pause()`, immediately stop active duration accumulation; restore time tracking on `resume()`.
-* Never offer the raw WebM blob for download without running the EBML duration patcher, or the file will lack a seekable index header.
+* Create one recorder for each available asset: composite, webcam, screen, and standalone audio. Each video recorder receives exactly one video track.
+* Composite codec selection prefers MP4/H.264 plus AAC when supported, then WebM/VP9 or VP8 plus Opus.
+* Webcam and screen selection prefers MP4/H.264 when supported, then WebM/VP9 or VP8. These files contain no audio track.
+* Standalone audio selection prefers MP4/AAC when supported, then WebM/Opus. It contains the processed master mix and no video track.
+* Always start every recorder with a one-second chunk timeslice so data is checkpointed periodically instead of retained as one monolithic blob until stop.
+* Pause and resume all active recorders together and use one active-time clock for the 30-minute limit and final duration.
+* Repair every finalized WebM asset independently before preview, download, recovery, or upload.
+* A missing optional source or a source-recorder failure produces a partial session warning without discarding a valid composite or other successful assets.

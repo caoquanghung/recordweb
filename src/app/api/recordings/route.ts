@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, isDbConfigured } from '@/lib/db';
 import { getSessionUserId, unauthorizedResponse } from '@/lib/auth';
-import { DbRecording, DbSharedRecording } from '@/types/database';
+import { DbRecording, DbRecordingAsset, DbSharedRecording } from '@/types/database';
 import { del } from '@vercel/blob';
 
 /** GET /api/recordings — Returns only the authenticated user's recordings. */
@@ -36,9 +36,36 @@ export async function GET() {
       ORDER BY r.created_at DESC
       LIMIT 50;
     `;
+    const assetRows = await sql`
+      SELECT ra.*
+      FROM recording_assets ra
+      JOIN recordings r ON r.id = ra.recording_id
+      WHERE r.user_id = ${userId}
+         OR EXISTS (
+           SELECT 1 FROM recording_shares rs
+           WHERE rs.recording_id = r.id
+             AND rs.recipient_user_id = ${userId}
+             AND rs.permission = 'viewer_download'
+         )
+      ORDER BY ra.created_at ASC;
+    ` as DbRecordingAsset[];
+    const assetsByRecording = new Map<string, DbRecordingAsset[]>();
+    assetRows.forEach((asset) => {
+      const current = assetsByRecording.get(asset.recording_id) ?? [];
+      current.push(asset);
+      assetsByRecording.set(asset.recording_id, current);
+    });
+    const ownedRecordings = (rows as DbRecording[]).map((recording) => ({
+      ...recording,
+      assets: assetsByRecording.get(recording.id) ?? [],
+    }));
+    const sharedRecordings = (sharedRows as DbSharedRecording[]).map((recording) => ({
+      ...recording,
+      assets: assetsByRecording.get(recording.id) ?? [],
+    }));
     return NextResponse.json({
-      recordings: rows as DbRecording[],
-      sharedRecordings: sharedRows as DbSharedRecording[],
+      recordings: ownedRecordings,
+      sharedRecordings,
     });
   } catch (error) {
     return NextResponse.json(
@@ -76,7 +103,13 @@ export async function POST(request: NextRequest) {
       blob_pathname = null,  // required for future del(pathname) deletions
       is_public = false,     // §2.9 — share link off by default
       settings = {},
+      assets = [],
     } = body;
+
+    const validAssetKinds = new Set(['composite', 'webcam', 'screen', 'audio']);
+    if (!Array.isArray(assets) || assets.some((asset) => !validAssetKinds.has(asset?.kind))) {
+      return NextResponse.json({ error: 'Invalid recording assets.' }, { status: 400 });
+    }
 
     const sql = getDb();
     // §2.8 / §2.9 — Insert with user_id FK and is_public column
@@ -111,7 +144,46 @@ export async function POST(request: NextRequest) {
       RETURNING *;
     `;
 
-    return NextResponse.json({ recording: result[0] as DbRecording }, { status: 201 });
+    const recording = result[0] as DbRecording;
+    const insertedAssets: DbRecordingAsset[] = [];
+    try {
+      for (const asset of assets) {
+        const assetResult = await sql`
+          INSERT INTO recording_assets (
+            recording_id,
+            kind,
+            storage_url,
+            blob_pathname,
+            mime_type,
+            file_size_bytes,
+            resolution,
+            fps,
+            sample_rate_hz,
+            metadata
+          ) VALUES (
+            ${recording.id},
+            ${asset.kind},
+            ${asset.storage_url},
+            ${asset.blob_pathname},
+            ${asset.mime_type},
+            ${asset.file_size_bytes},
+            ${asset.resolution ?? null},
+            ${asset.fps ?? null},
+            ${asset.sample_rate_hz ?? null},
+            ${JSON.stringify(asset.metadata ?? {})}
+          )
+          RETURNING *;
+        `;
+        insertedAssets.push(assetResult[0] as DbRecordingAsset);
+      }
+    } catch (assetError) {
+      await sql`DELETE FROM recordings WHERE id = ${recording.id} AND user_id = ${userId};`;
+      throw assetError;
+    }
+
+    return NextResponse.json({
+      recording: { ...recording, assets: insertedAssets },
+    }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message },
@@ -181,10 +253,20 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const pathname = result[0].blob_pathname as string | null;
-    if (pathname) await del(pathname);
+    const assetRows = await sql`
+      SELECT ra.blob_pathname
+      FROM recording_assets ra
+      JOIN recordings r ON r.id = ra.recording_id
+      WHERE ra.recording_id = ${id} AND r.user_id = ${userId};
+    `;
+    const pathnames = [
+      result[0].blob_pathname as string | null,
+      ...assetRows.map((asset) => asset.blob_pathname as string | null),
+    ].filter((pathname): pathname is string => Boolean(pathname));
+    const uniquePathnames = [...new Set(pathnames)];
+    if (uniquePathnames.length > 0) await del(uniquePathnames);
     await sql`DELETE FROM recordings WHERE id = ${id} AND user_id = ${userId};`;
-    return NextResponse.json({ deletedBlobPathname: pathname });
+    return NextResponse.json({ deletedBlobPathnames: uniquePathnames });
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message },

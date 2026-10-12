@@ -1,5 +1,5 @@
 import { get, set, del, keys } from 'idb-keyval';
-import { RecordingMetadata } from '@/types/recording';
+import { RecordingAssetKind, RecordingMetadata } from '@/types/recording';
 
 const RECORDINGS_KEY_PREFIX = 'recordweb_rec_';
 const DRAFTS_KEY_PREFIX = 'recordweb_draft_';
@@ -8,8 +8,16 @@ export interface RecordingDraft {
   id: string;
   startedAt: string;
   durationMs: number;
-  mimeType: string;
-  chunks: Blob[];
+  assets?: Partial<Record<RecordingAssetKind, {
+    mimeType: string;
+    chunks: Blob[];
+    resolution?: string;
+    fps?: number;
+    sampleRateHz?: number;
+  }>>;
+  /** Legacy single-output draft fields retained for recovery compatibility. */
+  mimeType?: string;
+  chunks?: Blob[];
 }
 
 export async function saveLocalRecording(recording: RecordingMetadata): Promise<void> {

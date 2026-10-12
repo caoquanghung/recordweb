@@ -114,6 +114,40 @@
   border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
+.sourceAssets {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.sourceAssets > div {
+  display: grid;
+  gap: 2px;
+  margin-right: auto;
+}
+
+.sourceAssets > div span,
+.sourceAssets a span {
+  color: #929bad;
+  font-size: 10px;
+}
+
+.sourceAssets > div strong { font-size: 12px; }
+
+.sourceAssets a {
+  display: grid;
+  gap: 3px;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+  text-decoration: none;
+}
+
+.sourceAssets a:hover { border-color: rgba(124, 109, 242, 0.5); }
+.sourceAssets a strong { font-size: 11px; }
+
 .download {
   padding: 10px 14px;
   border-radius: 10px;
@@ -147,10 +181,14 @@
 
 @media (max-width: 680px) {
   .heading,
-  .footer {
+  .footer,
+  .sourceAssets {
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .sourceAssets > div { margin-right: 0; }
+  .sourceAssets a { width: 100%; }
 
   .metadata {
     justify-content: flex-start;

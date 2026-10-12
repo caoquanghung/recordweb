@@ -22,6 +22,22 @@ export interface DbRecording {
   is_public: boolean;            // Share link toggle
   settings: Record<string, unknown>;
   created_at: string;
+  assets?: DbRecordingAsset[];
+}
+
+export interface DbRecordingAsset {
+  id: string;
+  recording_id: string;
+  kind: 'composite' | 'webcam' | 'screen' | 'audio';
+  storage_url: string;
+  blob_pathname: string;
+  mime_type: string;
+  file_size_bytes: number;
+  resolution: string | null;
+  fps: number | null;
+  sample_rate_hz: number | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface DbSharedRecording extends DbRecording {

@@ -7,6 +7,7 @@ import { useMediaSession } from '@/components/media/MediaSessionProvider';
 import { useCanvasCompositor } from '@/hooks/useCanvasCompositor';
 import { useAudioDSP } from '@/hooks/useAudioDSP';
 import type { AudioDspPreset } from '@/hooks/useAudioDSP';
+import { useNormalizedVideoStream } from '@/hooks/useNormalizedVideoStream';
 import { useRecordingSession } from '@/hooks/useRecordingSession';
 import { useVisionSegmentation } from '@/hooks/useVisionSegmentation';
 import { repairWebmDuration } from '@/lib/ebmlPatcher';
@@ -24,7 +25,7 @@ import type {
   PipSize,
   RecordingMode,
 } from '@/types/media';
-import type { RecordingMetadata } from '@/types/recording';
+import type { RecordingAssetKind, RecordingAssetMetadata, RecordingMetadata } from '@/types/recording';
 import styles from './StudioShell.module.css';
 
 type SessionState = 'setup' | 'countdown' | 'recording' | 'paused' | 'processing' | 'review';
@@ -68,12 +69,34 @@ const audioPresetByLabel: Record<string, AudioDspPreset> = {
   Custom: 'custom',
 };
 
-type BlobVideoContentType = 'video/mp4' | 'video/webm';
+type BlobContentType = 'video/mp4' | 'video/webm' | 'audio/mp4' | 'audio/webm';
 
-function getBlobVideoContentType(mimeType: string): BlobVideoContentType {
+function getBlobContentType(mimeType: string): BlobContentType {
   const baseType = mimeType.split(';', 1)[0].trim().toLowerCase();
-  if (baseType === 'video/mp4' || baseType === 'video/webm') return baseType;
-  throw new Error(`Unsupported video content type: ${mimeType || 'unknown'}`);
+  if (baseType === 'video/mp4' || baseType === 'video/webm' || baseType === 'audio/mp4' || baseType === 'audio/webm') {
+    return baseType;
+  }
+  throw new Error(`Unsupported recording content type: ${mimeType || 'unknown'}`);
+}
+
+function extensionForMimeType(mimeType: string) {
+  const baseType = getBlobContentType(mimeType);
+  if (baseType === 'audio/mp4') return 'm4a';
+  if (baseType.endsWith('/mp4')) return 'mp4';
+  return 'webm';
+}
+
+function compositeAssetFor(recording: RecordingMetadata): RecordingAssetMetadata | null {
+  if (recording.assets?.composite) return recording.assets.composite;
+  if (!recording.blob) return null;
+  return {
+    kind: 'composite',
+    blob: recording.blob,
+    fileSizeBytes: recording.fileSizeBytes,
+    mimeType: recording.mimeType,
+    resolution: recording.resolution,
+    fps: recording.fps,
+  };
 }
 
 function formatDuration(seconds: number) {
@@ -138,6 +161,7 @@ export function StudioShell() {
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [selectedMicrophoneId, setSelectedMicrophoneId] = useState('');
   const [isConnectingSources, setIsConnectingSources] = useState(false);
+  const [sourceCaptureEnabled, setSourceCaptureEnabled] = useState(false);
   const [recoveredRecording, setRecoveredRecording] = useState<RecordingMetadata | null>(null);
   const [recoveryDrafts, setRecoveryDrafts] = useState<RecordingDraft[]>([]);
   const [recoveryMessage, setRecoveryMessage] = useState('');
@@ -225,6 +249,19 @@ export function StudioShell() {
     cameraEffectCanvas: effectCanvas,
   });
 
+  const normalizedWebcamStream = useNormalizedVideoStream(
+    cameraStream,
+    1280,
+    720,
+    sourceCaptureEnabled,
+  );
+  const normalizedScreenStream = useNormalizedVideoStream(
+    screenStream,
+    1920,
+    1080,
+    sourceCaptureEnabled,
+  );
+
   const {
     status: recordingStatus,
     elapsedMs,
@@ -238,6 +275,8 @@ export function StudioShell() {
     reset: resetRecording,
   } = useRecordingSession({
     videoStream: compositeStream,
+    webcamStream: normalizedWebcamStream,
+    screenStream: normalizedScreenStream,
     audioStream: mixedAudioStream,
     resolution,
     fps: 30,
@@ -252,6 +291,12 @@ export function StudioShell() {
         ? recordingStatus
         : 'setup';
   const elapsed = activeRecording?.durationSeconds ?? elapsedMs / 1000;
+
+  useEffect(() => {
+    if (recordingStatus !== 'ready' && recordingStatus !== 'error') return;
+    const releaseSourceCanvases = window.setTimeout(() => setSourceCaptureEnabled(false), 0);
+    return () => window.clearTimeout(releaseSourceCanvases);
+  }, [recordingStatus]);
 
   const activeMode = useMemo(
     () => modes.find((item) => item.value === mode) ?? modes[0],
@@ -423,6 +468,7 @@ export function StudioShell() {
     setUploadState('idle');
     setUploadMessage('');
     setRecoveryMessage('');
+    setSourceCaptureEnabled(true);
     await resumeAudio();
     setCountdown(3);
     setSourcesOpen(false);
@@ -434,25 +480,50 @@ export function StudioShell() {
     if (!draft) return;
     setRecoveryMessage('Recovering the latest recording…');
     try {
-      const rawBlob = new Blob(draft.chunks, { type: draft.mimeType || 'video/webm' });
-      const blob = rawBlob.type.includes('webm')
-        ? await repairWebmDuration(rawBlob, draft.durationMs)
-        : rawBlob;
+      const draftAssets = draft.assets ?? (draft.chunks?.length ? {
+        composite: {
+          mimeType: draft.mimeType || 'video/webm',
+          chunks: draft.chunks,
+          resolution,
+          fps: 30,
+        },
+      } : {});
+      const assets: Partial<Record<RecordingAssetKind, RecordingAssetMetadata>> = {};
+      for (const kind of ['composite', 'webcam', 'screen', 'audio'] as RecordingAssetKind[]) {
+        const draftAsset = draftAssets[kind];
+        if (!draftAsset?.chunks.length) continue;
+        const rawBlob = new Blob(draftAsset.chunks, { type: draftAsset.mimeType });
+        const blob = rawBlob.type.includes('webm')
+          ? await repairWebmDuration(rawBlob, draft.durationMs)
+          : rawBlob;
+        assets[kind] = {
+          kind,
+          blob,
+          fileSizeBytes: blob.size,
+          mimeType: blob.type || draftAsset.mimeType,
+          resolution: draftAsset.resolution,
+          fps: draftAsset.fps,
+          sampleRateHz: draftAsset.sampleRateHz,
+        };
+      }
+      const composite = assets.composite;
+      if (!composite?.blob) throw new Error('The recovery checkpoint does not contain a composite video.');
       if (recoveredPreviewUrlRef.current) URL.revokeObjectURL(recoveredPreviewUrlRef.current);
-      const previewUrl = URL.createObjectURL(blob);
+      const previewUrl = URL.createObjectURL(composite.blob);
       recoveredPreviewUrlRef.current = previewUrl;
       const recording: RecordingMetadata = {
         id: draft.id,
         localId: draft.id,
         title: `Recovered recording ${new Date(draft.startedAt).toLocaleString()}`,
         durationSeconds: draft.durationMs / 1000,
-        fileSizeBytes: blob.size,
-        resolution,
-        fps: 30,
-        mimeType: blob.type,
+        fileSizeBytes: composite.fileSizeBytes,
+        resolution: composite.resolution ?? resolution,
+        fps: composite.fps ?? 30,
+        mimeType: composite.mimeType,
         createdAt: draft.startedAt,
-        blob,
+        blob: composite.blob,
         previewUrl,
+        assets,
       };
       await saveLocalRecording(recording);
       await deleteRecordingDraft(draft.id);
@@ -470,6 +541,7 @@ export function StudioShell() {
       recoveredPreviewUrlRef.current = null;
     }
     setRecoveredRecording(null);
+    setSourceCaptureEnabled(false);
     resetRecording();
     setCloudRecording(null);
     setUploadState('idle');
@@ -477,36 +549,70 @@ export function StudioShell() {
     setUploadMessage('');
   };
 
-  const downloadRecording = () => {
-    if (!activeRecording?.blob) return;
-    const temporaryUrl = activeRecording.previewUrl ?? URL.createObjectURL(activeRecording.blob);
-    const extension = activeRecording.mimeType.includes('mp4') ? 'mp4' : 'webm';
+  const downloadRecordingAsset = (kind: RecordingAssetKind) => {
+    if (!activeRecording) return;
+    const asset = kind === 'composite'
+      ? compositeAssetFor(activeRecording)
+      : activeRecording.assets?.[kind] ?? null;
+    if (!asset?.blob) return;
+    const temporaryUrl = kind === 'composite' && activeRecording.previewUrl
+      ? activeRecording.previewUrl
+      : URL.createObjectURL(asset.blob);
     const anchor = document.createElement('a');
     anchor.href = temporaryUrl;
-    anchor.download = `recordweb-${activeRecording.id}.${extension}`;
+    anchor.download = `recordweb-${activeRecording.id}-${kind}.${extensionForMimeType(asset.mimeType)}`;
     anchor.click();
-    if (!activeRecording.previewUrl) URL.revokeObjectURL(temporaryUrl);
+    if (temporaryUrl !== activeRecording.previewUrl) URL.revokeObjectURL(temporaryUrl);
   };
 
   const uploadRecording = async () => {
-    if (!activeRecording?.blob) return;
+    if (!activeRecording) return;
+    const composite = compositeAssetFor(activeRecording);
+    if (!composite?.blob) return;
     setUploadState('uploading');
     setUploadProgress(0);
-    setUploadMessage('Uploading directly to Vercel Blob…');
+    setUploadMessage('Uploading composite and source assets directly to Vercel Blob…');
     try {
-      const uploadContentType = getBlobVideoContentType(activeRecording.mimeType);
-      const extension = uploadContentType === 'video/mp4' ? 'mp4' : 'webm';
-      const blob = await upload(`recordings/${activeRecording.id}.${extension}`, activeRecording.blob, {
-        access: 'public',
-        handleUploadUrl: '/api/upload',
-        // Vercel validates this value against the exact token allowlist. Keep
-        // codec details in Neon metadata, but send the base HTTP media type.
-        contentType: uploadContentType,
-        multipart: true,
-        onUploadProgress: ({ percentage }) => setUploadProgress(Math.round(percentage)),
-      });
+      const localAssets = [
+        composite,
+        activeRecording.assets?.webcam,
+        activeRecording.assets?.screen,
+        activeRecording.assets?.audio,
+      ].filter((asset): asset is RecordingAssetMetadata & { blob: Blob } => Boolean(asset?.blob));
+      const progressByKind = new Map<RecordingAssetKind, number>();
+      const updateTotalProgress = () => {
+        const total = localAssets.reduce((sum, asset) => sum + (progressByKind.get(asset.kind) ?? 0), 0);
+        setUploadProgress(Math.round(total / localAssets.length));
+      };
+      const uploadedAssets = await Promise.all(localAssets.map(async (asset) => {
+        const contentType = getBlobContentType(asset.mimeType);
+        const extension = extensionForMimeType(asset.mimeType);
+        const uploaded = await upload(`recordings/${activeRecording.id}/${asset.kind}.${extension}`, asset.blob, {
+          access: 'public',
+          handleUploadUrl: '/api/upload',
+          contentType,
+          multipart: true,
+          onUploadProgress: ({ percentage }) => {
+            progressByKind.set(asset.kind, percentage);
+            updateTotalProgress();
+          },
+        });
+        return {
+          kind: asset.kind,
+          storage_url: uploaded.url,
+          blob_pathname: uploaded.pathname,
+          mime_type: asset.mimeType,
+          file_size_bytes: asset.fileSizeBytes,
+          resolution: asset.resolution ?? null,
+          fps: asset.fps ?? null,
+          sample_rate_hz: asset.sampleRateHz ?? null,
+          metadata: {},
+        };
+      }));
+      const uploadedComposite = uploadedAssets.find((asset) => asset.kind === 'composite');
+      if (!uploadedComposite) throw new Error('The composite upload did not complete.');
       setUploadState('saving');
-      setUploadMessage('Upload complete. Saving metadata to Neon…');
+      setUploadMessage('Uploads complete. Saving asset metadata to Neon…');
       const response = await fetch('/api/recordings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -518,9 +624,10 @@ export function StudioShell() {
           fps: activeRecording.fps,
           mime_type: activeRecording.mimeType,
           local_id: activeRecording.localId,
-          storage_url: blob.url,
-          blob_pathname: blob.pathname,
+          storage_url: uploadedComposite.storage_url,
+          blob_pathname: uploadedComposite.blob_pathname,
           is_public: false,
+          assets: uploadedAssets,
           settings: {
             recordingMode: mode,
             pipShape,
@@ -538,7 +645,7 @@ export function StudioShell() {
       setCloudRecording(data.recording);
       setUploadState('ready');
       setUploadProgress(100);
-      setUploadMessage('Stored in Vercel Blob and indexed in Neon. Sharing is private by default.');
+      setUploadMessage(`${uploadedAssets.length} assets stored in Vercel Blob and indexed in Neon. Sharing is private by default.`);
     } catch (error) {
       setUploadState('error');
       setUploadMessage(`Cloud save failed: ${(error as Error).message}`);
@@ -741,13 +848,31 @@ export function StudioShell() {
                 <><div><Icon name="play" /></div><strong>Preparing preview…</strong></>
               )}
             </div>
+            {activeRecording?.assets && (
+              <div className={styles.sourceAssets}>
+                <div>
+                  <span>Separate source files</span>
+                  <strong>Ready for editing</strong>
+                </div>
+                {(['webcam', 'screen', 'audio'] as RecordingAssetKind[]).map((kind) => {
+                  const asset = activeRecording.assets?.[kind];
+                  if (!asset?.blob) return null;
+                  return (
+                    <button key={kind} type="button" onClick={() => downloadRecordingAsset(kind)}>
+                      <Icon name={kind === 'audio' ? 'mic' : kind === 'webcam' ? 'camera' : 'screen'} />
+                      <span><strong>{kind === 'webcam' ? 'Webcam 720p' : kind === 'screen' ? 'Screen 1080p' : 'Audio master'}</strong><small>{asset.mimeType.split(';')[0]}</small></span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div className={styles.reviewActions}>
               <div className={styles.reviewStatus} aria-live="polite">
                 {uploadState === 'uploading' && <progress max="100" value={uploadProgress} />}
                 <span>{uploadMessage || 'This recording is available locally until you upload it.'}</span>
               </div>
               <button className={styles.reviewSecondary} onClick={resetReview}>Record another</button>
-              <button className={styles.reviewSecondary} onClick={downloadRecording}>Download video</button>
+              <button className={styles.reviewSecondary} onClick={() => downloadRecordingAsset('composite')}>Download composite</button>
               {cloudRecording ? (
                 <button className={styles.reviewPrimary} onClick={() => void publishAndCopyLink()}>
                   {cloudRecording.is_public ? 'Copy public link' : 'Make public & copy link'}

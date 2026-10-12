@@ -1695,6 +1695,52 @@
   font-size: 18px;
 }
 
+.sourceAssets {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.sourceAssets > div {
+  min-width: 170px;
+  display: grid;
+  gap: 3px;
+  margin-right: auto;
+}
+
+.sourceAssets > div span {
+  color: var(--primary-bright);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sourceAssets > div strong { font-size: 13px; }
+
+.sourceAssets button {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--text);
+  background: var(--panel-raised);
+  cursor: pointer;
+}
+
+.sourceAssets button:hover { border-color: rgba(124, 109, 242, 0.45); }
+.sourceAssets button .icon { width: 17px; color: var(--primary-bright); }
+.sourceAssets button span { display: grid; gap: 2px; text-align: left; }
+.sourceAssets button strong { font-size: 11px; }
+.sourceAssets button small { color: var(--muted); font-size: 9px; }
+
 .reviewActions {
   display: flex;
   align-items: center;
@@ -1894,6 +1940,7 @@
 :global(html[data-theme='light']) .drawerButton,
 :global(html[data-theme='light']) .reviewHero,
 :global(html[data-theme='light']) .reviewPreview,
+:global(html[data-theme='light']) .sourceAssets,
 :global(html[data-theme='light']) .reviewActions,
 :global(html[data-theme='light']) .diagnosticsList > div {
   background-color: rgba(255, 255, 255, 0.82);
@@ -1969,6 +2016,9 @@
   .timerBlock { min-width: 78px; }
   .reviewActions { align-items: stretch; flex-direction: column; }
   .reviewPrimary, .reviewSecondary { width: 100%; }
+  .sourceAssets { align-items: stretch; flex-direction: column; }
+  .sourceAssets > div { min-width: 0; }
+  .sourceAssets button { width: 100%; }
   .drawerBackdrop { padding: 0; }
   .diagnosticsDrawer { border-radius: 0; }
 }

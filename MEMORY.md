@@ -25,7 +25,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 
 1. **Framework Choice**: Next.js App Router + React 19 + TypeScript for end-to-end type safety, unified frontend and serverless route handlers, and zero-config Vercel deployment.
 2. **Client-Side Video Compositor with React Hooks**:
-   * Never record separate tracks directly into `MediaRecorder`.
+   * Never place multiple independent video tracks in one `MediaRecorder`. The composite and each clean source use separate, single-video-track recorders coordinated by one session hook.
    * Composite Screen (background) + Webcam (PiP overlay) onto a single `1920x1080` `<canvas>` surface.
    * Frame loop is locked to 30.0 FPS via delta-time throttling (`~33.33ms`) in `requestAnimationFrame`.
    * Capture stream generated via `canvas.captureStream(30)`.
@@ -45,6 +45,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
    * Cloud: 1-click upload to Vercel Blob with shareable link + metadata in Neon Postgres via `src/app/api/recordings/route.ts`.
 6. **UI Standard**: Strictly Vanilla CSS (CSS Modules & custom properties) with adaptive light/dark studio glassmorphism (tokens in `docs/ui_ux_specification.md`). Theme defaults to the OS preference and persists in `localStorage` as `recordweb-theme`. No Tailwind or heavy CSS frameworks.
 7. **Documentation Source of Truth**: `docs/system_architecture.md` is authoritative for subsystem boundaries, data flow, and risks (R1–R5); `docs/audio_video_pipeline.md` is authoritative for the media pipeline. `MEMORY.md` is the persistent state bank. `AGENTS.md` requires agents to conform to these; no duplicate media pipeline rule file exists.
+8. **Multi-Asset Output**: A session now produces the composite plus available clean 720p webcam, normalized 1080p screen, and standalone processed audio assets. Each asset uses a separate recorder, IndexedDB checkpoint, download, Blob object, and `recording_assets` metadata row. The remaining fifth asset, a 24 Hz normalized cursor path, is not implemented because exact tracking outside the RecordWeb document requires a native helper, desktop wrapper, or limited browser-extension integration.
 
 ---
 
@@ -57,6 +58,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 * **Database Schema**:
   * `users` table (id, email, display_name, created_at).
   * `recordings` table (id, **user_id FK**, title, duration_seconds, file_size_bytes, resolution, fps, mime_type, local_id, storage_url, blob_pathname, **is_public**, settings, created_at).
+  * `recording_assets` table (id, **recording_id FK**, kind, storage_url, blob_pathname, mime_type, file_size_bytes, resolution, fps, sample_rate_hz, metadata, created_at).
   * `studio_presets` table (id, **user_id FK**, preset_name, pip_shape, pip_size, pip_position, bg_removal_mode, filters_config, updated_at).
   * `recording_shares` table (recording_id, recipient_user_id, permission, created_at).
   * `schema_migrations` table tracks ordered `psql` migrations.
@@ -74,6 +76,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] `docs/implementation_roadmap.md`
   - [ ] Deployment/database guide is currently absent from the working tree and should be recreated only if requested.
   - [x] Product recommendations reconciled into the roadmap, requirements analysis, architecture, media pipeline, and UI specification (30-minute active-time limit, dashboard/library, recovery, presets, auth, and sharing scope)
+  - [x] Added `docs/output_requirement.md` with the proposed synchronized five-asset session contract, recovery/storage expectations, acceptance criteria, and browser cursor-tracking constraint
 - [x] **Agentic Files & Customization Setup**:
   - [x] `AGENTS.md` is the single agent instruction entry point; obsolete `GEMINI.md` was removed
   - [x] `.agents/rules/code_standards.md`
@@ -128,9 +131,11 @@ This file serves as the persistent memory bank for AI agents working on **Record
 - [x] **Phase 5: Recording Lifecycle, Pause/Resume & 30-Min Limit (`useRecordingSession`)**
   - [x] Replaced UI simulation with the real composited-video/mixed-audio MediaRecorder lifecycle, active-time timer, pause/resume, warnings, and hard stop
   - [x] Added MP4/AVC preference where supported with WebM fallback and kept the live canvas preview rendering while recording is paused
+  - [x] Added one coordinated multi-recorder session for composite, normalized 720p webcam, normalized 1080p screen, and standalone processed audio outputs
 - [x] **Phase 6: WebM Duration Fixer & Local Export / IndexedDB Integration**
   - [x] Connected finalized recordings to review playback and local download after WebM duration repair
   - [x] Added IndexedDB draft discovery and one-click recovery into a repaired, locally persisted recording
+  - [x] Checkpointed chunks by asset kind and added independent source-asset recovery and download controls
 - [x] **Phase 7: Studio React UI & Dark Glassmorphism Styling**
   - [x] Implemented the preview-first Studio layout: collapsible Sources/Effects panels, tabbed effect controls, sticky recording dock, dedicated review workspace, and on-demand diagnostics drawer
   - [x] Corrected the default Studio grid so the preview remains the primary left column and Sources/Effects align at the top of a single right inspector rail; viewports at or below 1120px use overlay drawers
@@ -140,6 +145,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added owner sharing controls that resolve registered recipients by email, grant `viewer` or `viewer_download`, list recipients, and revoke access
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
+  - [x] Applied and verified migration `0002_recording_assets`; multi-asset uploads create separate Blob objects and child metadata rows
   - [x] Added a request-time authorized `/share/[recordingId]` page for public, owner, `viewer`, and `viewer_download` access
   - [x] Verified the live Neon migration status and schema with `npm run db:status` and `npm run db:verify`
   - [x] Added a Chromium Playwright E2E harness with fake camera/microphone devices, local/deployed base URL support, and an anonymous sign-in smoke test
@@ -168,11 +174,13 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Clerk Dev Proxy Origin** | Playwright requests through `127.0.0.1` can trigger Clerk development-proxy socket resets | Use `http://localhost:3000` consistently for the Playwright base URL and local web server. |
 | **Blob Store Access Mismatch** | If the client `access` option differs from the connected Blob store mode, uploads can remain at 0% and no metadata request is sent | Keep the current MVP store and client set to `public`. Private storage would also require an authenticated delivery route or short-lived signed URLs. |
 | **Blob MIME Allowlist Mismatch** | `MediaRecorder` reports codec-qualified MIME values such as `video/mp4;codecs=avc1,mp4a.40.2`, while the upload token permits base types | Normalize only the Blob upload `contentType` to `video/mp4` or `video/webm`; retain the codec-qualified MIME value in recording metadata. |
+| **Concurrent Encoder Load** | Composite, webcam, and screen encoding can saturate low-power devices and cause dropped frames | Keep one video track per recorder, use fixed-rate normalization canvases, expose partial results, and validate real 30-minute sessions on target hardware. |
 
 ---
 
 ## 6. Immediate Next Steps
 
-1. Add a dedicated Clerk test account and Playwright `storageState`, then automate authenticated Studio and Library flows.
-2. Upload a real recording to the connected Vercel Blob store, confirm Neon metadata, then verify private-owner and public-link behavior in a signed-out browser.
-3. Decide whether sensitive recordings require a private Blob store and authorized media-delivery endpoint instead of public Blob URLs.
+1. Run an authenticated real-device test and confirm one session produces composite, webcam, screen, and audio files with synchronized pause/resume behavior.
+2. Confirm the four Blob objects and their `recording_assets` rows, then verify owner, `viewer`, and `viewer_download` behavior.
+3. Decide the native-helper, desktop-wrapper, or extension capability model before implementing the 24 Hz cursor path.
+4. Decide whether sensitive recordings require a private Blob store and authorized media-delivery endpoint instead of public Blob URLs.

@@ -2,10 +2,12 @@ import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUserId } from '@/lib/auth';
 
-// Simple in-memory rate limiter: max 10 upload tokens per user per hour.
+// Simple in-memory rate limiter; the allowance is defined below.
 // Replace with a Redis-backed solution (e.g. Upstash) for production scale.
 const uploadRateLimiter = new Map<string, { count: number; resetAt: number }>();
-const MAX_UPLOADS_PER_HOUR = 10;
+// A complete session can request four client-upload tokens (composite plus
+// webcam, screen, and audio), so the allowance is session-aware.
+const MAX_UPLOADS_PER_HOUR = 40;
 
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         return {
           // §2.10 — Accept both MP4 (preferred) and WebM (fallback) per codec detection
-          allowedContentTypes: ['video/mp4', 'video/webm'],
+          allowedContentTypes: ['video/mp4', 'video/webm', 'audio/mp4', 'audio/webm'],
           maximumSizeInBytes: 300 * 1024 * 1024, // 300MB ceiling for 30-min 1080p
           tokenPayload: JSON.stringify({
             userId,
