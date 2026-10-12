@@ -18,9 +18,30 @@
   animation: controlEnter 180ms ease-out;
 }
 
+.positioned {
+  right: auto;
+  bottom: auto;
+  animation: none;
+}
+
+.dragging {
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(155, 140, 255, 0.22);
+}
+
 .heading {
   grid-column: 1 / -1;
   display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding: 1px 2px;
+}
+
+.dragHandle {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   color: #aab2c2;
@@ -28,6 +49,76 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.dragging .dragHandle { cursor: grabbing; }
+
+.dragHandle:focus-visible {
+  border-radius: 7px;
+  outline: 2px solid #9b8cff;
+  outline-offset: 3px;
+}
+
+.grip {
+  display: grid;
+  grid-template-columns: repeat(2, 3px);
+  gap: 2px;
+  padding: 2px;
+  opacity: 0.62;
+}
+
+.grip i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.headingLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dragHint {
+  color: #737d8f;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.resetPosition {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  color: #aab2c2;
+  background: rgba(255, 255, 255, 0.06);
+  font: inherit;
+  cursor: pointer;
+}
+
+.resetPosition:hover:not(:disabled) {
+  color: #ffffff;
+  background: rgba(155, 140, 255, 0.18);
+}
+
+.resetPosition:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+.resetPosition:focus-visible {
+  outline: 2px solid #9b8cff;
+  outline-offset: 2px;
 }
 
 .liveDot {
@@ -119,6 +210,11 @@
 }
 
 :global(html[data-theme='light']) .heading { color: #626d80; }
+:global(html[data-theme='light']) .dragHint { color: #8a94a6; }
+:global(html[data-theme='light']) .resetPosition {
+  color: #626d80;
+  background: rgba(36, 44, 64, 0.06);
+}
 :global(html[data-theme='light']) .sourceButton {
   border-color: rgba(22, 31, 49, 0.1);
   color: #343c4d;
@@ -137,11 +233,21 @@
 }
 
 @media (max-width: 680px) {
-  .control {
+  .control:not(.positioned) {
     right: 12px;
     bottom: 78px;
+  }
+
+  .control {
     width: calc(100vw - 24px);
   }
+
+  .control.positioned {
+    right: auto;
+    bottom: auto;
+  }
+
+  .dragHint { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

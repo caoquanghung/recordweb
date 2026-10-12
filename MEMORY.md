@@ -112,6 +112,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added strict replacement, disconnect, and unmount cleanup with `track.stop()`
   - [x] Connected source selection, readiness states, system-audio detection, and live screen/camera previews to `StudioShell`
   - [x] Lifted raw stream ownership into a root `MediaSessionProvider` and added an adaptive global control for disconnecting screen, camera, microphone, or all sources from every route
+  - [x] Made the global active-device control draggable, keyboard-movable, viewport-clamped, and position-persistent so it cannot permanently cover page actions
 - [x] **Phase 2: 30 FPS Canvas Compositor Engine (`useCanvasCompositor`)**:
   - [x] Added delta-clamped 30 FPS canvas rendering with 720p/1080p 16:9 output and contained screen fitting
   - [x] Added screen-only, webcam-only, and screen-plus-PiP composition into one `canvas.captureStream(30)` visual stream
