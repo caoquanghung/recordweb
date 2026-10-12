@@ -119,6 +119,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added circular/rounded PiP masks, 160/240/320px scaled sizes, four anchor presets, clamped pointer dragging, and keyboard nudging
   - [x] Added development FPS diagnostics, paused/no-source render suspension, generated-stream cleanup, and a Phase 4 cutout fallback warning
   - [x] Connected the composited canvas, position controls, live FPS, and stream readiness to `StudioShell`
+  - [x] Replaced foreground-only canvas/inference scheduling with a visibility-aware RAF/Web Worker clock so background browser tabs continue producing composite, webcam, screen, and segmentation frames
 - [x] **Phase 3: Web Audio DSP Pipeline & VU Meter (`useAudioDSP`)**:
   - [x] Added the microphone chain: 80Hz high-pass, 2.8kHz/+4dB presence EQ, 12kHz low-pass, -24dB/4:1 compressor, and smooth noise gate
   - [x] Mixed browser-supported system audio through an independent gain path so vocal filters affect only the microphone
@@ -176,6 +177,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Blob Store Access Mismatch** | If the client `access` option differs from the connected Blob store mode, uploads can remain at 0% and no metadata request is sent | Keep the current MVP store and client set to `public`. Private storage would also require an authenticated delivery route or short-lived signed URLs. |
 | **Blob MIME Allowlist Mismatch** | `MediaRecorder` reports codec-qualified MIME values such as `video/mp4;codecs=avc1,mp4a.40.2`, while the upload token permits base types | Normalize only the Blob upload `contentType` to `video/mp4` or `video/webm`; retain the codec-qualified MIME value in recording metadata. |
 | **Concurrent Encoder Load** | Composite, webcam, and screen encoding can saturate low-power devices and cause dropped frames | Keep one video track per recorder, use fixed-rate normalization canvases, expose partial results, and validate real 30-minute sessions on target hardware. |
+| **Background-Tab RAF Suspension** | Switching to another browser tab pauses `requestAnimationFrame`, freezing canvas-derived composite, screen, and webcam frames while audio continues | Use `src/lib/frameScheduler.ts`: RAF in visible tabs and a worker timer while `document.hidden`; retain delta clamping and test target browsers. Full browser/OS process suspension remains outside webpage control. |
 
 ---
 

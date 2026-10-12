@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { startVisibilityAwareFrameLoop } from '@/lib/frameScheduler';
 import type { BackgroundRemovalMode } from '@/types/media';
 
 const INFERENCE_SIZE = 256;
@@ -48,9 +49,11 @@ export function useVisionSegmentation(
     }
 
     let cancelled = false;
-    let timer: number | null = null;
     let failures = 0;
     let interval = NORMAL_INTERVAL_MS;
+    let inferenceRunning = false;
+    let inferenceDisabled = false;
+    let lastInferenceAt = 0;
     let frameCount = 0;
     let fpsWindowStart = performance.now();
     const video = createVideo(cameraStream);
@@ -74,15 +77,19 @@ export function useVisionSegmentation(
 
     let segmenter: import('@mediapipe/selfie_segmentation').SelfieSegmentation | null = null;
 
-    const schedule = () => {
-      if (!cancelled) timer = window.setTimeout(runInference, interval);
-    };
+    const runInference = async (timestamp: number) => {
+      if (
+        cancelled
+        || inferenceDisabled
+        || inferenceRunning
+        || timestamp - lastInferenceAt < interval
+        || !segmenter
+        || !inputContext
+        || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+      ) return;
 
-    const runInference = async () => {
-      if (cancelled || !segmenter || !inputContext || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-        schedule();
-        return;
-      }
+      inferenceRunning = true;
+      lastInferenceAt = timestamp;
       const startedAt = performance.now();
       try {
         inputContext.drawImage(video, 0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
@@ -93,13 +100,19 @@ export function useVisionSegmentation(
       } catch (cause) {
         failures += 1;
         if (failures >= MAX_FAILURES) {
+          inferenceDisabled = true;
           setState('error');
           setError(`Background effect disabled: ${(cause as Error).message || 'segmentation failed'}`);
-          return;
         }
+      } finally {
+        inferenceRunning = false;
       }
-      schedule();
     };
+
+    const stopInferenceLoop = startVisibilityAwareFrameLoop(
+      (timestamp) => void runInference(timestamp),
+      1000 / NORMAL_INTERVAL_MS,
+    );
 
     void (async () => {
       try {
@@ -144,7 +157,6 @@ export function useVisionSegmentation(
           setState('running');
         });
         await segmenter.initialize();
-        schedule();
       } catch (cause) {
         if (!cancelled) {
           setState('error');
@@ -156,7 +168,7 @@ export function useVisionSegmentation(
     return () => {
       cancelled = true;
       window.clearTimeout(publishCanvas);
-      if (timer !== null) window.clearTimeout(timer);
+      stopInferenceLoop();
       video.pause();
       video.srcObject = null;
       void segmenter?.close().catch(() => undefined);

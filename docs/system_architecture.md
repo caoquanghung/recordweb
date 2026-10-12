@@ -138,7 +138,7 @@ stateDiagram-v2
 ```
 
 * **Risk 3 Mitigation (A/V Desync over Long Recordings)**:
-  * The canvas frame loop must be driven by a **steady delta-clamped RAF timer**. Raw `requestAnimationFrame` throttles when the browser tab is hidden, starving the canvas stream and causing video to fall behind audio.
+  * The canvas frame loop uses a **visibility-aware, delta-clamped scheduler**. Foreground rendering uses `requestAnimationFrame`; hidden-tab rendering uses a Web Worker clock because browsers pause RAF for background tabs. This keeps composite and normalized source canvases producing frames while the user works in another tab.
   * A session timer fires `stopRecording()` hard at **30 minutes** to prevent unchecked clock drift.
   * UI prominently warns users when a session exceeds 15 minutes, recommending shorter sessions for best sync quality.
 * **Coordinated asset outputs**:
@@ -322,6 +322,7 @@ src/
 │   ├── auth.ts                       # Server-only Clerk session response helpers
 │   ├── db.ts                         # Neon Postgres client via @neondatabase/serverless
 │   ├── ebmlPatcher.ts                # Binary EBML duration patcher
+│   ├── frameScheduler.ts              # RAF/worker clock for visible and hidden tabs
 │   └── idb.ts                        # IndexedDB wrapper for session backup
 ├── types/
 │   ├── media.ts                      # Stream and filter configuration types

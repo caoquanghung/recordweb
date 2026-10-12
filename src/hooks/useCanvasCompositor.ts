@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent, RefObject } from 'react';
+import { startVisibilityAwareFrameLoop } from '@/lib/frameScheduler';
 import type { PipPosition, PipShape, PipSize, RecordingMode } from '@/types/media';
 
 const TARGET_FPS = 30;
@@ -178,7 +179,6 @@ export function useCanvasCompositor({
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
   const outputStreamRef = useRef<MediaStream | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
   const pipRectRef = useRef<PipRect>(EMPTY_RECT);
   const customPositionRef = useRef<Point>({ x: 0, y: 0 });
   const dragOffsetRef = useRef<Point | null>(null);
@@ -335,14 +335,9 @@ export function useCanvasCompositor({
         }
       }
 
-      animationFrameRef.current = requestAnimationFrame(renderFrame);
     };
 
-    animationFrameRef.current = requestAnimationFrame(renderFrame);
-    return () => {
-      if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    };
+    return startVisibilityAwareFrameLoop(renderFrame, TARGET_FPS);
   }, [cameraEffectCanvas, cameraVisible, isRendering, mode, paused, pipPosition, pipShape, pipSize, resolution.height, resolution.width]);
 
   const setPipPosition = useCallback((position: Exclude<PipPosition, 'custom'>) => {

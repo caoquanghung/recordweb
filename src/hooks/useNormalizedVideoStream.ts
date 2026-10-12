@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { startVisibilityAwareFrameLoop } from '@/lib/frameScheduler';
 
 const DEFAULT_FPS = 30;
 
@@ -57,7 +58,6 @@ export function useNormalizedVideoStream(
     video.srcObject = sourceStream;
 
     const generatedStream = canvas.captureStream(fps);
-    let animationFrame = 0;
     let disposed = false;
     const publishTimer = window.setTimeout(() => {
       if (!disposed) setOutputStream(generatedStream);
@@ -72,19 +72,18 @@ export function useNormalizedVideoStream(
         lastFrameTime = now - (delta % frameInterval);
         drawContainedFrame(context, video, width, height);
       }
-      animationFrame = requestAnimationFrame(render);
     };
 
     void video.play().catch(() => {
       // The next user gesture that starts recording also satisfies autoplay
       // policies; the render loop remains ready in the meantime.
     });
-    animationFrame = requestAnimationFrame(render);
+    const stopFrameLoop = startVisibilityAwareFrameLoop(render, fps);
 
     return () => {
       disposed = true;
       window.clearTimeout(publishTimer);
-      cancelAnimationFrame(animationFrame);
+      stopFrameLoop();
       video.pause();
       video.srcObject = null;
       generatedStream.getTracks().forEach((track) => track.stop());

@@ -6,22 +6,26 @@
 The video recording output standard is fixed at **1920x1080 (16:9 Full HD)** at **30.0 frames per second**.
 
 ```javascript
-// Frame Rate Regulation Loop
+// Visibility-aware frame regulation
 const TARGET_FPS = 30;
 const FRAME_INTERVAL = 1000 / TARGET_FPS; // 33.333 ms
 let lastFrameTime = performance.now();
 
 function renderLoop(currentTime) {
-  if (!isRecordingPaused) {
-    const delta = currentTime - lastFrameTime;
-    if (delta >= FRAME_INTERVAL) {
-      lastFrameTime = currentTime - (delta % FRAME_INTERVAL);
-      drawCompositeFrame();
-    }
+  const delta = currentTime - lastFrameTime;
+  if (!isRecordingPaused && delta >= FRAME_INTERVAL) {
+    lastFrameTime = currentTime - (delta % FRAME_INTERVAL);
+    drawCompositeFrame();
   }
-  requestAnimationFrame(renderLoop);
 }
+
+// Foreground: requestAnimationFrame(renderLoop)
+// Hidden browser tab: worker clock invokes renderLoop(performance.now())
 ```
+
+Browsers pause `requestAnimationFrame()` when the document becomes a background tab. RecordWeb therefore uses `startVisibilityAwareFrameLoop()` from `src/lib/frameScheduler.ts`: RAF remains the foreground clock, while a dedicated worker timer supplies ticks when `document.hidden` is true. Delta clamping still caps rendering at the target rate. This scheduler drives the composite canvas, clean source-normalization canvases, and MediaPipe inference loop.
+
+The worker clock prevents the common short/medium background-tab freeze. Browsers or operating systems may still fully suspend a page under memory pressure, battery-saving policies, or mobile backgrounding; a normal web page cannot override full process suspension.
 
 ### 1.2 Layout Composition Strategies
 * **Background Layer (Screen Capture)**:
@@ -41,6 +45,7 @@ function renderLoop(currentTime) {
 * Screen frames are contained in a `1920×1080` canvas at 30 FPS. Letterboxing or pillarboxing preserves the selected surface aspect ratio.
 * Each normalization canvas exposes one generated video track through `canvas.captureStream(30)`. Cleanup stops only that generated track; raw device tracks remain owned by the media-session provider.
 * Normalization runs only while a recording is being prepared or active to avoid permanent extra rendering work.
+* Both normalization canvases use the visibility-aware frame scheduler so their encoded source files continue receiving frames when the RecordWeb tab is hidden.
 
 ---
 
