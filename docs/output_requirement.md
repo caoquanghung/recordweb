@@ -198,7 +198,7 @@ recordings/<sessionId>/cursor.json
 
 Store the actual browser-produced MIME type and codec. Never give a WebM file an `.mp4` extension.
 
-The review screen should offer individual downloads for the composite, webcam, screen, audio, and cursor assets. Downloading all assets as one package is a future enhancement.
+The review screen should offer individual downloads for the composite, webcam, screen, audio, and cursor assets. When the standalone audio Blob is available locally, the review screen should decode that finalized file and render a recorded-amplitude waveform with synchronized playback and seek controls. The live analyser remains a VU-meter source and must not be presented as the recorded waveform. Downloading all assets as one package is a future enhancement.
 
 ## 6. Local Recovery Requirements
 

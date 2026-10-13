@@ -4,6 +4,7 @@ import { upload } from '@vercel/blob/client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppNavigation } from '@/components/app/AppNavigation';
 import { useMediaSession } from '@/components/media/MediaSessionProvider';
+import { RecordedAudioWaveform } from '@/components/review/RecordedAudioWaveform';
 import { useCanvasCompositor } from '@/hooks/useCanvasCompositor';
 import { useAudioDSP } from '@/hooks/useAudioDSP';
 import type { AudioDspPreset } from '@/hooks/useAudioDSP';
@@ -848,6 +849,13 @@ export function StudioShell() {
                 <><div><Icon name="play" /></div><strong>Preparing preview…</strong></>
               )}
             </div>
+            {activeRecording?.assets?.audio?.blob && (
+              <RecordedAudioWaveform
+                blob={activeRecording.assets.audio.blob}
+                durationSeconds={activeRecording.durationSeconds}
+                mimeType={activeRecording.assets.audio.mimeType}
+              />
+            )}
             {activeRecording?.assets && (
               <div className={styles.sourceAssets}>
                 <div>

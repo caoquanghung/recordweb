@@ -145,6 +145,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Connected recording/recovery status, real preview, download, upload progress, and publish/share actions to the review workspace
   - [x] Added functional Dashboard, Library, and Settings routes with shared navigation, responsive light/dark styling, quick starts, preset launch/delete, local/cloud/shared recording filters, playback, scoped deletion, diagnostics, and local storage visibility
   - [x] Added owner sharing controls that resolve registered recipients by email, grant `viewer` or `viewer_download`, list recipients, and revoke access
+  - [x] Added a reusable recorded-audio review player that decodes the finalized standalone audio Blob into an amplitude waveform with synchronized playback and click-to-seek controls; the live VU analyser remains separate
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
   - [x] Applied and verified migration `0002_recording_assets`; multi-asset uploads create separate Blob objects and child metadata rows
