@@ -18,6 +18,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   * **Authentication**: Clerk (`@clerk/nextjs`) with Next.js 16 `src/proxy.ts`.
   * **Video Object Storage**: Vercel Blob (`@vercel/blob/client`) for direct client-to-edge uploads.
   * **Hosting**: Vercel (Next.js Edge CDN + Serverless Route Handlers in `src/app/api/*`).
+  * **Desktop Helper**: Electron 44 with a sandboxed/context-isolated preload bridge for 24 Hz global cursor tracking.
 
 ---
 
@@ -45,7 +46,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
    * Cloud: 1-click upload to Vercel Blob with shareable link + metadata in Neon Postgres via `src/app/api/recordings/route.ts`.
 6. **UI Standard**: Strictly Vanilla CSS (CSS Modules & custom properties) with adaptive light/dark studio glassmorphism (tokens in `docs/ui_ux_specification.md`). Theme defaults to the OS preference and persists in `localStorage` as `recordweb-theme`. No Tailwind or heavy CSS frameworks.
 7. **Documentation Source of Truth**: `docs/system_architecture.md` is authoritative for subsystem boundaries, data flow, and risks (R1–R5); `docs/audio_video_pipeline.md` is authoritative for the media pipeline. `MEMORY.md` is the persistent state bank. `AGENTS.md` requires agents to conform to these; no duplicate media pipeline rule file exists.
-8. **Multi-Asset Output**: A session now produces the composite plus available clean 720p webcam, normalized 1080p screen, and standalone processed audio assets. Each asset uses a separate recorder, IndexedDB checkpoint, download, Blob object, and `recording_assets` metadata row. The remaining fifth asset, a 24 Hz normalized cursor path, is not implemented because exact tracking outside the RecordWeb document requires a native helper, desktop wrapper, or limited browser-extension integration.
+8. **Multi-Asset Output**: A session now produces the composite plus available clean 720p webcam, normalized 1080p screen, standalone processed audio, and an Electron-assisted 24 Hz cursor JSON. Media assets use separate recorders; the cursor sampler runs in Electron main and follows the same active-time pause/resume lifecycle. Cursor JSON is finalized into IndexedDB and local Review/Library export; cursor draft checkpointing and cloud metadata remain pending.
 
 ---
 
@@ -138,6 +139,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Connected finalized recordings to review playback and local download after WebM duration repair
   - [x] Added IndexedDB draft discovery and one-click recovery into a repaired, locally persisted recording
   - [x] Checkpointed chunks by asset kind and added independent source-asset recovery and download controls
+  - [x] Added Electron display cursor capture at 24 Hz, normalized active-time JSON finalization, local IndexedDB persistence, download, and Review/Library path visualization
 - [x] **Phase 7: Studio React UI & Dark Glassmorphism Styling**
   - [x] Implemented the preview-first Studio layout: collapsible Sources/Effects panels, tabbed effect controls, sticky recording dock, dedicated review workspace, and on-demand diagnostics drawer
   - [x] Corrected the default Studio grid so the preview remains the primary left column and Sources/Effects align at the top of a single right inspector rail; viewports at or below 1120px use overlay drawers
@@ -180,12 +182,12 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Blob MIME Allowlist Mismatch** | `MediaRecorder` reports codec-qualified MIME values such as `video/mp4;codecs=avc1,mp4a.40.2`, while the upload token permits base types | Normalize only the Blob upload `contentType` to `video/mp4` or `video/webm`; retain the codec-qualified MIME value in recording metadata. |
 | **Concurrent Encoder Load** | Composite, webcam, and screen encoding can saturate low-power devices and cause dropped frames | Keep one video track per recorder, use fixed-rate normalization canvases, expose partial results, and validate real 30-minute sessions on target hardware. |
 | **Background-Tab RAF Suspension** | Switching to another browser tab pauses `requestAnimationFrame`, freezing canvas-derived composite, screen, and webcam frames while audio continues | Use `src/lib/frameScheduler.ts`: RAF in visible tabs and a worker timer while `document.hidden`; retain delta clamping and test target browsers. Full browser/OS process suspension remains outside webpage control. |
+| **Browser Cursor Isolation** | A normal page cannot read the pointer over another app or map a chosen tab/window to absolute desktop bounds | Use the Electron main-process `screen` API for selected-display capture only. Omit cursor output truthfully for ordinary browsers and non-monitor capture; `getCursorScreenPoint()` is unavailable on Wayland. |
 
 ---
 
 ## 6. Immediate Next Steps
 
-1. Run an authenticated real-device test and confirm one session produces composite, webcam, screen, and audio files with synchronized pause/resume behavior.
-2. Confirm the four Blob objects and their `recording_assets` rows, then verify owner, `viewer`, and `viewer_download` behavior.
-3. Decide the native-helper, desktop-wrapper, or extension capability model before implementing the 24 Hz cursor path.
-4. Decide whether sensitive recordings require a private Blob store and authorized media-delivery endpoint instead of public Blob URLs.
+1. Sign in through the Electron wrapper and run an authenticated real-device session to verify composite, webcam, screen, audio, and 24 Hz cursor JSON synchronization across pause/resume.
+2. Decide whether cursor JSON needs incremental draft recovery and cloud upload/`recording_assets` persistence.
+3. Decide whether sensitive recordings require a private Blob store and authorized media-delivery endpoint instead of public Blob URLs.

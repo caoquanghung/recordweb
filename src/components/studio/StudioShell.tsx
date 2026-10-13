@@ -5,7 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppNavigation } from '@/components/app/AppNavigation';
 import { useMediaSession } from '@/components/media/MediaSessionProvider';
 import { RecordedAudioWaveform } from '@/components/review/RecordedAudioWaveform';
+import { RecordedCursorTrajectory } from '@/components/review/RecordedCursorTrajectory';
 import { useCanvasCompositor } from '@/hooks/useCanvasCompositor';
+import { useCursorTrajectory } from '@/hooks/useCursorTrajectory';
 import { useAudioDSP } from '@/hooks/useAudioDSP';
 import type { AudioDspPreset } from '@/hooks/useAudioDSP';
 import { useNormalizedVideoStream } from '@/hooks/useNormalizedVideoStream';
@@ -82,6 +84,7 @@ function getBlobContentType(mimeType: string): BlobContentType {
 }
 
 function extensionForMimeType(mimeType: string) {
+  if (mimeType.split(';', 1)[0].trim().toLowerCase() === 'application/json') return 'json';
   const baseType = getBlobContentType(mimeType);
   if (baseType === 'audio/mp4') return 'm4a';
   if (baseType.endsWith('/mp4')) return 'mp4';
@@ -263,6 +266,7 @@ export function StudioShell() {
     1080,
     sourceCaptureEnabled,
   );
+  const cursorTrajectory = useCursorTrajectory(screenStream);
 
   const {
     status: recordingStatus,
@@ -282,6 +286,7 @@ export function StudioShell() {
     audioStream: mixedAudioStream,
     resolution,
     fps: 30,
+    cursorCapture: cursorTrajectory.controller,
   });
 
   const activeRecording = completedRecording ?? recoveredRecording;
@@ -570,7 +575,9 @@ export function StudioShell() {
       : URL.createObjectURL(asset.blob);
     const anchor = document.createElement('a');
     anchor.href = temporaryUrl;
-    anchor.download = `recordweb-${activeRecording.id}-${kind}.${extensionForMimeType(asset.mimeType)}`;
+    anchor.download = kind === 'cursor'
+      ? `${activeRecording.id}-cursor.json`
+      : `recordweb-${activeRecording.id}-${kind}.${extensionForMimeType(asset.mimeType)}`;
     anchor.click();
     if (temporaryUrl !== activeRecording.previewUrl) URL.revokeObjectURL(temporaryUrl);
   };
@@ -869,19 +876,22 @@ export function StudioShell() {
                 peaks={activeRecording.assets.audio.waveformPeaks}
               />
             )}
+            {activeRecording?.assets?.cursor?.blob && (
+              <RecordedCursorTrajectory blob={activeRecording.assets.cursor.blob} />
+            )}
             {activeRecording?.assets && (
               <div className={styles.sourceAssets}>
                 <div>
                   <span>Separate source files</span>
                   <strong>Ready for editing</strong>
                 </div>
-                {(['webcam', 'screen', 'audio'] as RecordingAssetKind[]).map((kind) => {
+                {(['webcam', 'screen', 'audio', 'cursor'] as RecordingAssetKind[]).map((kind) => {
                   const asset = activeRecording.assets?.[kind];
                   if (!asset?.blob) return null;
                   return (
                     <button key={kind} type="button" onClick={() => downloadRecordingAsset(kind)}>
                       <Icon name={kind === 'audio' ? 'mic' : kind === 'webcam' ? 'camera' : 'screen'} />
-                      <span><strong>{kind === 'webcam' ? 'Webcam 720p' : kind === 'screen' ? 'Screen 1080p' : 'Audio master'}</strong><small>{asset.mimeType.split(';')[0]}</small></span>
+                      <span><strong>{kind === 'webcam' ? 'Webcam 720p' : kind === 'screen' ? 'Screen 1080p' : kind === 'cursor' ? 'Cursor path 24 Hz' : 'Audio master'}</strong><small>{asset.mimeType.split(';')[0]}</small></span>
                     </button>
                   );
                 })}
@@ -969,6 +979,17 @@ export function StudioShell() {
                 <span>Screen {mediaStatuses.screen} · camera {mediaStatuses.camera} · mic {mediaStatuses.microphone}</span>
               </div>
               {screenStream && <div className={styles.sourceStatus}><StatusDot ok={hasSystemAudio} /><span>{hasSystemAudio ? 'System audio shared' : 'No system audio in this share'}</span></div>}
+              {cursorTrajectory.available && (
+                <label className={styles.fieldLabel}>
+                  Cursor capture display
+                  <select value={cursorTrajectory.selectedDisplayId} onChange={(event) => cursorTrajectory.setSelectedDisplayId(event.target.value)}>
+                    {cursorTrajectory.displays.map((display) => (
+                      <option key={display.id} value={display.id}>{display.label}{display.primary ? ' (Primary)' : ''}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <div className={styles.sourceStatus}><StatusDot ok={cursorTrajectory.available} /><span>{cursorTrajectory.message}</span></div>
               {mediaError && <p className={styles.sourceError} role="alert">{mediaError.message}</p>}
             </section>
 

@@ -9,7 +9,49 @@ export type RecordingStatus =
   | 'processing'
   | 'ready';
 
-export type RecordingAssetKind = 'composite' | 'webcam' | 'screen' | 'audio';
+export type RecordingAssetKind = 'composite' | 'webcam' | 'screen' | 'audio' | 'cursor';
+
+export interface CursorTrajectorySample {
+  index: number;
+  timestampMs: number;
+  x: number | null;
+  y: number | null;
+  visible: boolean;
+}
+
+export interface CursorTrajectory {
+  schemaVersion: 1;
+  sessionId: string;
+  sampleRateHz: 24;
+  coordinateSpace: {
+    origin: 'top-left';
+    xRange: [0, 1];
+    yRange: [0, 1];
+    relativeTo: 'captured-screen-content';
+    sourceWidth: number;
+    sourceHeight: number;
+  };
+  timeline: {
+    clock: 'active-recording-time';
+    pausedIntervalsExcluded: true;
+    durationMs: number;
+  };
+  tracking: {
+    mode: 'native-helper';
+    cursorBakedIntoScreenVideo: boolean;
+    displayId: string;
+    displayLabel: string;
+  };
+  samples: CursorTrajectorySample[];
+}
+
+export interface CursorCaptureController {
+  start: (sessionId: string) => Promise<{ started: boolean; warning?: string }>;
+  pause: () => Promise<void>;
+  resume: () => Promise<void>;
+  stop: (durationMs: number) => Promise<CursorTrajectory | null>;
+  reset: () => Promise<void>;
+}
 
 export interface RecordingAssetMetadata {
   kind: RecordingAssetKind;
@@ -18,6 +60,7 @@ export interface RecordingAssetMetadata {
   resolution?: string;
   fps?: number;
   sampleRateHz?: number;
+  waveformPeaks?: number[];
   blob?: Blob;
   storageUrl?: string | null;
   blobPathname?: string | null;

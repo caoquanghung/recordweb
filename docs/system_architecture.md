@@ -146,13 +146,23 @@ stateDiagram-v2
   * Webcam: raw camera normalized to 1280×720 at 30 FPS, without audio or Studio effects.
   * Screen: raw display normalized to 1920×1080 at 30 FPS, without webcam or duplicated audio.
   * Audio: the processed master audio without a video track.
+  * Cursor: Electron main-process samples normalized OS cursor coordinates at 24 Hz for a user-selected display. The session coordinator starts, pauses, resumes, and stops this sampler against the same active-time lifecycle as the media recorders.
   * Each available asset has its own `MediaRecorder`; pause, resume, stop, active-time limits, and finalization are coordinated by one session state machine. The implementation never places multiple video tracks in one recorder.
+
+### 2.5.1 Electron Cursor Helper
+
+* `electron/main.cjs` owns the privileged `screen.getCursorScreenPoint()` call and display bounds. It never exposes Electron or Node primitives to the page.
+* `electron/preload.cjs` uses a context-isolated, sandboxed `contextBridge` API with one method per validated IPC operation. IPC requests are rejected unless their sender matches `RECORDWEB_URL`.
+* `src/hooks/useCursorTrajectory.ts` is the browser-side adapter. A selected display is shared with Electron display capture where supported, preventing the normalization bounds from silently referring to a different screen.
+* Cursor samples use device-independent display coordinates normalized to `[0,1]`. Out-of-bounds samples use `visible: false` and `x/y: null`; pause time is excluded.
+* Ordinary browser sessions remain supported but truthfully omit the cursor asset. Window/tab capture is also omitted because Electron display bounds cannot exactly map an arbitrary window or tab without a separate accessibility integration.
 
 ### 2.6 Persistence & Local Storage Subsystem (`idb.ts` & `ebmlPatcher.ts`)
 * **Chunk Aggregation**: Gathers per-asset data chunks emitted during each `mediaRecorder.ondataavailable` callback (every 1000ms for safety).
 * **Metadata Repair**: Standard browser `MediaRecorder` writes `Duration: 0` or NaN to WebM EBML headers for live streams. The patcher parses EBML elements and injects the exact recorded duration, making the resulting video fully seekable in all players.
 * **Session Cache (IndexedDB)**: `src/lib/idb.ts` stores drafts keyed by session and asset kind under `recordweb_draft_*` keys and finalized local recordings under `recordweb_rec_*` keys. The Studio detects drafts on load and can recover the newest draft, including any available source assets.
-* **Direct Local Export**: Allows users to download the composite and each available webcam, screen, or audio asset using an extension that matches the browser-produced container.
+* **Recorded Waveform Metadata**: Finalization decodes the standalone audio asset once and stores 120 normalized amplitude peaks on the local audio asset. Cloud uploads persist the same compact peak array in `recording_assets.metadata` and mirror it in the parent session settings, allowing Library cards to render immediately without repeatedly decoding a large remote audio file. Legacy recordings fall back to decoding their available audio source.
+* **Direct Local Export**: Allows users to download the composite and each available webcam, screen, audio, or cursor JSON asset using an extension that matches its content type.
 
 ### 2.7 Cloud Video Storage Subsystem (Vercel Blob)
 * **Role**: Object storage for hosting recorded video files and generating shareable playback links.
@@ -316,6 +326,7 @@ src/
 │   ├── useNormalizedVideoStream.ts    # Fixed-size clean webcam/screen source canvases
 │   ├── useCanvasCompositor.ts        # 30 FPS composition loop & PiP layout
 │   ├── useAudioDSP.ts                # Web Audio graph & DSP filtering
+│   ├── useCursorTrajectory.ts        # Electron cursor bridge and display selection
 │   ├── useVisionSegmentation.ts      # MediaPipe AI background removal
 │   └── useRecordingSession.ts        # Coordinated multi-asset recorders & 30-min timer
 ├── lib/

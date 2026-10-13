@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-RecordWeb previously produced one composited recording containing the screen, webcam overlay, and mixed audio. It now also produces separate webcam, screen, and audio assets so downstream editing and analysis can use the original sources independently. The normalized cursor-path asset remains pending.
+RecordWeb previously produced one composited recording containing the screen, webcam overlay, and mixed audio. It now also produces separate webcam, screen, audio, and Electron-assisted cursor assets so downstream editing and analysis can use the original sources independently.
 
 This document defines the complete five-asset target, timing model, formats, cursor coordinate system, failure behavior, storage metadata, and browser limitations.
 
@@ -18,7 +18,7 @@ This document defines the complete five-asset target, timing model, formats, cur
 | Webcam source | Implemented | Raw camera normalized to 1280×720 at 30 FPS |
 | Screen source | Implemented | Raw display stream normalized to 1920×1080 at 30 FPS |
 | Audio source | Implemented | Processed Web Audio master in MP4/AAC or WebM/Opus |
-| Cursor path | Pending | Requires an approved tracking capability outside ordinary page pointer events |
+| Cursor path | Implemented locally | Electron helper samples a selected display at 24 Hz; finalized JSON is stored in IndexedDB and can be opened or downloaded from Review/Library. Cloud upload and crash-draft checkpointing remain pending. |
 
 ## 2. Required Output Set
 
@@ -198,7 +198,9 @@ recordings/<sessionId>/cursor.json
 
 Store the actual browser-produced MIME type and codec. Never give a WebM file an `.mp4` extension.
 
-The review screen should offer individual downloads for the composite, webcam, screen, audio, and cursor assets. When the standalone audio Blob is available locally, the review screen should decode that finalized file and render a recorded-amplitude waveform with synchronized playback and seek controls. The live analyser remains a VU-meter source and must not be presented as the recorded waveform. Downloading all assets as one package is a future enhancement.
+The review screen should offer individual downloads for the composite, webcam, screen, audio, and cursor assets. When the standalone audio Blob is finalized, the client decodes it once and derives exactly 120 normalized amplitude peaks. These peaks are stored with the local recording in IndexedDB and, after cloud upload, in the audio asset's `metadata.waveformPeaks` JSON plus the parent recording settings for authorized Library views. The waveform is derived metadata, not another Blob object.
+
+Review and Library use the stored peaks to render a responsive waveform without downloading and decoding the complete cloud audio file on every visit. Legacy recordings without stored peaks may decode their local audio Blob or cloud audio URL as a compatibility fallback. The waveform includes synchronized playback and click-to-seek controls. The live analyser remains a VU-meter source and must not be presented as the recorded waveform. Downloading all assets as one package is a future enhancement.
 
 ## 6. Local Recovery Requirements
 
@@ -231,6 +233,8 @@ recording_assets
   metadata               JSON
   created_at
 ```
+
+For the `audio` row, `metadata` includes `waveformPeaks` (120 normalized numbers in the range `[0, 1]`) and `waveformVersion`. No schema migration is required because waveform data uses the existing JSONB metadata column.
 
 The unique `(recording_id, kind)` constraint prevents duplicate source kinds. Deleting a parent recording cascades its child metadata, while the Route Handler deletes the corresponding Blob objects first.
 

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WorkspaceShell } from '@/components/app/WorkspaceShell';
 import { RecordedAudioWaveform } from '@/components/review/RecordedAudioWaveform';
+import { RecordedCursorTrajectory } from '@/components/review/RecordedCursorTrajectory';
 import { deleteLocalRecording, getAllLocalRecordings } from '@/lib/idb';
 import { isRecordedWaveformPeaks } from '@/lib/audioWaveform';
 import type { DbRecording, DbRecordingShare, DbSharedRecording } from '@/types/database';
@@ -25,6 +26,7 @@ function formatBytes(bytes: number) {
 
 function extensionForMimeType(mimeType: string) {
   const baseType = mimeType.split(';', 1)[0].toLowerCase();
+  if (baseType === 'application/json') return 'json';
   if (baseType === 'audio/mp4') return 'm4a';
   if (baseType.endsWith('/mp4')) return 'mp4';
   return 'webm';
@@ -67,12 +69,14 @@ export function LibraryClient() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState<{ title: string; url: string; canDownload: boolean } | null>(null);
+  const [cursorPreview, setCursorPreview] = useState<{ title: string; blob: Blob } | null>(null);
   const [sharingRecording, setSharingRecording] = useState<DbRecording | null>(null);
   const [shares, setShares] = useState<DbRecordingShare[]>([]);
   const [recipientEmail, setRecipientEmail] = useState('');
   const [permission, setPermission] = useState<'viewer' | 'viewer_download'>('viewer');
   const [shareBusy, setShareBusy] = useState(false);
   const localUrlsRef = useRef<string[]>([]);
+  const cursorFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadLibrary = useCallback(async () => {
     setLoading(true);
@@ -133,7 +137,9 @@ export function LibraryClient() {
       : URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `recordweb-${recording.id}-${kind}.${extensionForMimeType(mimeType)}`;
+    anchor.download = kind === 'cursor'
+      ? `${recording.id}-cursor.json`
+      : `recordweb-${recording.id}-${kind}.${extensionForMimeType(mimeType)}`;
     anchor.click();
     if (url !== recording.previewUrl) URL.revokeObjectURL(url);
   };
@@ -246,7 +252,24 @@ export function LibraryClient() {
       eyebrow="Local and cloud media"
       title="Recording library"
       description="Preview, download, publish, share, or remove recordings while keeping local and cloud copies clearly separated."
-      actions={<><button className={styles.refreshButton} onClick={() => void loadLibrary()}>Refresh</button><Link className={styles.primaryAction} href="/">New recording</Link></>}
+      actions={(
+        <>
+          <input
+            ref={cursorFileInputRef}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) setCursorPreview({ title: file.name, blob: file });
+              event.target.value = '';
+            }}
+          />
+          <button className={styles.refreshButton} onClick={() => cursorFileInputRef.current?.click()}>Open cursor JSON</button>
+          <button className={styles.refreshButton} onClick={() => void loadLibrary()}>Refresh</button>
+          <Link className={styles.primaryAction} href="/">New recording</Link>
+        </>
+      )}
     >
       <div className={styles.tabs} role="tablist" aria-label="Recording filters">
         {([
@@ -284,9 +307,10 @@ export function LibraryClient() {
               <div className={styles.cardActions}>
                 <button onClick={() => recording.previewUrl && setPreview({ title: recording.title, url: recording.previewUrl, canDownload: true })}>Preview</button>
                 <button onClick={() => downloadLocal(recording)}>Composite</button>
-                {(['webcam', 'screen', 'audio'] as RecordingAssetKind[]).map((kind) => recording.assets?.[kind]?.blob && (
+                {(['webcam', 'screen', 'audio', 'cursor'] as RecordingAssetKind[]).map((kind) => recording.assets?.[kind]?.blob && (
                   <button key={kind} onClick={() => downloadLocal(recording, kind)}>{kind}</button>
                 ))}
+                {recording.assets?.cursor?.blob && <button onClick={() => setCursorPreview({ title: recording.title, blob: recording.assets!.cursor!.blob! })}>Open cursor</button>}
                 <button className={styles.danger} onClick={() => void removeLocal(recording)}>Delete local</button>
               </div>
             </div>
@@ -327,6 +351,15 @@ export function LibraryClient() {
           <section className={styles.previewModal} role="dialog" aria-modal="true" aria-label={`Preview ${preview.title}`} onMouseDown={(event) => event.stopPropagation()}>
             <div className={styles.modalHeader}><div><span>Preview</span><h2>{preview.title}</h2></div><button onClick={() => setPreview(null)} aria-label="Close preview">×</button></div>
             <video src={preview.url} controls controlsList={preview.canDownload ? undefined : 'nodownload'} autoPlay playsInline />
+          </section>
+        </div>
+      )}
+
+      {cursorPreview && (
+        <div className={styles.modalBackdrop} onMouseDown={() => setCursorPreview(null)}>
+          <section className={styles.previewModal} role="dialog" aria-modal="true" aria-label={`Cursor path for ${cursorPreview.title}`} onMouseDown={(event) => event.stopPropagation()}>
+            <div className={styles.modalHeader}><div><span>Cursor trajectory</span><h2>{cursorPreview.title}</h2></div><button onClick={() => setCursorPreview(null)} aria-label="Close cursor path">×</button></div>
+            <div className={styles.cursorModalBody}><RecordedCursorTrajectory blob={cursorPreview.blob} /></div>
           </section>
         </div>
       )}

@@ -2,8 +2,11 @@
   "name": "recordweb",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
+    "desktop": "electron .",
+    "desktop:smoke": "electron . --cursor-helper-smoke",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -30,6 +33,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^44.7.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "typescript": "^5"

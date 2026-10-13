@@ -31,6 +31,7 @@
 .modalBackdrop { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px; background: rgba(4,6,11,.72); backdrop-filter: blur(8px); }
 .previewModal, .shareModal { width: min(840px,100%); max-height: calc(100vh - 40px); overflow: auto; border: 1px solid var(--line-strong); border-radius: 18px; color: var(--text); background: var(--panel-solid); box-shadow: 0 30px 100px rgba(0,0,0,.45); }
 .previewModal video { width: 100%; display: block; aspect-ratio: 16/9; background: #05070c; }
+.cursorModalBody { padding: 18px; }
 .modalHeader { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 18px; border-bottom: 1px solid var(--line); }
 .modalHeader div { min-width: 0; display: grid; gap: 4px; }
 .modalHeader span { color: var(--primary-bright); font-size: 9px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
