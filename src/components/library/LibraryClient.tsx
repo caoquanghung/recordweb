@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WorkspaceShell } from '@/components/app/WorkspaceShell';
+import { RecordedAudioWaveform } from '@/components/review/RecordedAudioWaveform';
 import { deleteLocalRecording, getAllLocalRecordings } from '@/lib/idb';
+import { isRecordedWaveformPeaks } from '@/lib/audioWaveform';
 import type { DbRecording, DbRecordingShare, DbSharedRecording } from '@/types/database';
 import type { RecordingAssetKind, RecordingMetadata } from '@/types/recording';
 import styles from './LibraryClient.module.css';
@@ -26,6 +28,35 @@ function extensionForMimeType(mimeType: string) {
   if (baseType === 'audio/mp4') return 'm4a';
   if (baseType.endsWith('/mp4')) return 'mp4';
   return 'webm';
+}
+
+function cloudWaveform(recording: DbRecording) {
+  const audioAsset = recording.assets?.find((asset) => asset.kind === 'audio');
+  const assetPeaks = audioAsset?.metadata.waveformPeaks;
+  const recordingPeaks = recording.settings.waveformPeaks;
+  return {
+    mimeType: audioAsset?.mime_type ?? recording.mime_type,
+    peaks: isRecordedWaveformPeaks(assetPeaks)
+      ? assetPeaks
+      : isRecordedWaveformPeaks(recordingPeaks)
+        ? recordingPeaks
+        : undefined,
+    src: audioAsset?.storage_url ?? recording.storage_url ?? undefined,
+  };
+}
+
+function CloudRecordingWaveform({ recording }: { recording: DbRecording }) {
+  const waveform = cloudWaveform(recording);
+  if (!waveform.src) return null;
+  return (
+    <RecordedAudioWaveform
+      src={waveform.src}
+      durationSeconds={Number(recording.duration_seconds)}
+      mimeType={waveform.mimeType}
+      peaks={waveform.peaks}
+      compact
+    />
+  );
 }
 
 export function LibraryClient() {
@@ -241,6 +272,15 @@ export function LibraryClient() {
             <div className={styles.cardBody}>
               <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{new Date(recording.createdAt).toLocaleString()}</span></div><em className={styles.localStatus}>Local only</em></div>
               <div className={styles.metadata}><span>{formatDuration(recording.durationSeconds)}</span><span>{recording.resolution}</span><span>{formatBytes(recording.fileSizeBytes)}</span></div>
+              {recording.assets?.audio?.blob && (
+                <RecordedAudioWaveform
+                  blob={recording.assets.audio.blob}
+                  durationSeconds={recording.durationSeconds}
+                  mimeType={recording.assets.audio.mimeType}
+                  peaks={recording.assets.audio.waveformPeaks}
+                  compact
+                />
+              )}
               <div className={styles.cardActions}>
                 <button onClick={() => recording.previewUrl && setPreview({ title: recording.title, url: recording.previewUrl, canDownload: true })}>Preview</button>
                 <button onClick={() => downloadLocal(recording)}>Composite</button>
@@ -261,6 +301,7 @@ export function LibraryClient() {
             <div className={styles.cardBody}>
               <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{new Date(recording.created_at).toLocaleString()}</span></div><em className={recording.is_public ? styles.publicStatus : styles.privateStatus}>{recording.is_public ? 'Public link' : 'Private cloud'}</em></div>
               <div className={styles.metadata}><span>{formatDuration(Number(recording.duration_seconds))}</span><span>{recording.resolution}</span><span>{formatBytes(Number(recording.file_size_bytes))}</span></div>
+              <CloudRecordingWaveform recording={recording} />
               <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link><button onClick={() => void openSharing(recording)}>Share</button>{recording.assets?.filter((asset) => asset.kind !== 'composite').map((asset) => <a key={asset.id} href={asset.storage_url} download>{asset.kind}</a>)}<button onClick={() => void togglePublic(recording)}>{recording.is_public ? 'Make private' : 'Make public'}</button><button className={styles.danger} onClick={() => void removeCloud(recording)}>Delete cloud</button></div>
             </div>
           </article>
@@ -274,6 +315,7 @@ export function LibraryClient() {
             <div className={styles.cardBody}>
               <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{recording.owner_email}</span></div><em className={styles.sharedStatus}>{recording.share_permission === 'viewer_download' ? 'View + download' : 'View only'}</em></div>
               <div className={styles.metadata}><span>{formatDuration(Number(recording.duration_seconds))}</span><span>{recording.resolution}</span><span>{new Date(recording.created_at).toLocaleDateString()}</span></div>
+              <CloudRecordingWaveform recording={recording} />
               <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link>{recording.share_permission === 'viewer_download' && recording.storage_url && <a href={recording.storage_url} download>Composite</a>}{recording.share_permission === 'viewer_download' && recording.assets?.filter((asset) => asset.kind !== 'composite').map((asset) => <a key={asset.id} href={asset.storage_url} download>{asset.kind}</a>)}</div>
             </div>
           </article>

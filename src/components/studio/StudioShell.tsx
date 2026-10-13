@@ -12,6 +12,7 @@ import { useNormalizedVideoStream } from '@/hooks/useNormalizedVideoStream';
 import { useRecordingSession } from '@/hooks/useRecordingSession';
 import { useVisionSegmentation } from '@/hooks/useVisionSegmentation';
 import { repairWebmDuration } from '@/lib/ebmlPatcher';
+import { decodeRecordedWaveform } from '@/lib/audioWaveform';
 import {
   deleteRecordingDraft,
   getRecordingDrafts,
@@ -507,6 +508,14 @@ export function StudioShell() {
           sampleRateHz: draftAsset.sampleRateHz,
         };
       }
+      const recoveredAudio = assets.audio;
+      if (recoveredAudio?.blob) {
+        try {
+          recoveredAudio.waveformPeaks = (await decodeRecordedWaveform(recoveredAudio.blob)).peaks;
+        } catch {
+          setRecoveryMessage('Recovery succeeded, but this browser could not decode the audio waveform.');
+        }
+      }
       const composite = assets.composite;
       if (!composite?.blob) throw new Error('The recovery checkpoint does not contain a composite video.');
       if (recoveredPreviewUrlRef.current) URL.revokeObjectURL(recoveredPreviewUrlRef.current);
@@ -607,7 +616,9 @@ export function StudioShell() {
           resolution: asset.resolution ?? null,
           fps: asset.fps ?? null,
           sample_rate_hz: asset.sampleRateHz ?? null,
-          metadata: {},
+          metadata: asset.kind === 'audio' && asset.waveformPeaks
+            ? { waveformPeaks: asset.waveformPeaks, waveformVersion: 1 }
+            : {},
         };
       }));
       const uploadedComposite = uploadedAssets.find((asset) => asset.kind === 'composite');
@@ -636,6 +647,7 @@ export function StudioShell() {
             pipPosition,
             bgRemovalMode: background,
             audioMode,
+            waveformPeaks: activeRecording.assets?.audio?.waveformPeaks ?? [],
           },
         }),
       });
@@ -854,6 +866,7 @@ export function StudioShell() {
                 blob={activeRecording.assets.audio.blob}
                 durationSeconds={activeRecording.durationSeconds}
                 mimeType={activeRecording.assets.audio.mimeType}
+                peaks={activeRecording.assets.audio.waveformPeaks}
               />
             )}
             {activeRecording?.assets && (

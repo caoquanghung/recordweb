@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { deleteRecordingDraft, saveLocalRecording, saveRecordingDraft } from '@/lib/idb';
 import { repairWebmDuration } from '@/lib/ebmlPatcher';
+import { decodeRecordedWaveform } from '@/lib/audioWaveform';
 import type {
+  CursorCaptureController,
+  CursorTrajectory,
   RecordingAssetKind,
   RecordingAssetMetadata,
   RecordingMetadata,
@@ -45,6 +48,7 @@ interface Options {
   audioStream: MediaStream | null;
   resolution: string;
   fps?: number;
+  cursorCapture?: CursorCaptureController;
 }
 
 interface AssetSpec {
@@ -84,6 +88,7 @@ function createRecorder(stream: MediaStream, candidates: string[]) {
 }
 
 function defaultMimeType(kind: RecordingAssetKind) {
+  if (kind === 'cursor') return 'application/json';
   return kind === 'audio' ? 'audio/webm' : 'video/webm';
 }
 
@@ -94,6 +99,7 @@ export function useRecordingSession({
   audioStream,
   resolution,
   fps = 30,
+  cursorCapture,
 }: Options): RecordingSessionResult {
   const recordersRef = useRef<Partial<Record<RecordingAssetKind, MediaRecorder>>>({});
   const chunksRef = useRef<Partial<Record<RecordingAssetKind, Blob[]>>>({});
@@ -109,6 +115,7 @@ export function useRecordingSession({
   const finalizingRef = useRef(false);
   const stoppedAssetsRef = useRef<Set<RecordingAssetKind>>(new Set());
   const draftWriteRef = useRef<Promise<void>>(Promise.resolve());
+  const cursorStopRef = useRef<Promise<CursorTrajectory | null>>(Promise.resolve(null));
   const [status, setStatus] = useState<RecordingSessionResult['status']>('idle');
   const [elapsedMs, setElapsedMs] = useState(0);
   const [warning, setWarning] = useState<string | null>(null);
@@ -182,6 +189,31 @@ export function useRecordingSession({
         };
       }
 
+      const cursorTrajectory = await cursorStopRef.current.catch((cause) => {
+        assetErrorsRef.current.push(`cursor: ${(cause as Error).message}`);
+        return null;
+      });
+      if (cursorTrajectory) {
+        const blob = new Blob([JSON.stringify(cursorTrajectory, null, 2)], { type: 'application/json' });
+        assets.cursor = {
+          kind: 'cursor',
+          fileSizeBytes: blob.size,
+          mimeType: blob.type,
+          sampleRateHz: cursorTrajectory.sampleRateHz,
+          blob,
+        };
+      }
+
+      const audioAsset = assets.audio;
+      if (audioAsset?.blob) {
+        try {
+          const waveform = await decodeRecordedWaveform(audioAsset.blob);
+          audioAsset.waveformPeaks = waveform.peaks;
+        } catch (cause) {
+          assetErrorsRef.current.push(`audio waveform: ${(cause as Error).message}`);
+        }
+      }
+
       const composite = assets.composite;
       if (!composite?.blob) throw new Error('The composite encoder did not produce a usable file.');
 
@@ -235,13 +267,15 @@ export function useRecordingSession({
     }
     recordingActiveRef.current = false;
     clearTimer();
-    setElapsedMs(Math.min(accumulatedMsRef.current, MAX_ACTIVE_MS));
+    const durationMs = Math.min(accumulatedMsRef.current, MAX_ACTIVE_MS);
+    setElapsedMs(durationMs);
     setStatus('processing');
+    cursorStopRef.current = cursorCapture?.stop(durationMs) ?? Promise.resolve(null);
 
     recorders.forEach((recorder) => {
       if (recorder.state !== 'inactive') recorder.stop();
     });
-  }, [clearTimer]);
+  }, [clearTimer, cursorCapture]);
 
   const startClock = useCallback(() => {
     clearTimer();
@@ -328,17 +362,30 @@ export function useRecordingSession({
     recordingIdRef.current = id;
     startedAtRef.current = startedAt;
     accumulatedMsRef.current = 0;
-    activeStartedAtRef.current = performance.now();
-    recordingActiveRef.current = true;
+    activeStartedAtRef.current = 0;
+    recordingActiveRef.current = false;
     finalizingRef.current = false;
     stoppedAssetsRef.current = new Set();
     draftWriteRef.current = Promise.resolve();
+    cursorStopRef.current = Promise.resolve(null);
     setElapsedMs(0);
     setWarning(null);
     setError(null);
     setRecording(null);
 
     try {
+      if (cursorCapture) {
+        try {
+          const cursorResult = await cursorCapture.start(id);
+          if (!cursorResult.started && cursorResult.warning) assetErrorsRef.current.push(cursorResult.warning);
+        } catch (cause) {
+          assetErrorsRef.current.push(`cursor: ${(cause as Error).message}`);
+        }
+      }
+
+      activeStartedAtRef.current = performance.now();
+      recordingActiveRef.current = true;
+
       recorderInputs.forEach(({ kind, stream, candidates, spec }) => {
         const { recorder, requestedMimeType } = createRecorder(stream, candidates);
         recordersRef.current[kind] = recorder;
@@ -381,13 +428,14 @@ export function useRecordingSession({
       }
     } catch (cause) {
       recordingActiveRef.current = false;
+      void cursorCapture?.reset();
       Object.values(recordersRef.current).forEach((recorder) => {
         if (recorder && recorder.state !== 'inactive') recorder.stop();
       });
       setError(`Could not start all recording encoders: ${(cause as Error).message}`);
       setStatus('error');
     }
-  }, [audioStream, checkpointDraft, fps, markAssetStopped, resolution, screenStream, startClock, stop, videoStream, webcamStream]);
+  }, [audioStream, checkpointDraft, cursorCapture, fps, markAssetStopped, resolution, screenStream, startClock, stop, videoStream, webcamStream]);
 
   const pause = useCallback(() => {
     const recorders = Object.values(recordersRef.current).filter(Boolean) as MediaRecorder[];
@@ -399,9 +447,12 @@ export function useRecordingSession({
       if (recorder.state === 'recording') recorder.pause();
     });
     clearTimer();
+    void cursorCapture?.pause().catch((cause) => {
+      setWarning(`Cursor helper pause failed: ${(cause as Error).message}`);
+    });
     setElapsedMs(accumulatedMsRef.current);
     setStatus('paused');
-  }, [clearTimer]);
+  }, [clearTimer, cursorCapture]);
 
   const resume = useCallback(() => {
     const recorders = Object.values(recordersRef.current).filter(Boolean) as MediaRecorder[];
@@ -412,9 +463,12 @@ export function useRecordingSession({
     });
     activeStartedAtRef.current = performance.now();
     recordingActiveRef.current = true;
+    void cursorCapture?.resume().catch((cause) => {
+      setWarning(`Cursor helper resume failed: ${(cause as Error).message}`);
+    });
     setStatus('recording');
     startClock();
-  }, [startClock]);
+  }, [cursorCapture, startClock]);
 
   const reset = useCallback(() => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -426,12 +480,14 @@ export function useRecordingSession({
     recordingActiveRef.current = false;
     finalizingRef.current = false;
     stoppedAssetsRef.current = new Set();
+    cursorStopRef.current = Promise.resolve(null);
+    void cursorCapture?.reset();
     setRecording(null);
     setElapsedMs(0);
     setWarning(null);
     setError(null);
     setStatus('idle');
-  }, []);
+  }, [cursorCapture]);
 
   useEffect(() => () => {
     clearTimer();
@@ -439,8 +495,9 @@ export function useRecordingSession({
     Object.values(recordersRef.current).forEach((recorder) => {
       if (recorder && recorder.state !== 'inactive') recorder.stop();
     });
+    void cursorCapture?.reset();
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-  }, [clearTimer]);
+  }, [clearTimer, cursorCapture]);
 
   return { status, elapsedMs, warning, error, recording, start, pause, resume, stop, reset };
 }

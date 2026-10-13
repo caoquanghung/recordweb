@@ -125,6 +125,30 @@
   accent-color: var(--primary-bright);
 }
 
+.compact {
+  gap: 8px;
+  padding: 10px;
+  border-radius: 11px;
+  box-shadow: none;
+}
+
+.compact .header {
+  display: none;
+}
+
+.compact .waveformButton,
+.compact .placeholder {
+  min-height: 62px;
+}
+
+.compact .waveform {
+  height: 62px;
+}
+
+.compact .audio {
+  height: 32px;
+}
+
 @media (max-width: 680px) {
   .header {
     align-items: flex-start;
