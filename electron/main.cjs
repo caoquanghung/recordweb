@@ -88,7 +88,7 @@ function pauseCapture(state) {
 }
 
 function resetCapture() {
-  if (captureSession?.timer !== null) clearInterval(captureSession.timer);
+  if (captureSession?.timer != null) clearInterval(captureSession.timer);
   captureSession = null;
 }
 
@@ -220,6 +220,9 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   if (process.argv.includes('--cursor-helper-smoke')) {
+    // Regression guard: reset must be idempotent before any capture starts.
+    resetCapture();
+    resetCapture();
     const availableDisplays = displays();
     const cursor = screen.getCursorScreenPoint();
     console.log(JSON.stringify({

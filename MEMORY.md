@@ -183,6 +183,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Concurrent Encoder Load** | Composite, webcam, and screen encoding can saturate low-power devices and cause dropped frames | Keep one video track per recorder, use fixed-rate normalization canvases, expose partial results, and validate real 30-minute sessions on target hardware. |
 | **Background-Tab RAF Suspension** | Switching to another browser tab pauses `requestAnimationFrame`, freezing canvas-derived composite, screen, and webcam frames while audio continues | Use `src/lib/frameScheduler.ts`: RAF in visible tabs and a worker timer while `document.hidden`; retain delta clamping and test target browsers. Full browser/OS process suspension remains outside webpage control. |
 | **Browser Cursor Isolation** | A normal page cannot read the pointer over another app or map a chosen tab/window to absolute desktop bounds | Use the Electron main-process `screen` API for selected-display capture only. Omit cursor output truthfully for ordinary browsers and non-monitor capture; `getCursorScreenPoint()` is unavailable on Wayland. |
+| **Optional-Chaining Null Comparison** | `captureSession?.timer !== null` evaluates true when `captureSession` is null because the expression yields `undefined`, then a direct `.timer` read crashes the first cursor start | Use the nullish check `captureSession?.timer != null`; the Electron smoke test calls reset twice before initialization to protect idempotent cleanup. |
 
 ---
 
