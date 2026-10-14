@@ -210,6 +210,8 @@ The review screen should offer individual downloads for every available asset. W
 
 Review and Library use the stored peaks to render a responsive waveform without downloading and decoding the complete cloud audio file on every visit. Legacy recordings without stored peaks may decode their local audio Blob or cloud audio URL as a compatibility fallback. The waveform includes synchronized playback and click-to-seek controls. The live analyser remains a VU-meter source and must not be presented as the recorded waveform. Downloading all assets as one package is a future enhancement.
 
+Cursor JSON is also rendered directly in Review and Library as an interactive timeline player. The player supports play/pause, seeking, 1×/2×/4× playback, interpolated cursor movement, a recent movement trail, and a faint full-session path. Cloud Library playback fetches the cursor JSON asset from Vercel Blob on demand. This visualization is derived client-side; it does not add a rendered cursor-video Blob or alter the raw 24 Hz samples.
+
 ## 6. Local Recovery Requirements
 
 - Each encoded stream emits periodic chunks, targeted at one-second intervals.

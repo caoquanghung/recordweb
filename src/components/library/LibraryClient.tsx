@@ -10,7 +10,7 @@ import {
 import { RecordedCursorTrajectory } from '@/components/review/RecordedCursorTrajectory';
 import { deleteLocalRecording, getAllLocalRecordings } from '@/lib/idb';
 import { isRecordedWaveformPeaks } from '@/lib/audioWaveform';
-import type { DbRecording, DbRecordingShare, DbSharedRecording } from '@/types/database';
+import type { DbRecording, DbRecordingAsset, DbRecordingShare, DbSharedRecording } from '@/types/database';
 import type { RecordingAssetKind, RecordingMetadata } from '@/types/recording';
 import styles from './LibraryClient.module.css';
 
@@ -158,6 +158,18 @@ export function LibraryClient() {
     await deleteLocalRecording(recording.id);
     setLocal((current) => current.filter((item) => item.id !== recording.id));
     setMessage('Local recording deleted.');
+  };
+
+  const openCloudCursor = async (title: string, asset: DbRecordingAsset) => {
+    setMessage('Loading cursor trajectory…');
+    try {
+      const response = await fetch(asset.storage_url);
+      if (!response.ok) throw new Error(`Could not load cursor trajectory (${response.status}).`);
+      setCursorPreview({ title, blob: await response.blob() });
+      setMessage('');
+    } catch (error) {
+      setMessage((error as Error).message);
+    }
   };
 
   const togglePublic = async (recording: DbRecording) => {
@@ -335,7 +347,7 @@ export function LibraryClient() {
               <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{new Date(recording.created_at).toLocaleString()}</span></div><em className={recording.is_public ? styles.publicStatus : styles.privateStatus}>{recording.is_public ? 'Public link' : 'Private cloud'}</em></div>
               <div className={styles.metadata}><span>{formatDuration(Number(recording.duration_seconds))}</span><span>{recording.resolution}</span><span>{formatBytes(Number(recording.file_size_bytes))}</span></div>
               <CloudRecordingWaveform recording={recording} />
-              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link><button onClick={() => void openSharing(recording)}>Share</button>{recording.assets?.filter((asset) => asset.kind !== 'composite').map((asset) => <a key={asset.id} href={asset.storage_url} download>{asset.kind}</a>)}<button onClick={() => void togglePublic(recording)}>{recording.is_public ? 'Make private' : 'Make public'}</button><button className={styles.danger} onClick={() => void removeCloud(recording)}>Delete cloud</button></div>
+              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link><button onClick={() => void openSharing(recording)}>Share</button>{recording.assets?.filter((asset) => asset.kind !== 'composite').map((asset) => asset.kind === 'cursor' ? <button key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}>Cursor player</button> : <a key={asset.id} href={asset.storage_url} download>{asset.kind}</a>)}<button onClick={() => void togglePublic(recording)}>{recording.is_public ? 'Make private' : 'Make public'}</button><button className={styles.danger} onClick={() => void removeCloud(recording)}>Delete cloud</button></div>
             </div>
           </article>
         ))}
@@ -349,7 +361,7 @@ export function LibraryClient() {
               <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{recording.owner_email}</span></div><em className={styles.sharedStatus}>{recording.share_permission === 'viewer_download' ? 'View + download' : 'View only'}</em></div>
               <div className={styles.metadata}><span>{formatDuration(Number(recording.duration_seconds))}</span><span>{recording.resolution}</span><span>{new Date(recording.created_at).toLocaleDateString()}</span></div>
               <CloudRecordingWaveform recording={recording} />
-              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link>{recording.share_permission === 'viewer_download' && recording.storage_url && <a href={recording.storage_url} download>Composite</a>}{recording.share_permission === 'viewer_download' && recording.assets?.filter((asset) => asset.kind !== 'composite').map((asset) => <a key={asset.id} href={asset.storage_url} download>{asset.kind}</a>)}</div>
+              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link>{recording.share_permission === 'viewer_download' && recording.storage_url && <a href={recording.storage_url} download>Composite</a>}{recording.share_permission === 'viewer_download' && recording.assets?.filter((asset) => asset.kind !== 'composite').map((asset) => asset.kind === 'cursor' ? <button key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}>Cursor player</button> : <a key={asset.id} href={asset.storage_url} download>{asset.kind}</a>)}</div>
             </div>
           </article>
         ))}

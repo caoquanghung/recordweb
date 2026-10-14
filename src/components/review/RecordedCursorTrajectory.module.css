@@ -8,7 +8,8 @@
 }
 
 .heading,
-.meta {
+.meta,
+.controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -24,6 +25,7 @@
 .heading b { color: var(--primary-bright); font-size: 18px; }
 
 .plot {
+  position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
   border: 1px solid var(--line);
@@ -36,9 +38,46 @@
 }
 
 .plot svg { width: 100%; height: 100%; }
-.plot path { fill: none; stroke: url('#cursor-path-gradient'); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0.82; }
-.plot circle { fill: #42d6a4; stroke: rgba(255, 255, 255, 0.9); stroke-width: 3; }
+.fullPath,
+.activePath { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.fullPath { stroke: url('#cursor-path-gradient'); stroke-width: 2; opacity: 0.18; }
+.activePath { stroke: url('#cursor-trail-gradient'); stroke-width: 5; opacity: 0.95; }
+.cursorHalo { fill: rgba(66, 214, 164, 0.2); stroke: rgba(66, 214, 164, 0.32); stroke-width: 2; }
+.cursorDot { fill: #42d6a4; stroke: rgba(255, 255, 255, 0.94); stroke-width: 3; }
+
+.timeBadge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  backdrop-filter: blur(8px);
+}
+
+.controls { justify-content: flex-start; }
+.controls > button,
+.rates button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+}
+.controls > button { min-width: 72px; padding: 0 14px; font-weight: 700; }
+.controls > button:disabled { cursor: not-allowed; opacity: 0.5; }
+.controls input { min-width: 120px; flex: 1; accent-color: var(--primary-bright); }
+.duration { color: var(--muted); font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+.rates { display: flex; gap: 4px; }
+.rates button { min-width: 36px; padding: 0 7px; font-size: 11px; }
+.rates .rateActive { border-color: var(--primary); color: var(--primary-bright); background: color-mix(in srgb, var(--primary) 16%, var(--surface)); }
 
 @media (max-width: 640px) {
   .meta { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .controls { flex-wrap: wrap; }
+  .controls input { order: 3; flex-basis: 100%; }
 }

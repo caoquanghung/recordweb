@@ -151,6 +151,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added a reusable recorded-audio review player that decodes the finalized standalone audio Blob into an amplitude waveform with synchronized playback and click-to-seek controls; the live VU analyser remains separate
   - [x] Persisted 120 normalized recorded-audio waveform peaks in IndexedDB and Neon JSON metadata, and added compact waveform playback/seek controls to local, owned-cloud, and accessible shared Library cards; legacy recordings retain decode fallback
   - [x] Added separate microphone/system live meters, compact/collapsible recording meters, optional source-audio recording assets, and expandable mixed/source waveform review
+  - [x] Added an interactive cursor trajectory timeline player for local and cloud Library assets with play/pause, seek, playback speed, interpolated motion, and recent-trail visualization; JSON remains the only persisted cursor asset
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
   - [x] Applied and verified migration `0002_recording_assets`; multi-asset uploads create separate Blob objects and child metadata rows

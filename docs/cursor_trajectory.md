@@ -97,4 +97,4 @@ The existing Electron display cursor helper is a legacy implementation and remai
 5. remove Electron runtime dependencies only after equivalent tests pass; and
 6. update deployment instructions for loading an unpacked extension and publishing it later.
 
-Future interpolation between cursor samples may improve path rendering, but it must not modify the stored raw samples.
+Review and Library render the JSON as an interactive timeline player. The player interpolates the visible cursor between adjacent 24 Hz samples, shows a short recent trail over a faint full-session path, and provides play, pause, seek, and playback-speed controls. This visualization is derived in the browser and does not create or upload a second encoded video asset. The stored raw samples remain unchanged.
