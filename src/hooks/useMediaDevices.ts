@@ -51,6 +51,7 @@ export interface UseMediaDevicesResult {
   error: MediaDevicesError | null;
   hasSystemAudio: boolean;
   refreshDevices: () => Promise<void>;
+  adoptScreenStream: (stream: MediaStream) => void;
   acquireScreen: () => Promise<MediaStream | null>;
   acquireCamera: (deviceId?: string) => Promise<MediaStream | null>;
   acquireMicrophone: (deviceId?: string) => Promise<MediaStream | null>;
@@ -312,6 +313,10 @@ export function useMediaDevices(): UseMediaDevicesResult {
     return acquireStream('screen', capture, screenRef, setScreenStream);
   }, [acquireStream]);
 
+  const adoptScreenStream = useCallback((stream: MediaStream) => {
+    replaceStream('screen', stream, screenRef, setScreenStream);
+  }, [replaceStream]);
+
   const acquireCamera = useCallback(async (deviceId?: string) => {
     const mediaDevices = getMediaDevices();
     const capture = mediaDevices?.getUserMedia
@@ -389,6 +394,7 @@ export function useMediaDevices(): UseMediaDevicesResult {
     error,
     hasSystemAudio: Boolean(systemAudioStream),
     refreshDevices,
+    adoptScreenStream,
     acquireScreen,
     acquireCamera,
     acquireMicrophone,

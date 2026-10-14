@@ -153,16 +153,19 @@ stateDiagram-v2
   * Audio: the processed master mix without a video track.
   * Microphone audio: the processed microphone branch after filters, gate, mute, and gain, when available.
   * System audio: the independent system branch after its volume control, when display capture includes audio.
-  * Cursor: Electron main-process samples normalized OS cursor coordinates at 24 Hz for a user-selected display. The session coordinator starts, pauses, resumes, and stops this sampler against the same active-time lifecycle as the media recorders.
+  * Cursor: the approved target architecture uses a Manifest V3 extension to select one browser tab once and supply that tab's video, audio, and 24 Hz normalized cursor samples. The session coordinator starts, pauses, resumes, and stops the sampler against the same active-time lifecycle as the media recorders.
   * Each available asset has its own `MediaRecorder`; pause, resume, stop, active-time limits, and finalization are coordinated by one session state machine. The implementation never places multiple video tracks in one recorder.
 
-### 2.5.1 Electron Cursor Helper
+### 2.5.1 Single-Tab Extension Capture
 
-* `electron/main.cjs` owns the privileged `screen.getCursorScreenPoint()` call and display bounds. It never exposes Electron or Node primitives to the page.
-* `electron/preload.cjs` uses a context-isolated, sandboxed `contextBridge` API with one method per validated IPC operation. IPC requests are rejected unless their sender matches `RECORDWEB_URL`.
-* `src/hooks/useCursorTrajectory.ts` is the browser-side adapter. A selected display is shared with Electron display capture where supported, preventing the normalization bounds from silently referring to a different screen.
-* Cursor samples use device-independent display coordinates normalized to `[0,1]`. Out-of-bounds samples use `visible: false` and `x/y: null`; pause time is excluded.
-* Ordinary browser sessions remain supported but truthfully omit the cursor asset. Window/tab capture is also omitted because Electron display bounds cannot exactly map an arbitrary window or tab without a separate accessibility integration.
+* A Manifest V3 extension action is invoked on the target tab and obtains both `activeTab` access and the exact target tab ID from one user gesture.
+* The extension injects a cursor content script and calls `chrome.tabCapture.getMediaStreamId()` for the same tab. RecordWeb consumes the one-use stream ID immediately instead of opening a second `getDisplayMedia()` picker.
+* The target content script owns the 24 Hz sampling clock; the extension service worker only pairs tabs and routes lifecycle messages because it may suspend.
+* The tab stream supplies both screen video and tab audio. Cursor samples use viewport-relative coordinates normalized to `[0,1]`; pause time is excluded.
+* `useTabCaptureExtension` consumes the one-use stream ID and hands the resulting stream to `useMediaDevices.adoptScreenStream()`, preserving `MediaSessionProvider` as the single raw-track owner. The extension cursor controller conforms to the existing recording lifecycle interface.
+* Because Chromium may mute a captured tab's normal playback, extension-tab audio is also connected to the `AudioContext` speaker destination after the existing user-gesture resume step. Native display capture remains unmonitored to avoid feedback.
+* A session has exactly one immutable target tab. Tab closure or cross-origin navigation produces a visible failure state.
+* The existing Electron helper is deprecated legacy code and remains isolated until the extension replacement passes start/pause/resume/stop, audio-playback, and cleanup tests.
 
 ### 2.6 Persistence & Local Storage Subsystem (`idb.ts` & `ebmlPatcher.ts`)
 * **Chunk Aggregation**: Gathers per-asset data chunks emitted during each `mediaRecorder.ondataavailable` callback (every 1000ms for safety).
@@ -330,10 +333,11 @@ src/
 │       └── StudioShell.module.css    # Responsive Studio and review styling
 ├── hooks/
 │   ├── useMediaDevices.ts            # Screen & camera stream lifecycle
+│   ├── useTabCaptureExtension.ts      # One-use extension stream and cursor lifecycle bridge
 │   ├── useNormalizedVideoStream.ts    # Fixed-size clean webcam/screen source canvases
 │   ├── useCanvasCompositor.ts        # 30 FPS composition loop & PiP layout
 │   ├── useAudioDSP.ts                # Web Audio graph & DSP filtering
-│   ├── useCursorTrajectory.ts        # Electron cursor bridge and display selection
+│   ├── useCursorTrajectory.ts        # Legacy Electron cursor fallback pending removal
 │   ├── useVisionSegmentation.ts      # MediaPipe AI background removal
 │   └── useRecordingSession.ts        # Coordinated multi-asset recorders & 30-min timer
 ├── lib/
@@ -345,9 +349,12 @@ src/
 ├── types/
 │   ├── media.ts                      # Stream and filter configuration types
 │   ├── recording.ts                  # Recording metadata and chunk types
+│   ├── tabCaptureExtension.ts         # Typed page/extension message protocol
 │   └── database.ts                   # Neon DB model interfaces
 └── proxy.ts                          # Clerk route protection and public-route exceptions
 ```
+
+The repository root also contains `extension/`, the unpacked/publishable Manifest V3 package for one-tab capture, target-tab cursor sampling, and the configured-origin RecordWeb bridge.
 
 Dashboard, Library, Settings, and shared navigation are implemented as dedicated routes and client components. The Studio stage, source/effect controls, and review behavior remain consolidated in `StudioShell.tsx`; future extraction must preserve the hook boundaries and data flow documented here.
 

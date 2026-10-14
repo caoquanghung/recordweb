@@ -43,12 +43,19 @@ export interface CursorTrajectory {
     pausedIntervalsExcluded: true;
     durationMs: number;
   };
-  tracking: {
-    mode: 'native-helper';
-    cursorBakedIntoScreenVideo: boolean;
-    displayId: string;
-    displayLabel: string;
-  };
+  tracking:
+    | {
+        mode: 'native-helper';
+        cursorBakedIntoScreenVideo: boolean;
+        displayId: string;
+        displayLabel: string;
+      }
+    | {
+        mode: 'browser-extension-tab';
+        cursorBakedIntoScreenVideo: boolean;
+        targetTabId: number;
+        targetTitle: string;
+      };
   samples: CursorTrajectorySample[];
 }
 

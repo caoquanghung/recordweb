@@ -13,6 +13,7 @@ interface CreateSystemAudioProcessorOptions {
   sourceDestination: MediaStreamAudioDestinationNode;
   mixedMeterAnalyser: AnalyserNode;
   systemGain: number;
+  monitorDestination?: AudioNode;
 }
 
 export function createSystemAudioProcessor({
@@ -22,6 +23,7 @@ export function createSystemAudioProcessor({
   sourceDestination,
   mixedMeterAnalyser,
   systemGain,
+  monitorDestination,
 }: CreateSystemAudioProcessorOptions): SystemAudioProcessor {
   const processor: SystemAudioProcessor = {
     source: context.createMediaStreamSource(stream),
@@ -37,6 +39,7 @@ export function createSystemAudioProcessor({
   processor.gain.connect(sourceDestination);
   processor.gain.connect(mixedMeterAnalyser);
   processor.gain.connect(processor.meterAnalyser);
+  if (monitorDestination) processor.gain.connect(monitorDestination);
   return processor;
 }
 

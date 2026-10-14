@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "RecordWeb Tab Capture",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "description": "Capture one browser tab with its audio and a synchronized cursor trajectory for RecordWeb.",
+  "permissions": ["activeTab", "scripting", "storage", "tabCapture"],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://*.vercel.app/*"
+  ],
+  "action": {
+    "default_title": "Record this tab with RecordWeb"
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "https://*.vercel.app/*"
+      ],
+      "js": ["recordweb-bridge.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "options_page": "options.html"
+}

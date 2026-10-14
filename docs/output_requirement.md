@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-RecordWeb previously produced one composited recording containing the screen, webcam overlay, and mixed audio. It now also produces separate webcam, screen, mixed-audio, optional microphone/system-audio, and Electron-assisted cursor assets so downstream editing and analysis can use the original sources independently.
+RecordWeb previously produced one composited recording containing the screen, webcam overlay, and mixed audio. It now also produces separate webcam, single-tab screen, mixed-audio, optional microphone/tab-audio, and cursor assets so downstream editing and analysis can use the original sources independently.
 
 This document defines the five required assets plus optional source-audio stems, timing model, formats, cursor coordinate system, failure behavior, storage metadata, and browser limitations.
 
@@ -20,7 +20,7 @@ This document defines the five required assets plus optional source-audio stems,
 | Mixed audio | Implemented | Processed Web Audio master in MP4/AAC or WebM/Opus |
 | Microphone audio | Implemented when available | Processed microphone branch with independent waveform metadata |
 | System audio | Implemented when available | Gained system/tab audio branch with independent waveform metadata |
-| Cursor path | Implemented locally | Electron helper samples a selected display at 24 Hz; finalized JSON is stored in IndexedDB and can be opened or downloaded from Review/Library. Cloud upload and crash-draft checkpointing remain pending. |
+| Cursor path | Implemented; runtime QA pending | The Manifest V3 extension selects one tab once, captures its video/audio, and samples its cursor at 24 Hz. The existing Electron display helper remains legacy fallback code until extension parity is verified. |
 
 ## 2. Required Output Set
 
@@ -30,10 +30,10 @@ Every recording session covered by this requirement must produce the following a
 | :--- | :--- | :--- | :--- |
 | Composite video | Screen, processed webcam overlay, and mixed audio | 1920×1080 MP4 preferred | 30 FPS |
 | Webcam source | Webcam only, before PiP placement and visual effects | 1280×720 MP4 preferred | 30 FPS |
-| Screen source | Shared screen/window/tab only | 1920×1080 MP4 preferred | 30 FPS |
+| Screen source | The single extension-selected browser tab | 1920×1080 MP4 preferred | 30 FPS |
 | Mixed audio | Standalone processed master audio, without video | M4A/AAC preferred | 48 kHz |
 | Microphone audio | Processed microphone branch, when connected | M4A/AAC preferred | 48 kHz |
-| System audio | Shared system/tab branch, when present | M4A/AAC preferred | 48 kHz |
+| System audio | Audio from the same selected browser tab, when present | M4A/AAC preferred | 48 kHz |
 | Cursor path | Time-aligned normalized cursor samples | UTF-8 JSON | 24 samples/second |
 
 The composite output remains the primary playback and sharing asset. Source assets are separate files and must not be multiplexed as extra tracks inside the composite file. Microphone and system audio assets are optional and exist only when their corresponding input was available at recording start.
@@ -64,7 +64,7 @@ This output profile requires an active screen source, webcam source, and at leas
 
 ### 3.3 Screen Source Video
 
-- Contains only the selected display, window, or browser tab.
+- Contains only the single browser tab selected through the RecordWeb extension.
 - Normalized output resolution: `1920×1080`.
 - Frame rate: constant target of 30 FPS.
 - Preserve the source aspect ratio with letterboxing or pillarboxing; never stretch it.
@@ -103,13 +103,13 @@ The cursor path stores pointer-position samples aligned to the active recording 
 - Vertical coordinate: `y`, normalized to `[0, 1]`.
 - Top-left: `(0, 0)`; top-right: `(1, 0)`.
 - Bottom-left: `(0, 1)`; bottom-right: `(1, 1)`.
-- Coordinates are relative to the captured source content, not the RecordWeb viewport or the letterboxed 1920×1080 output canvas.
+- Coordinates are relative to the visible content viewport of the captured target tab, not the RecordWeb viewport or the letterboxed 1920×1080 output canvas.
 
-For `(cursorX, cursorY)` inside capture bounds `(left, top, width, height)`:
+For a pointer event `(clientX, clientY)` inside the captured tab viewport `(width, height)`:
 
 ```text
-x = (cursorX - left) / width
-y = (cursorY - top) / height
+x = clientX / width
+y = clientY / height
 ```
 
 Valid visible samples satisfy `0 <= x <= 1` and `0 <= y <= 1`. Do not silently clamp an out-of-bounds pointer. Set `visible` to `false` and both coordinates to `null`.
@@ -145,8 +145,10 @@ Valid visible samples satisfy `0 <= x <= 1` and `0 <= y <= 1`. Do not silently c
     "durationMs": 12500
   },
   "tracking": {
-    "mode": "native-helper",
-    "cursorBakedIntoScreenVideo": false
+    "mode": "browser-extension-tab",
+    "cursorBakedIntoScreenVideo": false,
+    "targetTabId": 42,
+    "targetTitle": "Example target tab"
   },
   "samples": [
     { "index": 0, "timestampMs": 0, "x": 0.42, "y": 0.31, "visible": true },
@@ -251,24 +253,16 @@ Sharing and deletion operate at the parent recording level by default:
 - Partial deletion failures are reported and retryable.
 - Ownership is verified before upload, download, or deletion access to any asset.
 
-## 8. Browser Feasibility and Cursor Constraint
+## 8. Single-Tab Extension Constraint
 
-Screen, webcam, and audio source recording is feasible with current browser APIs. Exact cursor-coordinate tracking across an arbitrary desktop is not available to a normal webpage:
+The required capture profile supports exactly one Chromium browser tab per session. The RecordWeb Manifest V3 extension owns the one-time target selection and supplies all three coupled sources: tab video, tab audio, and cursor events.
 
-- Pointer events expose positions only while the pointer interacts with the RecordWeb document.
-- `getDisplayMedia()` provides captured pixels, not operating-system cursor coordinates.
-- A page cannot inspect pointer coordinates over another application, another origin, or the desktop.
-
-Exact general-purpose cursor tracking therefore requires one of these capability modes:
-
-| Mode | Coverage | Requirement status |
-| :--- | :--- | :--- |
-| Native helper or desktop wrapper | Full display/window cursor coordinates | Recommended for exact compliance |
-| Browser extension with page instrumentation | Supported browser tabs/pages only | Partial compliance |
-| Pointer events in RecordWeb | RecordWeb viewport only | Insufficient for general screen recording |
-| Visual detection from captured frames | Cursor must be visible; detection may be inaccurate | Experimental fallback |
-
-Record `tracking.mode` in the cursor JSON. Never claim full cursor tracking when only RecordWeb-local pointer events are available. When exact tracking is unavailable, show a clear warning and store an explicit unavailable state or `visible: false` samples rather than fabricated coordinates.
+- Do not invoke a second `getDisplayMedia()` picker in extension-tab mode.
+- Do not allow a session to switch its target tab after recording starts.
+- Do not claim support for browser chrome, another tab, a window, or an entire display.
+- A cross-origin navigation can revoke the temporary `activeTab` grant and must produce a visible warning.
+- When tracking becomes unavailable, preserve media that is still usable and record an explicit unavailable state instead of fabricated cursor coordinates.
+- The existing Electron display helper is deprecated and must remain isolated until the extension replacement passes equivalent lifecycle tests.
 
 ## 9. Performance and Resource Requirements
 

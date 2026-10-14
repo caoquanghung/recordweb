@@ -34,6 +34,7 @@ export interface UseAudioDSPOptions {
   muted: boolean;
   micGain?: number;
   systemGain?: number;
+  monitorSystemAudio?: boolean;
   customConfig?: AudioFilterConfig;
 }
 
@@ -100,6 +101,7 @@ export function useAudioDSP({
   muted,
   micGain = 1,
   systemGain = 1,
+  monitorSystemAudio = false,
   customConfig = DEFAULT_CUSTOM_CONFIG,
 }: UseAudioDSPOptions): UseAudioDSPResult {
   const graphRef = useRef<AudioGraph | null>(null);
@@ -190,6 +192,7 @@ export function useAudioDSP({
               sourceDestination: systemAudioDestination,
               mixedMeterAnalyser,
               systemGain: initialConfiguration.systemGain,
+              monitorDestination: monitorSystemAudio ? context.destination : undefined,
             })
           : null;
         graphRef.current = graph;
@@ -266,7 +269,7 @@ export function useAudioDSP({
       if (!graph) return;
       disposeAudioGraph(graph);
     };
-  }, [microphoneStream, systemAudioStream]);
+  }, [microphoneStream, monitorSystemAudio, systemAudioStream]);
 
   useEffect(() => {
     const graph = graphRef.current;

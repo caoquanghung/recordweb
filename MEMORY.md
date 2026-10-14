@@ -18,7 +18,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   * **Authentication**: Clerk (`@clerk/nextjs`) with Next.js 16 `src/proxy.ts`.
   * **Video Object Storage**: Vercel Blob (`@vercel/blob/client`) for direct client-to-edge uploads.
   * **Hosting**: Vercel (Next.js Edge CDN + Serverless Route Handlers in `src/app/api/*`).
-  * **Desktop Helper**: Electron 44 with a sandboxed/context-isolated preload bridge for 24 Hz global cursor tracking.
+  * **Cursor Capture Target**: The `extension/` Chromium Manifest V3 package selects one tab once and supplies its video, audio, and 24 Hz cursor samples. Static/build checks pass; unpacked-extension runtime verification is pending. The existing Electron helper is deprecated legacy fallback code.
 
 ---
 
@@ -46,7 +46,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
    * Cloud: 1-click upload to Vercel Blob with shareable link + metadata in Neon Postgres via `src/app/api/recordings/route.ts`.
 6. **UI Standard**: Strictly Vanilla CSS (CSS Modules & custom properties) with adaptive light/dark studio glassmorphism (tokens in `docs/ui_ux_specification.md`). Theme defaults to the OS preference and persists in `localStorage` as `recordweb-theme`. No Tailwind or heavy CSS frameworks.
 7. **Documentation Source of Truth**: `docs/system_architecture.md` is authoritative for subsystem boundaries, data flow, and risks (R1–R5); `docs/audio_video_pipeline.md` is authoritative for the media pipeline. `MEMORY.md` is the persistent state bank. `AGENTS.md` requires agents to conform to these; no duplicate media pipeline rule file exists.
-8. **Multi-Asset Output**: A session now produces the composite plus available clean 720p webcam, normalized 1080p screen, standalone mixed audio, processed microphone audio, gained system audio, and an Electron-assisted 24 Hz cursor JSON. Media assets use separate coordinated recorders; source-audio assets are optional. Cursor JSON is finalized into IndexedDB and local Review/Library export; cursor draft checkpointing and cloud metadata remain pending.
+8. **Multi-Asset Output**: A session produces the composite plus available clean 720p webcam, normalized 1080p tab video, standalone mixed audio, processed microphone audio, gained tab audio, and a 24 Hz cursor JSON. The approved cursor architecture supports exactly one extension-selected Chromium tab per session; that single selection supplies tab video, tab audio, and cursor events. Existing Electron cursor code is legacy until the extension replacement is verified.
 
 ---
 
@@ -139,7 +139,8 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Connected finalized recordings to review playback and local download after WebM duration repair
   - [x] Added IndexedDB draft discovery and one-click recovery into a repaired, locally persisted recording
   - [x] Checkpointed chunks by asset kind and added independent source-asset recovery and download controls
-  - [x] Added Electron display cursor capture at 24 Hz, normalized active-time JSON finalization, local IndexedDB persistence, download, and Review/Library path visualization
+  - [x] Added the legacy Electron display cursor prototype at 24 Hz, normalized active-time JSON finalization, local IndexedDB persistence, download, and Review/Library path visualization
+  - [x] Implemented the one-selection Manifest V3 tab capture and cursor extension, one-use stream bridge, provider-owned tab video/audio, 24 Hz active-time cursor lifecycle, and extension-tab audio monitoring; unpacked-extension runtime verification remains pending
 - [x] **Phase 7: Studio React UI & Dark Glassmorphism Styling**
   - [x] Implemented the preview-first Studio layout: collapsible Sources/Effects panels, tabbed effect controls, sticky recording dock, dedicated review workspace, and on-demand diagnostics drawer
   - [x] Corrected the default Studio grid so the preview remains the primary left column and Sources/Effects align at the top of a single right inspector rail; viewports at or below 1120px use overlay drawers
@@ -187,13 +188,15 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Blob MIME Allowlist Mismatch** | `MediaRecorder` reports codec-qualified MIME values such as `video/mp4;codecs=avc1,mp4a.40.2`, while the upload token permits base types | Normalize only the Blob upload `contentType` to `video/mp4` or `video/webm`; retain the codec-qualified MIME value in recording metadata. |
 | **Concurrent Encoder Load** | Composite, webcam, and screen encoding can saturate low-power devices and cause dropped frames | Keep one video track per recorder, use fixed-rate normalization canvases, expose partial results, and validate real 30-minute sessions on target hardware. |
 | **Background-Tab RAF Suspension** | Switching to another browser tab pauses `requestAnimationFrame`, freezing canvas-derived composite, screen, and webcam frames while audio continues | Use `src/lib/frameScheduler.ts`: RAF in visible tabs and a worker timer while `document.hidden`; retain delta clamping and test target browsers. Full browser/OS process suspension remains outside webpage control. |
-| **Browser Cursor Isolation** | A normal page cannot read the pointer over another app or map a chosen tab/window to absolute desktop bounds | Use the Electron main-process `screen` API for selected-display capture only. Omit cursor output truthfully for ordinary browsers and non-monitor capture; `getCursorScreenPoint()` is unavailable on Wayland. |
+| **Native Picker/Extension Identity Gap** | A webpage cannot obtain the tab ID selected in `getDisplayMedia()`, so a second cursor selection can silently target the wrong tab | In extension mode, let one Manifest V3 action select the tab, inject the cursor tracker, and provide the same tab's `tabCapture` video/audio stream ID. Do not open a second picker. |
+| **One-Use Tab Stream ID** | A `chrome.tabCapture` stream ID expires quickly and can only be consumed once | Keep the RecordWeb bridge connected, issue the ID only after the consumer tab is known, and call `getUserMedia()` immediately; require another extension click after failure or expiry. |
+| **Captured Tab Audio Playback** | Chromium can suppress a tab's normal local audio while `tabCapture` is active | For extension-tab capture only, route the gained system-audio branch to `AudioContext.destination`; native display capture remains unmonitored to avoid feedback. |
 | **Optional-Chaining Null Comparison** | `captureSession?.timer !== null` evaluates true when `captureSession` is null because the expression yields `undefined`, then a direct `.timer` read crashes the first cursor start | Use the nullish check `captureSession?.timer != null`; the Electron smoke test calls reset twice before initialization to protect idempotent cleanup. |
 
 ---
 
 ## 6. Immediate Next Steps
 
-1. Sign in through the Electron wrapper and run an authenticated real-device session to verify composite, webcam, screen, mixed/source audio meters and waveforms, and 24 Hz cursor JSON synchronization across pause/resume.
-2. Run an authenticated source-audio upload/playback test against Neon and the connected Vercel Blob store.
-3. Decide whether cursor JSON needs cloud persistence and whether sensitive recordings require private Blob delivery.
+1. Load `extension/` unpacked in Chrome/Arc and runtime-test pairing, one-use stream consumption, cursor start/pause/resume/stop, tab closure/navigation, local audio playback, and global disconnect cleanup.
+2. Run an authenticated multi-asset upload/playback test and decide whether cursor JSON needs cloud persistence and private Blob delivery.
+3. After extension parity is verified, remove the deprecated Electron cursor runtime and dependency.

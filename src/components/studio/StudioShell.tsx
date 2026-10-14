@@ -230,6 +230,7 @@ export function StudioShell() {
     stopScreen,
     stopCamera,
     clearError: clearMediaError,
+    tabCapture,
   } = useMediaSession();
 
   const {
@@ -250,6 +251,7 @@ export function StudioShell() {
     muted: micMuted,
     micGain,
     systemGain: systemVolume,
+    monitorSystemAudio: tabCapture.connected,
     customConfig: customAudioConfig,
   });
 
@@ -298,7 +300,10 @@ export function StudioShell() {
     1080,
     sourceCaptureEnabled,
   );
-  const cursorTrajectory = useCursorTrajectory(screenStream);
+  const legacyCursorTrajectory = useCursorTrajectory(screenStream);
+  const cursorCapture = tabCapture.connected
+    ? tabCapture.cursorController
+    : legacyCursorTrajectory.controller;
 
   const {
     status: recordingStatus,
@@ -320,7 +325,7 @@ export function StudioShell() {
     systemAudioStream: systemAudioOutputStream,
     resolution,
     fps: 30,
-    cursorCapture: cursorTrajectory.controller,
+    cursorCapture,
   });
 
   const activeRecording = completedRecording ?? recoveredRecording;
@@ -432,13 +437,13 @@ export function StudioShell() {
 
     try {
       if (mode === 'webcam-only') stopScreen();
-      else await acquireScreen();
+      else if (!tabCapture.available && legacyCursorTrajectory.available) await acquireScreen();
 
       if (mode === 'screen-only') stopCamera();
       else await acquireCamera(selectedCameraId || undefined);
 
       await acquireMicrophone(selectedMicrophoneId || undefined);
-      setSourcesOpen(false);
+      if (mode === 'webcam-only' || screenStream) setSourcesOpen(false);
     } finally {
       setIsConnectingSources(false);
     }
@@ -1016,17 +1021,31 @@ export function StudioShell() {
                 <span>Screen {mediaStatuses.screen} · camera {mediaStatuses.camera} · mic {mediaStatuses.microphone}</span>
               </div>
               {screenStream && <div className={styles.sourceStatus}><StatusDot ok={hasSystemAudio} /><span>{hasSystemAudio ? 'System audio shared' : 'No system audio in this share'}</span></div>}
-              {cursorTrajectory.available && (
+              {tabCapture.connected && tabCapture.target && (
+                <div className={styles.sourceStatus}>
+                  <StatusDot ok />
+                  <span>Tab: {tabCapture.target.title}</span>
+                </div>
+              )}
+              {!tabCapture.available && legacyCursorTrajectory.available && (
                 <label className={styles.fieldLabel}>
-                  Cursor capture display
-                  <select value={cursorTrajectory.selectedDisplayId} onChange={(event) => cursorTrajectory.setSelectedDisplayId(event.target.value)}>
-                    {cursorTrajectory.displays.map((display) => (
+                  Legacy cursor display
+                  <select value={legacyCursorTrajectory.selectedDisplayId} onChange={(event) => legacyCursorTrajectory.setSelectedDisplayId(event.target.value)}>
+                    {legacyCursorTrajectory.displays.map((display) => (
                       <option key={display.id} value={display.id}>{display.label}{display.primary ? ' (Primary)' : ''}</option>
                     ))}
                   </select>
                 </label>
               )}
-              <div className={styles.sourceStatus}><StatusDot ok={cursorTrajectory.available} /><span>{cursorTrajectory.message}</span></div>
+              <div className={styles.sourceStatus}>
+                <StatusDot ok={tabCapture.connected || (!tabCapture.available && legacyCursorTrajectory.available)} />
+                <span>{tabCapture.available ? tabCapture.message : legacyCursorTrajectory.message}</span>
+              </div>
+              {mode !== 'webcam-only' && !screenStream && (
+                <p className={styles.sourceError}>
+                  Open the tab you want to record and click the RecordWeb extension once. That tab will provide screen video, system audio, and cursor tracking.
+                </p>
+              )}
               {mediaError && <p className={styles.sourceError} role="alert">{mediaError.message}</p>}
             </section>
 

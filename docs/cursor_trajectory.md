@@ -1,32 +1,100 @@
-sử dụng Browser + Native Helper để lấy được cursor path
+# Single-Tab Cursor Trajectory
 
-Sử dụng Electron Helper
+**Decision status:** Implemented; unpacked-extension runtime verification pending
 
-Lưu lại cursor trajectory 24Hz vào 1 file output và có thể mở lại sau khi record.
+**Capture scope:** One Chromium browser tab per recording session
 
+**Target browsers:** Chrome and Arc
 
-Sau này có thể mở rộng:
-- nội suy các điểm bên trong các cursor sample để render mượt mà cursor path.
+**Sampling rate:** 24 Hz
 
-## Kiến trúc đã triển khai
+## 1. Product Contract
 
-- `electron/main.cjs`: lấy cursor toàn cục bằng Electron `screen`, chạy sampler ở main process tại 24 Hz.
-- `electron/preload.cjs`: chỉ expose các lệnh cursor cần thiết qua `contextBridge`; không expose trực tiếp `ipcRenderer` hoặc Node API.
-- `src/hooks/useCursorTrajectory.ts`: kết nối UI/browser với helper và giữ display được chọn.
-- `useRecordingSession`: dùng cùng session ID và cùng lifecycle start/pause/resume/stop; thời gian pause không xuất hiện trong timeline cursor.
-- Output: `<sessionId>-cursor.json`, tọa độ chuẩn hóa theo display đã capture. File được lưu trong IndexedDB cùng recording và có thể mở lại ở Review/Local Library; Library cũng có nút `Open cursor JSON` để mở lại file đã tải về.
+A recording session selects exactly one browser tab. That tab is the single source for:
 
-## Cách chạy local
+- the screen video stream;
+- the tab/system audio stream, when the tab produces audio; and
+- the normalized cursor trajectory.
 
-1. Chạy web app: `npm run dev`.
-2. Ở terminal khác, chạy desktop wrapper: `npm run desktop`.
-3. Trong Sources, chọn `Cursor capture display`, sau đó connect screen và recording như bình thường.
+The user must select the target tab only once. Multi-tab tracking, whole-window tracking, and full-display cursor tracking are out of scope.
 
-Có thể đặt `RECORDWEB_URL=https://...` để wrapper mở bản deploy. URL từ xa bắt buộc dùng HTTPS.
+## 2. One-Selection User Flow
 
-## Giới hạn hiện tại
+1. The user opens the tab they want to record.
+2. The user clicks the RecordWeb extension action, **Record this tab**.
+3. The extension receives the active target tab ID from that user gesture.
+4. The extension injects the cursor tracker into the target tab.
+5. The extension obtains a one-use tab media stream ID through `chrome.tabCapture.getMediaStreamId()`.
+6. The extension opens or focuses RecordWeb and immediately transfers the stream ID and target-tab metadata through the RecordWeb bridge.
+7. RecordWeb consumes the stream ID, shows video/audio/cursor readiness, and lets the user start recording.
+8. Start, pause, resume, and stop commands control both the media session and the cursor sampler.
 
-- Tracking chính xác áp dụng cho `Entire screen`/display đã chọn. Window hoặc browser tab không có absolute bounds đáng tin cậy nên cursor asset sẽ bị bỏ qua và UI hiển thị warning.
-- Electron `screen.getCursorScreenPoint()` không hỗ trợ Wayland; cần chạy XWayland/X11 hoặc bổ sung native portal integration cho Linux Wayland.
-- Cursor JSON hiện được finalize và lưu local sau khi stop; incremental crash recovery và cloud upload cho asset `cursor` chưa được triển khai.
+RecordWeb must not show a second native `getDisplayMedia()` picker in this mode. A normal web page cannot discover which tab was selected in that picker, so keeping both selection mechanisms would create an unreliable tab-to-cursor mapping.
 
+## 3. Extension Architecture
+
+The extension uses Chromium Manifest V3 and requests only:
+
+```json
+{
+  "permissions": ["activeTab", "scripting", "storage", "tabCapture"]
+}
+```
+
+The `tabs` permission is not required for the single-tab flow. The extension action already receives the active target tab, and the RecordWeb bridge supplies the consumer tab ID.
+
+```text
+Target tab
+  ├── chrome.tabCapture video + audio
+  └── cursor content script at 24 Hz
+                 │
+                 ▼
+       Manifest V3 service worker
+                 │
+                 ▼
+       RecordWeb bridge content script
+                 │
+                 ▼
+  MediaSessionProvider + useTabCaptureExtension
+                 │
+                 ▼
+  useRecordingSession → IndexedDB → Blob/Neon
+```
+
+The extension service worker owns pairing and routing, but it must not be the 24 Hz sampling clock because Manifest V3 service workers may suspend. The active target-tab content script owns the sampler and sends validated JSON-serializable samples through a long-lived extension port.
+
+## 4. Coordinate and Timeline Contract
+
+- Coordinates are relative to the visible content viewport of the captured target tab.
+- `x = clientX / viewportWidth` and `y = clientY / viewportHeight`.
+- Valid visible coordinates remain within `[0, 1]`.
+- When the pointer is outside the document, `visible` is `false` and `x/y` are `null`.
+- The sampler emits one sample every `41.6667 ms`, including when the pointer has not moved.
+- Pause time is excluded from `timestampMs`.
+- The cursor asset uses the same `sessionId` as every media asset.
+- Target-tab navigation to a different origin invalidates the `activeTab` grant; RecordWeb must warn and mark cursor capture unavailable rather than fabricate samples.
+
+The cursor JSON uses `tracking.mode: "browser-extension-tab"` and includes the extension-known target tab ID only for local session coordination. Persistent output should avoid storing the complete target URL unless the product explicitly requires it.
+
+## 5. Lifecycle and Failure Rules
+
+- Only one target tab may be paired with a recording session.
+- Closing the target tab ends its video, audio, and cursor sources.
+- Switching to another tab does not change the target. Cursor samples become invisible because the pointer is no longer interacting with the captured document.
+- If tab audio is captured, RecordWeb must preserve local playback through the Web Audio graph when Chromium suppresses the tab's normal audio output.
+- The one-use media stream ID must be consumed immediately; an expired ID requires the user to invoke the extension again.
+- Unsupported browser pages such as `chrome://` and extension-store pages cannot be tracked.
+- Cross-origin iframe cursor coverage is not guaranteed in the initial version.
+
+## 6. Migration from the Electron Helper
+
+The existing Electron display cursor helper is a legacy implementation and remains in the repository until the extension flow passes end-to-end verification. The migration must:
+
+1. add the Manifest V3 extension package;
+2. add a RecordWeb extension bridge and tab-stream acquisition adapter;
+3. replace display selection with a single paired-tab readiness state;
+4. keep the existing cursor JSON, IndexedDB, Review, and Library consumers;
+5. remove Electron runtime dependencies only after equivalent tests pass; and
+6. update deployment instructions for loading an unpacked extension and publishing it later.
+
+Future interpolation between cursor samples may improve path rendering, but it must not modify the stored raw samples.

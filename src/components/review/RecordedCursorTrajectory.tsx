@@ -60,11 +60,14 @@ export function RecordedCursorTrajectory({ blob }: Props) {
 
   if (error) return <div className={styles.card}><p>{error}</p></div>;
   if (!trajectory) return <div className={styles.card}><p>Opening cursor trajectory…</p></div>;
+  const sourceLabel = trajectory.tracking.mode === 'browser-extension-tab'
+    ? trajectory.tracking.targetTitle
+    : trajectory.tracking.displayLabel;
 
   return (
     <section className={styles.card} aria-label="Recorded cursor trajectory">
       <div className={styles.heading}>
-        <div><span>Recorded cursor path</span><strong>{trajectory.tracking.displayLabel}</strong></div>
+        <div><span>Recorded cursor path</span><strong>{sourceLabel}</strong></div>
         <div><b>{trajectory.samples.length.toLocaleString()}</b><small>samples · 24 Hz</small></div>
       </div>
       <div className={styles.plot}>
