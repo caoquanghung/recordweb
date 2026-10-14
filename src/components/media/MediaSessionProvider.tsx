@@ -4,8 +4,13 @@ import { createContext, useContext, type ReactNode } from 'react';
 import { useMediaDevices, type UseMediaDevicesResult } from '@/hooks/useMediaDevices';
 
 const MediaSessionContext = createContext<UseMediaDevicesResult | null>(null);
+MediaSessionContext.displayName = 'MediaSessionContext';
 
-export function MediaSessionProvider({ children }: { children: ReactNode }) {
+interface MediaSessionProviderProps {
+  children: ReactNode;
+}
+
+export function MediaSessionProvider({ children }: MediaSessionProviderProps) {
   const mediaSession = useMediaDevices();
 
   return (

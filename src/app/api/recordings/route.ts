@@ -106,7 +106,14 @@ export async function POST(request: NextRequest) {
       assets = [],
     } = body;
 
-    const validAssetKinds = new Set(['composite', 'webcam', 'screen', 'audio']);
+    const validAssetKinds = new Set([
+      'composite',
+      'webcam',
+      'screen',
+      'audio',
+      'microphone-audio',
+      'system-audio',
+    ]);
     if (!Array.isArray(assets) || assets.some((asset) => !validAssetKinds.has(asset?.kind))) {
       return NextResponse.json({ error: 'Invalid recording assets.' }, { status: 400 });
     }

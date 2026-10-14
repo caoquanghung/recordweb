@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createCanvas, createMutedVideo, disposeVideo, getErrorMessage } from '@/hooks/mediaHookUtils';
 import { startVisibilityAwareFrameLoop } from '@/lib/frameScheduler';
 import type { BackgroundRemovalMode } from '@/types/media';
 
@@ -16,14 +17,42 @@ export interface UseVisionSegmentationResult {
   inferenceFps: number;
 }
 
-function createVideo(stream: MediaStream) {
-  const video = document.createElement('video');
-  video.autoplay = true;
-  video.muted = true;
-  video.playsInline = true;
-  video.srcObject = stream;
-  void video.play().catch(() => undefined);
-  return video;
+type SegmentationResults = Parameters<
+  Parameters<import('@mediapipe/selfie_segmentation').SelfieSegmentation['onResults']>[0]
+>[0];
+
+function drawSegmentationResult(
+  results: SegmentationResults,
+  mode: BackgroundRemovalMode,
+  outputContext: CanvasRenderingContext2D,
+  subjectCanvas: HTMLCanvasElement,
+  subjectContext: CanvasRenderingContext2D | null,
+) {
+  outputContext.save();
+  outputContext.clearRect(0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
+
+  if (mode === 'blur' && subjectContext) {
+    outputContext.filter = 'blur(12px)';
+    outputContext.drawImage(results.image, 0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
+    outputContext.filter = 'none';
+    subjectContext.save();
+    subjectContext.clearRect(0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
+    subjectContext.filter = 'blur(1.5px)';
+    subjectContext.drawImage(results.segmentationMask, 0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
+    subjectContext.filter = 'none';
+    subjectContext.globalCompositeOperation = 'source-in';
+    subjectContext.drawImage(results.image, 0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
+    subjectContext.restore();
+    outputContext.drawImage(subjectCanvas, 0, 0);
+  } else {
+    outputContext.filter = 'blur(1.5px)';
+    outputContext.drawImage(results.segmentationMask, 0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
+    outputContext.filter = 'none';
+    outputContext.globalCompositeOperation = 'source-in';
+    outputContext.drawImage(results.image, 0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
+  }
+
+  outputContext.restore();
 }
 
 export function useVisionSegmentation(
@@ -56,19 +85,10 @@ export function useVisionSegmentation(
     let lastInferenceAt = 0;
     let frameCount = 0;
     let fpsWindowStart = performance.now();
-    const video = createVideo(cameraStream);
-    const inputCanvas = document.createElement('canvas');
-    inputCanvas.width = INFERENCE_SIZE;
-    inputCanvas.height = INFERENCE_SIZE;
-    const inputContext = inputCanvas.getContext('2d');
-    const outputCanvas = document.createElement('canvas');
-    outputCanvas.width = INFERENCE_SIZE;
-    outputCanvas.height = INFERENCE_SIZE;
-    const outputContext = outputCanvas.getContext('2d');
-    const subjectCanvas = document.createElement('canvas');
-    subjectCanvas.width = INFERENCE_SIZE;
-    subjectCanvas.height = INFERENCE_SIZE;
-    const subjectContext = subjectCanvas.getContext('2d');
+    const video = createMutedVideo(cameraStream);
+    const { canvas: inputCanvas, context: inputContext } = createCanvas(INFERENCE_SIZE, INFERENCE_SIZE);
+    const { canvas: outputCanvas, context: outputContext } = createCanvas(INFERENCE_SIZE, INFERENCE_SIZE);
+    const { canvas: subjectCanvas, context: subjectContext } = createCanvas(INFERENCE_SIZE, INFERENCE_SIZE);
     const publishCanvas = window.setTimeout(() => {
       setEffectCanvas(outputCanvas);
       setState('loading');
@@ -102,7 +122,7 @@ export function useVisionSegmentation(
         if (failures >= MAX_FAILURES) {
           inferenceDisabled = true;
           setState('error');
-          setError(`Background effect disabled: ${(cause as Error).message || 'segmentation failed'}`);
+          setError(`Background effect disabled: ${getErrorMessage(cause, 'segmentation failed')}`);
         }
       } finally {
         inferenceRunning = false;
@@ -124,29 +144,7 @@ export function useVisionSegmentation(
         segmenter.setOptions({ modelSelection: 1, selfieMode: true });
         segmenter.onResults((results) => {
           if (cancelled || !outputContext) return;
-          outputContext.save();
-          outputContext.clearRect(0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
-          if (mode === 'blur' && subjectContext) {
-            outputContext.filter = 'blur(12px)';
-            outputContext.drawImage(results.image, 0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
-            outputContext.filter = 'none';
-            subjectContext.save();
-            subjectContext.clearRect(0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
-            subjectContext.filter = 'blur(1.5px)';
-            subjectContext.drawImage(results.segmentationMask, 0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
-            subjectContext.filter = 'none';
-            subjectContext.globalCompositeOperation = 'source-in';
-            subjectContext.drawImage(results.image, 0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
-            subjectContext.restore();
-            outputContext.drawImage(subjectCanvas, 0, 0);
-          } else {
-            outputContext.filter = 'blur(1.5px)';
-            outputContext.drawImage(results.segmentationMask, 0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
-            outputContext.filter = 'none';
-            outputContext.globalCompositeOperation = 'source-in';
-            outputContext.drawImage(results.image, 0, 0, INFERENCE_SIZE, INFERENCE_SIZE);
-          }
-          outputContext.restore();
+          drawSegmentationResult(results, mode, outputContext, subjectCanvas, subjectContext);
           frameCount += 1;
           const now = performance.now();
           if (now - fpsWindowStart >= 1000) {
@@ -169,8 +167,7 @@ export function useVisionSegmentation(
       cancelled = true;
       window.clearTimeout(publishCanvas);
       stopInferenceLoop();
-      video.pause();
-      video.srcObject = null;
+      disposeVideo(video);
       void segmenter?.close().catch(() => undefined);
     };
   }, [cameraStream, mode]);

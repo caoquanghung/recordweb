@@ -1,14 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getErrorMessage } from '@/hooks/mediaHookUtils';
 import type { CursorHelperDisplay } from '@/types/electron';
 import type { CursorCaptureController, CursorTrajectory } from '@/types/recording';
+
+const CONNECTED_MESSAGE = 'Native helper connected · cursor output 24 Hz.';
+const UNAVAILABLE_MESSAGE = 'Open RecordWeb with the Electron helper to capture cursor coordinates.';
+
+function getPreferredDisplay(displays: CursorHelperDisplay[]) {
+  return displays.find((display) => display.primary) ?? displays[0];
+}
 
 export function useCursorTrajectory(screenStream: MediaStream | null) {
   const [available, setAvailable] = useState(false);
   const [displays, setDisplays] = useState<CursorHelperDisplay[]>([]);
   const [selectedDisplayId, setSelectedDisplayIdState] = useState('');
-  const [message, setMessage] = useState('Open RecordWeb with the Electron helper to capture cursor coordinates.');
+  const [message, setMessage] = useState(UNAVAILABLE_MESSAGE);
   const sessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -19,20 +27,20 @@ export function useCursorTrajectory(screenStream: MediaStream | null) {
       if (cancelled) return;
       setAvailable(true);
       setDisplays(nextDisplays);
-      const preferred = nextDisplays.find((display) => display.primary) ?? nextDisplays[0];
+      const preferred = getPreferredDisplay(nextDisplays);
       if (preferred) {
         setSelectedDisplayIdState(preferred.id);
         void bridge.selectDisplay(preferred.id);
-        setMessage('Native helper connected · cursor output 24 Hz.');
+        setMessage(CONNECTED_MESSAGE);
       } else setMessage('Native helper connected, but no display is available.');
-    }).catch((cause) => setMessage(`Cursor helper unavailable: ${(cause as Error).message}`));
+    }).catch((cause) => setMessage(`Cursor helper unavailable: ${getErrorMessage(cause, 'unknown error')}`));
     return () => { cancelled = true; };
   }, []);
 
   const setSelectedDisplayId = useCallback((displayId: string) => {
     setSelectedDisplayIdState(displayId);
     void window.recordWebCursor?.selectDisplay(displayId).then((selected) => {
-      setMessage(selected ? 'Native helper connected · cursor output 24 Hz.' : 'The selected display is no longer available.');
+      setMessage(selected ? CONNECTED_MESSAGE : 'The selected display is no longer available.');
     });
   }, []);
 

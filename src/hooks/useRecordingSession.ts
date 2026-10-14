@@ -7,6 +7,7 @@ import { decodeRecordedWaveform } from '@/lib/audioWaveform';
 import type {
   CursorCaptureController,
   CursorTrajectory,
+  RecordingAudioAssetKind,
   RecordingAssetKind,
   RecordingAssetMetadata,
   RecordingMetadata,
@@ -16,7 +17,19 @@ import type {
 const MAX_ACTIVE_MS = 30 * 60 * 1000;
 const WARNING_ACTIVE_MS = 15 * 60 * 1000;
 const FINAL_WARNING_ACTIVE_MS = 29 * 60 * 1000;
-const ASSET_ORDER: RecordingAssetKind[] = ['composite', 'webcam', 'screen', 'audio'];
+const MEDIA_ASSET_ORDER: Exclude<RecordingAssetKind, 'cursor'>[] = [
+  'composite',
+  'webcam',
+  'screen',
+  'audio',
+  'microphone-audio',
+  'system-audio',
+];
+const AUDIO_ASSET_KINDS: RecordingAudioAssetKind[] = [
+  'audio',
+  'microphone-audio',
+  'system-audio',
+];
 
 const COMPOSITE_MIME_CANDIDATES = [
   'video/mp4;codecs=avc1,mp4a.40.2',
@@ -46,6 +59,8 @@ interface Options {
   webcamStream?: MediaStream | null;
   screenStream?: MediaStream | null;
   audioStream: MediaStream | null;
+  microphoneAudioStream?: MediaStream | null;
+  systemAudioStream?: MediaStream | null;
   resolution: string;
   fps?: number;
   cursorCapture?: CursorCaptureController;
@@ -56,6 +71,13 @@ interface AssetSpec {
   resolution?: string;
   fps?: number;
   sampleRateHz?: number;
+}
+
+interface RecorderInput {
+  kind: RecordingAssetKind;
+  stream: MediaStream;
+  candidates: string[];
+  spec: Omit<AssetSpec, 'mimeType'>;
 }
 
 export interface RecordingSessionResult {
@@ -89,7 +111,130 @@ function createRecorder(stream: MediaStream, candidates: string[]) {
 
 function defaultMimeType(kind: RecordingAssetKind) {
   if (kind === 'cursor') return 'application/json';
-  return kind === 'audio' ? 'audio/webm' : 'video/webm';
+  return AUDIO_ASSET_KINDS.includes(kind as RecordingAudioAssetKind) ? 'audio/webm' : 'video/webm';
+}
+
+function getRecorders(
+  recorders: Partial<Record<RecordingAssetKind, MediaRecorder>>,
+): MediaRecorder[] {
+  return Object.values(recorders).filter((recorder): recorder is MediaRecorder => Boolean(recorder));
+}
+
+function createRecorderInputs({
+  videoStream,
+  webcamStream,
+  screenStream,
+  audioStream,
+  microphoneAudioStream,
+  systemAudioStream,
+  resolution,
+  fps,
+}: Required<Pick<Options,
+  | 'videoStream'
+  | 'webcamStream'
+  | 'screenStream'
+  | 'audioStream'
+  | 'microphoneAudioStream'
+  | 'systemAudioStream'
+  | 'resolution'
+  | 'fps'
+>>): {
+  inputs: RecorderInput[];
+  missingSources: string[];
+} {
+  const inputs: RecorderInput[] = [];
+  const videoTrack = videoStream?.getVideoTracks()[0];
+  if (!videoTrack) return { inputs, missingSources: [] };
+
+  const audioTrack = audioStream?.getAudioTracks()[0];
+  inputs.push({
+    kind: 'composite',
+    stream: new MediaStream([videoTrack, ...(audioTrack ? [audioTrack] : [])]),
+    candidates: COMPOSITE_MIME_CANDIDATES,
+    spec: { resolution, fps },
+  });
+
+  const webcamTrack = webcamStream?.getVideoTracks()[0];
+  if (webcamTrack) {
+    inputs.push({
+      kind: 'webcam',
+      stream: new MediaStream([webcamTrack]),
+      candidates: VIDEO_MIME_CANDIDATES,
+      spec: { resolution: '1280x720', fps },
+    });
+  }
+
+  const screenTrack = screenStream?.getVideoTracks()[0];
+  if (screenTrack) {
+    inputs.push({
+      kind: 'screen',
+      stream: new MediaStream([screenTrack]),
+      candidates: VIDEO_MIME_CANDIDATES,
+      spec: { resolution: '1920x1080', fps },
+    });
+  }
+
+  if (audioTrack) {
+    inputs.push({
+      kind: 'audio',
+      stream: new MediaStream([audioTrack]),
+      candidates: AUDIO_MIME_CANDIDATES,
+      spec: { sampleRateHz: audioTrack.getSettings().sampleRate ?? 48_000 },
+    });
+  }
+
+  const microphoneAudioTrack = microphoneAudioStream?.getAudioTracks()[0];
+  if (microphoneAudioTrack) {
+    inputs.push({
+      kind: 'microphone-audio',
+      stream: new MediaStream([microphoneAudioTrack]),
+      candidates: AUDIO_MIME_CANDIDATES,
+      spec: { sampleRateHz: microphoneAudioTrack.getSettings().sampleRate ?? 48_000 },
+    });
+  }
+
+  const systemAudioTrack = systemAudioStream?.getAudioTracks()[0];
+  if (systemAudioTrack) {
+    inputs.push({
+      kind: 'system-audio',
+      stream: new MediaStream([systemAudioTrack]),
+      candidates: AUDIO_MIME_CANDIDATES,
+      spec: { sampleRateHz: systemAudioTrack.getSettings().sampleRate ?? 48_000 },
+    });
+  }
+
+  return {
+    inputs,
+    missingSources: [
+      !webcamTrack ? 'webcam' : null,
+      !screenTrack ? 'screen' : null,
+      !audioTrack ? 'audio' : null,
+      !microphoneAudioTrack ? 'microphone audio' : null,
+      !systemAudioTrack ? 'system audio' : null,
+    ].filter((source): source is string => source !== null),
+  };
+}
+
+async function createAssetMetadata(
+  kind: RecordingAssetKind,
+  chunks: Blob[],
+  spec: AssetSpec,
+  durationMs: number,
+): Promise<RecordingAssetMetadata> {
+  const rawBlob = new Blob(chunks, { type: spec.mimeType || defaultMimeType(kind) });
+  const blob = rawBlob.type.includes('webm')
+    ? await repairWebmDuration(rawBlob, durationMs)
+    : rawBlob;
+
+  return {
+    kind,
+    fileSizeBytes: blob.size,
+    mimeType: blob.type || spec.mimeType,
+    resolution: spec.resolution,
+    fps: spec.fps,
+    sampleRateHz: spec.sampleRateHz,
+    blob,
+  };
 }
 
 export function useRecordingSession({
@@ -97,6 +242,8 @@ export function useRecordingSession({
   webcamStream = null,
   screenStream = null,
   audioStream,
+  microphoneAudioStream = null,
+  systemAudioStream = null,
   resolution,
   fps = 30,
   cursorCapture,
@@ -140,7 +287,7 @@ export function useRecordingSession({
       .catch(() => undefined)
       .then(async () => {
         const assets = Object.fromEntries(
-          ASSET_ORDER.flatMap((kind) => {
+          MEDIA_ASSET_ORDER.flatMap((kind) => {
             const chunks = chunksRef.current[kind];
             const spec = assetSpecsRef.current[kind];
             if (!chunks || !spec) return [];
@@ -169,24 +316,12 @@ export function useRecordingSession({
       const durationMs = Math.min(accumulatedMsRef.current, MAX_ACTIVE_MS);
       const assets: Partial<Record<RecordingAssetKind, RecordingAssetMetadata>> = {};
 
-      for (const kind of ASSET_ORDER) {
+      for (const kind of MEDIA_ASSET_ORDER) {
         const chunks = chunksRef.current[kind];
         const spec = assetSpecsRef.current[kind];
         if (!chunks?.length || !spec) continue;
 
-        const rawBlob = new Blob(chunks, { type: spec.mimeType || defaultMimeType(kind) });
-        const blob = rawBlob.type.includes('webm')
-          ? await repairWebmDuration(rawBlob, durationMs)
-          : rawBlob;
-        assets[kind] = {
-          kind,
-          fileSizeBytes: blob.size,
-          mimeType: blob.type || spec.mimeType,
-          resolution: spec.resolution,
-          fps: spec.fps,
-          sampleRateHz: spec.sampleRateHz,
-          blob,
-        };
+        assets[kind] = await createAssetMetadata(kind, chunks, spec, durationMs);
       }
 
       const cursorTrajectory = await cursorStopRef.current.catch((cause) => {
@@ -204,13 +339,14 @@ export function useRecordingSession({
         };
       }
 
-      const audioAsset = assets.audio;
-      if (audioAsset?.blob) {
+      for (const kind of AUDIO_ASSET_KINDS) {
+        const audioAsset = assets[kind];
+        if (!audioAsset?.blob) continue;
         try {
           const waveform = await decodeRecordedWaveform(audioAsset.blob);
           audioAsset.waveformPeaks = waveform.peaks;
         } catch (cause) {
-          assetErrorsRef.current.push(`audio waveform: ${(cause as Error).message}`);
+          assetErrorsRef.current.push(`${kind} waveform: ${(cause as Error).message}`);
         }
       }
 
@@ -259,7 +395,7 @@ export function useRecordingSession({
   }, [finalizeSession]);
 
   const stop = useCallback(() => {
-    const recorders = Object.values(recordersRef.current).filter(Boolean) as MediaRecorder[];
+    const recorders = getRecorders(recordersRef.current);
     if (recorders.length === 0 || recorders.every((recorder) => recorder.state === 'inactive')) return;
 
     if (recordingActiveRef.current) {
@@ -307,53 +443,16 @@ export function useRecordingSession({
 
     const id = crypto.randomUUID();
     const startedAt = new Date().toISOString();
-    const recorderInputs: Array<{
-      kind: RecordingAssetKind;
-      stream: MediaStream;
-      candidates: string[];
-      spec: Omit<AssetSpec, 'mimeType'>;
-    }> = [];
-
-    const compositeTracks = [
-      videoStream.getVideoTracks()[0],
-      ...(audioStream?.getAudioTracks().slice(0, 1) ?? []),
-    ];
-    recorderInputs.push({
-      kind: 'composite',
-      stream: new MediaStream(compositeTracks),
-      candidates: COMPOSITE_MIME_CANDIDATES,
-      spec: { resolution, fps },
+    const { inputs: recorderInputs, missingSources } = createRecorderInputs({
+      videoStream,
+      webcamStream,
+      screenStream,
+      audioStream,
+      microphoneAudioStream,
+      systemAudioStream,
+      resolution,
+      fps,
     });
-
-    const webcamTrack = webcamStream?.getVideoTracks()[0];
-    if (webcamTrack) {
-      recorderInputs.push({
-        kind: 'webcam',
-        stream: new MediaStream([webcamTrack]),
-        candidates: VIDEO_MIME_CANDIDATES,
-        spec: { resolution: '1280x720', fps },
-      });
-    }
-
-    const screenTrack = screenStream?.getVideoTracks()[0];
-    if (screenTrack) {
-      recorderInputs.push({
-        kind: 'screen',
-        stream: new MediaStream([screenTrack]),
-        candidates: VIDEO_MIME_CANDIDATES,
-        spec: { resolution: '1920x1080', fps },
-      });
-    }
-
-    const audioTrack = audioStream?.getAudioTracks()[0];
-    if (audioTrack) {
-      recorderInputs.push({
-        kind: 'audio',
-        stream: new MediaStream([audioTrack]),
-        candidates: AUDIO_MIME_CANDIDATES,
-        spec: { sampleRateHz: audioTrack.getSettings().sampleRate ?? 48_000 },
-      });
-    }
 
     recordersRef.current = {};
     chunksRef.current = {};
@@ -414,31 +513,26 @@ export function useRecordingSession({
         recorder.onstop = () => markAssetStopped(kind);
       });
 
-      ASSET_ORDER.forEach((kind) => recordersRef.current[kind]?.start(1000));
+      MEDIA_ASSET_ORDER.forEach((kind) => recordersRef.current[kind]?.start(1000));
       setStatus('recording');
       startClock();
 
-      const missingSources = [
-        !webcamTrack ? 'webcam' : null,
-        !screenTrack ? 'screen' : null,
-        !audioTrack ? 'audio' : null,
-      ].filter(Boolean);
       if (missingSources.length > 0) {
         setWarning(`This session will not include separate ${missingSources.join(', ')} output.`);
       }
     } catch (cause) {
       recordingActiveRef.current = false;
       void cursorCapture?.reset();
-      Object.values(recordersRef.current).forEach((recorder) => {
-        if (recorder && recorder.state !== 'inactive') recorder.stop();
+      getRecorders(recordersRef.current).forEach((recorder) => {
+        if (recorder.state !== 'inactive') recorder.stop();
       });
       setError(`Could not start all recording encoders: ${(cause as Error).message}`);
       setStatus('error');
     }
-  }, [audioStream, checkpointDraft, cursorCapture, fps, markAssetStopped, resolution, screenStream, startClock, stop, videoStream, webcamStream]);
+  }, [audioStream, checkpointDraft, cursorCapture, fps, markAssetStopped, microphoneAudioStream, resolution, screenStream, startClock, stop, systemAudioStream, videoStream, webcamStream]);
 
   const pause = useCallback(() => {
-    const recorders = Object.values(recordersRef.current).filter(Boolean) as MediaRecorder[];
+    const recorders = getRecorders(recordersRef.current);
     if (!recordingActiveRef.current || recorders.length === 0) return;
 
     accumulatedMsRef.current += performance.now() - activeStartedAtRef.current;
@@ -455,7 +549,7 @@ export function useRecordingSession({
   }, [clearTimer, cursorCapture]);
 
   const resume = useCallback(() => {
-    const recorders = Object.values(recordersRef.current).filter(Boolean) as MediaRecorder[];
+    const recorders = getRecorders(recordersRef.current);
     if (recorders.length === 0 || !recorders.some((recorder) => recorder.state === 'paused')) return;
 
     recorders.forEach((recorder) => {
@@ -492,8 +586,8 @@ export function useRecordingSession({
   useEffect(() => () => {
     clearTimer();
     recordingActiveRef.current = false;
-    Object.values(recordersRef.current).forEach((recorder) => {
-      if (recorder && recorder.state !== 'inactive') recorder.stop();
+    getRecorders(recordersRef.current).forEach((recorder) => {
+      if (recorder.state !== 'inactive') recorder.stop();
     });
     void cursorCapture?.reset();
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);

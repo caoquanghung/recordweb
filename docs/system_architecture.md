@@ -105,12 +105,17 @@ flowchart LR
                 └─► BiquadFilter (Low-pass 12kHz) 
                       └─► DynamicsCompressorNode 
                             └─► NoiseGate (GainNode — smooth setTargetAtTime)
-                                  ├─► AnalyserNode (Visualizer / VU Meter)
-                                  └─► MasterAudioDestination (Mixer)
+                                  ├─► MasterAudioDestination (Mixer)
+                                  ├─► MicrophoneAudioDestination
+                                  ├─► Mixed AnalyserNode
+                                  └─► Microphone AnalyserNode
   
   SystemAudio (from getDisplayMedia)
     └─► GainNode (Volume adjustment)
-          └─► MasterAudioDestination (Mixer)
+          ├─► MasterAudioDestination (Mixer)
+          ├─► SystemAudioDestination
+          ├─► Mixed AnalyserNode
+          └─► System AnalyserNode
   ```
 * **Risk 4 Mitigation (Noise Gate Popping)**:
   * Gate open (signal above threshold): `gainNode.gain.setTargetAtTime(1.0, ctx.currentTime, 0.010)` — ~10ms attack.
@@ -145,7 +150,9 @@ stateDiagram-v2
   * Composite: 1080p compositor video plus processed master audio.
   * Webcam: raw camera normalized to 1280×720 at 30 FPS, without audio or Studio effects.
   * Screen: raw display normalized to 1920×1080 at 30 FPS, without webcam or duplicated audio.
-  * Audio: the processed master audio without a video track.
+  * Audio: the processed master mix without a video track.
+  * Microphone audio: the processed microphone branch after filters, gate, mute, and gain, when available.
+  * System audio: the independent system branch after its volume control, when display capture includes audio.
   * Cursor: Electron main-process samples normalized OS cursor coordinates at 24 Hz for a user-selected display. The session coordinator starts, pauses, resumes, and stops this sampler against the same active-time lifecycle as the media recorders.
   * Each available asset has its own `MediaRecorder`; pause, resume, stop, active-time limits, and finalization are coordinated by one session state machine. The implementation never places multiple video tracks in one recorder.
 
@@ -161,8 +168,8 @@ stateDiagram-v2
 * **Chunk Aggregation**: Gathers per-asset data chunks emitted during each `mediaRecorder.ondataavailable` callback (every 1000ms for safety).
 * **Metadata Repair**: Standard browser `MediaRecorder` writes `Duration: 0` or NaN to WebM EBML headers for live streams. The patcher parses EBML elements and injects the exact recorded duration, making the resulting video fully seekable in all players.
 * **Session Cache (IndexedDB)**: `src/lib/idb.ts` stores drafts keyed by session and asset kind under `recordweb_draft_*` keys and finalized local recordings under `recordweb_rec_*` keys. The Studio detects drafts on load and can recover the newest draft, including any available source assets.
-* **Recorded Waveform Metadata**: Finalization decodes the standalone audio asset once and stores 120 normalized amplitude peaks on the local audio asset. Cloud uploads persist the same compact peak array in `recording_assets.metadata` and mirror it in the parent session settings, allowing Library cards to render immediately without repeatedly decoding a large remote audio file. Legacy recordings fall back to decoding their available audio source.
-* **Direct Local Export**: Allows users to download the composite and each available webcam, screen, audio, or cursor JSON asset using an extension that matches its content type.
+* **Recorded Waveform Metadata**: Finalization independently decodes the mixed, microphone, and system audio assets and stores 120 normalized amplitude peaks on each available asset. Cloud uploads persist the compact peak arrays in each `recording_assets.metadata`; the mixed peaks remain mirrored in parent settings for legacy Library compatibility.
+* **Direct Local Export**: Allows users to download the composite and each available webcam, screen, mixed-audio, source-audio, or cursor JSON asset using an extension that matches its content type.
 
 ### 2.7 Cloud Video Storage Subsystem (Vercel Blob)
 * **Role**: Object storage for hosting recorded video files and generating shareable playback links.
@@ -216,7 +223,7 @@ stateDiagram-v2
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       recording_id UUID NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
       kind VARCHAR(32) NOT NULL
-          CHECK (kind IN ('composite', 'webcam', 'screen', 'audio')),
+          CHECK (kind IN ('composite', 'webcam', 'screen', 'audio', 'microphone-audio', 'system-audio')),
       storage_url TEXT NOT NULL,
       blob_pathname TEXT NOT NULL,
       mime_type VARCHAR(128) NOT NULL,
@@ -265,7 +272,7 @@ stateDiagram-v2
   * Route Handlers extract `userId` from the verified session and scope all DB queries to that `user_id`.
   * Anonymous or expired sessions receive `401 Unauthorized` responses.
 * **Upload Rate Limiting**:
-  * The `/api/upload` Route Handler currently enforces an instance-local limit of 40 authorization requests per user per hour so a session can upload up to four media objects. Production multi-instance enforcement requires durable shared state.
+  * The `/api/upload` Route Handler currently enforces an instance-local limit of 40 authorization requests per user per hour; a complete session can upload up to six media objects. Production multi-instance enforcement requires durable shared state.
 * **Public Share Links**:
   * A recording with `is_public = TRUE` is accessible via a public route (e.g., `/share/[recordingId]`).
   * `src/app/share/[recordingId]/page.tsx` is a request-time Server Component. It queries Neon and renders only when the recording is public, owned by the current user, or granted to the current user.

@@ -28,7 +28,7 @@ export interface DbRecording {
 export interface DbRecordingAsset {
   id: string;
   recording_id: string;
-  kind: 'composite' | 'webcam' | 'screen' | 'audio';
+  kind: 'composite' | 'webcam' | 'screen' | 'audio' | 'microphone-audio' | 'system-audio';
   storage_url: string;
   blob_pathname: string;
   mime_type: string;

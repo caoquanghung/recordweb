@@ -94,13 +94,17 @@ Verify the graph topology rather than checking isolated node values:
 
 ```text
 Microphone -> High-pass -> Presence EQ -> Low-pass -> Compressor
-           -> Gate -> Microphone gain -> Destination
-                                      -> Meter analyser
+           -> Gate -> Microphone gain -> Mixed destination
+                                      -> Microphone destination
+                                      -> Mixed meter analyser
+                                      -> Microphone meter analyser
 
 Compressor -> Gate analyser (measurement branch)
 
-System audio -> System gain -> Destination
-                           -> Meter analyser
+System audio -> System gain -> Mixed destination
+                           -> System destination
+                           -> Mixed meter analyser
+                           -> System meter analyser
 ```
 
 Check these invariants:
@@ -117,8 +121,8 @@ Check these invariants:
   preserves the voice hold interval, and uses smooth open/close envelopes.
 - `AudioContext.resume()` is reachable from a real user gesture. Trace the caller in
   `StudioShell`; the hook exposing `resume()` alone does not prove autoplay safety.
-- The analyser is a side branch and does not interrupt audio flowing to the
-  `MediaStreamAudioDestinationNode`.
+- The analysers are side branches and do not interrupt audio flowing to the
+  mixed or source `MediaStreamAudioDestinationNode` outputs.
 - Source replacement or unmount cancels the meter RAF, disconnects every created
   node, stops generated destination tracks, clears `onstatechange`, and closes the
   `AudioContext`.
@@ -135,6 +139,8 @@ RecordWeb coordinates separate encoders for the available assets:
 - Webcam: one normalized `1280x720` video track and no audio.
 - Screen: one normalized `1920x1080` video track and no audio.
 - Audio: one processed audio track and no video.
+- Microphone audio: one processed microphone track and no video, when available.
+- System audio: one gained system-audio track and no video, when available.
 - Cursor: Electron-assisted JSON capture synchronized separately with the same
   active-time lifecycle.
 
@@ -168,7 +174,7 @@ Verify the post-stop order:
 1. Build each available asset blob from its own chunks and recorded MIME type.
 2. Repair every WebM asset independently with the shared active duration; do not
    apply WebM repair to MP4 or cursor JSON.
-3. Decode waveform metadata from the standalone audio asset when available without
+3. Decode waveform metadata independently from every available audio asset without
    making waveform failure fatal to the recording.
 4. Require a usable composite, then create its preview URL and persist the complete
    local recording in IndexedDB.

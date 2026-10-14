@@ -1,7 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from 'react';
 
 export type MediaSource = 'screen' | 'camera' | 'microphone';
 export type MediaSourceStatus =
@@ -53,11 +61,54 @@ export interface UseMediaDevicesResult {
   clearError: () => void;
 }
 
+type MediaDevicesErrorSource = MediaSource | 'devices';
+type StreamRef = MutableRefObject<MediaStream | null>;
+type StreamSetter = Dispatch<SetStateAction<MediaStream | null>>;
+type CaptureStream = () => Promise<MediaStream>;
+
 const INITIAL_STATUSES: MediaSourceState = {
   screen: 'idle',
   camera: 'idle',
   microphone: 'idle',
 };
+
+function createStandardVideoConstraints(): MediaTrackConstraints {
+  return {
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
+    frameRate: { ideal: 30, max: 30 },
+  };
+}
+
+function createScreenCaptureOptions(): DisplayMediaStreamOptions {
+  return {
+    video: createStandardVideoConstraints(),
+    audio: true,
+  };
+}
+
+function createCameraCaptureOptions(deviceId?: string): MediaStreamConstraints {
+  return {
+    video: {
+      ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+      ...createStandardVideoConstraints(),
+    },
+    audio: false,
+  };
+}
+
+function createMicrophoneCaptureOptions(deviceId?: string): MediaStreamConstraints {
+  return {
+    video: false,
+    audio: {
+      ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      channelCount: { ideal: 1 },
+    },
+  };
+}
 
 export function stopMediaStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => {
@@ -66,7 +117,7 @@ export function stopMediaStream(stream: MediaStream | null) {
   });
 }
 
-function toMediaDevicesError(source: MediaSource | 'devices', cause: unknown): MediaDevicesError {
+function toMediaDevicesError(source: MediaDevicesErrorSource, cause: unknown): MediaDevicesError {
   const name = cause instanceof DOMException ? cause.name : '';
 
   if (name === 'NotAllowedError' || name === 'SecurityError') {
@@ -124,6 +175,10 @@ function toMediaDevicesError(source: MediaSource | 'devices', cause: unknown): M
   };
 }
 
+function getMediaDevices(): MediaDevices | undefined {
+  return navigator.mediaDevices;
+}
+
 function statusFromError(error: MediaDevicesError): MediaSourceStatus {
   if (error.code === 'permission-denied') return 'denied';
   if (error.code === 'unsupported') return 'unsupported';
@@ -150,7 +205,8 @@ export function useMediaDevices(): UseMediaDevicesResult {
   }, []);
 
   const refreshDevices = useCallback(async () => {
-    if (!navigator.mediaDevices?.enumerateDevices) {
+    const mediaDevices = getMediaDevices();
+    if (!mediaDevices?.enumerateDevices) {
       if (mountedRef.current) {
         setError({
           source: 'devices',
@@ -162,7 +218,7 @@ export function useMediaDevices(): UseMediaDevicesResult {
     }
 
     try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
+      const devices = await mediaDevices.enumerateDevices();
       if (!mountedRef.current) return;
       setCameras(devices.filter((device) => device.kind === 'videoinput'));
       setMicrophones(devices.filter((device) => device.kind === 'audioinput'));
@@ -174,8 +230,8 @@ export function useMediaDevices(): UseMediaDevicesResult {
   const replaceStream = useCallback((
     source: MediaSource,
     nextStream: MediaStream,
-    streamRef: MutableRefObject<MediaStream | null>,
-    setStream: Dispatch<SetStateAction<MediaStream | null>>,
+    streamRef: StreamRef,
+    setStream: StreamSetter,
   ) => {
     if (!mountedRef.current) {
       stopMediaStream(nextStream);
@@ -205,8 +261,8 @@ export function useMediaDevices(): UseMediaDevicesResult {
 
   const stopOwnedStream = useCallback((
     source: MediaSource,
-    streamRef: MutableRefObject<MediaStream | null>,
-    setStream: Dispatch<SetStateAction<MediaStream | null>>,
+    streamRef: StreamRef,
+    setStream: StreamSetter,
   ) => {
     const stream = streamRef.current;
     streamRef.current = null;
@@ -217,104 +273,62 @@ export function useMediaDevices(): UseMediaDevicesResult {
     }
   }, [updateStatus]);
 
-  const acquireScreen = useCallback(async () => {
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      const unsupportedError = toMediaDevicesError('screen', new DOMException('', 'TypeError'));
+  const acquireStream = useCallback(async (
+    source: MediaSource,
+    capture: CaptureStream | null,
+    streamRef: StreamRef,
+    setStream: StreamSetter,
+  ) => {
+    if (!capture) {
+      const unsupportedError = toMediaDevicesError(source, new DOMException('', 'TypeError'));
       if (mountedRef.current) {
         setError(unsupportedError);
-        updateStatus('screen', 'unsupported');
+        updateStatus(source, 'unsupported');
       }
       return null;
     }
 
-    updateStatus('screen', 'requesting');
+    updateStatus(source, 'requesting');
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 30, max: 30 },
-        },
-        audio: true,
-      });
-      replaceStream('screen', stream, screenRef, setScreenStream);
+      const stream = await capture();
+      replaceStream(source, stream, streamRef, setStream);
       return stream;
     } catch (cause) {
-      const captureError = toMediaDevicesError('screen', cause);
+      const captureError = toMediaDevicesError(source, cause);
       if (mountedRef.current) {
         setError(captureError);
-        updateStatus('screen', screenRef.current ? 'ready' : statusFromError(captureError));
+        updateStatus(source, streamRef.current ? 'ready' : statusFromError(captureError));
       }
       return null;
     }
   }, [replaceStream, updateStatus]);
+
+  const acquireScreen = useCallback(async () => {
+    const mediaDevices = getMediaDevices();
+    const capture = mediaDevices?.getDisplayMedia
+      ? () => mediaDevices.getDisplayMedia(createScreenCaptureOptions())
+      : null;
+
+    return acquireStream('screen', capture, screenRef, setScreenStream);
+  }, [acquireStream]);
 
   const acquireCamera = useCallback(async (deviceId?: string) => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      const unsupportedError = toMediaDevicesError('camera', new DOMException('', 'TypeError'));
-      if (mountedRef.current) {
-        setError(unsupportedError);
-        updateStatus('camera', 'unsupported');
-      }
-      return null;
-    }
+    const mediaDevices = getMediaDevices();
+    const capture = mediaDevices?.getUserMedia
+      ? () => mediaDevices.getUserMedia(createCameraCaptureOptions(deviceId))
+      : null;
 
-    updateStatus('camera', 'requesting');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 30, max: 30 },
-        },
-        audio: false,
-      });
-      replaceStream('camera', stream, cameraRef, setCameraStream);
-      return stream;
-    } catch (cause) {
-      const captureError = toMediaDevicesError('camera', cause);
-      if (mountedRef.current) {
-        setError(captureError);
-        updateStatus('camera', cameraRef.current ? 'ready' : statusFromError(captureError));
-      }
-      return null;
-    }
-  }, [replaceStream, updateStatus]);
+    return acquireStream('camera', capture, cameraRef, setCameraStream);
+  }, [acquireStream]);
 
   const acquireMicrophone = useCallback(async (deviceId?: string) => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      const unsupportedError = toMediaDevicesError('microphone', new DOMException('', 'TypeError'));
-      if (mountedRef.current) {
-        setError(unsupportedError);
-        updateStatus('microphone', 'unsupported');
-      }
-      return null;
-    }
+    const mediaDevices = getMediaDevices();
+    const capture = mediaDevices?.getUserMedia
+      ? () => mediaDevices.getUserMedia(createMicrophoneCaptureOptions(deviceId))
+      : null;
 
-    updateStatus('microphone', 'requesting');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: false,
-        audio: {
-          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          channelCount: { ideal: 1 },
-        },
-      });
-      replaceStream('microphone', stream, microphoneRef, setMicrophoneStream);
-      return stream;
-    } catch (cause) {
-      const captureError = toMediaDevicesError('microphone', cause);
-      if (mountedRef.current) {
-        setError(captureError);
-        updateStatus('microphone', microphoneRef.current ? 'ready' : statusFromError(captureError));
-      }
-      return null;
-    }
-  }, [replaceStream, updateStatus]);
+    return acquireStream('microphone', capture, microphoneRef, setMicrophoneStream);
+  }, [acquireStream]);
 
   const stopScreen = useCallback(() => {
     stopOwnedStream('screen', screenRef, setScreenStream);
@@ -334,9 +348,13 @@ export function useMediaDevices(): UseMediaDevicesResult {
     stopMicrophone();
   }, [stopCamera, stopMicrophone, stopScreen]);
 
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
-    const mediaDevices = navigator.mediaDevices;
+    const mediaDevices = getMediaDevices();
     const handleDeviceChange = () => void refreshDevices();
 
     const initialRefresh = window.setTimeout(() => void refreshDevices(), 0);
@@ -378,6 +396,6 @@ export function useMediaDevices(): UseMediaDevicesResult {
     stopCamera,
     stopMicrophone,
     stopAll,
-    clearError: () => setError(null),
+    clearError,
   };
 }

@@ -1,7 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { KeyboardEvent, PointerEvent, RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+  type RefObject,
+} from 'react';
+import { createMutedVideo, disposeVideo } from '@/hooks/mediaHookUtils';
 import { startVisibilityAwareFrameLoop } from '@/lib/frameScheduler';
 import type { PipPosition, PipShape, PipSize, RecordingMode } from '@/types/media';
 
@@ -152,15 +160,22 @@ function pointFromPointer(event: PointerEvent<HTMLCanvasElement>) {
   };
 }
 
-function createSourceVideo(stream: MediaStream | null) {
-  if (!stream) return null;
-  const video = document.createElement('video');
-  video.autoplay = true;
-  video.muted = true;
-  video.playsInline = true;
-  video.srcObject = stream;
-  void video.play().catch(() => undefined);
-  return video;
+function createSourceVideo(stream: MediaStream | null): HTMLVideoElement | null {
+  return stream ? createMutedVideo(stream) : null;
+}
+
+function releaseSourceVideo(video: HTMLVideoElement | null) {
+  disposeVideo(video);
+}
+
+function getArrowMovement(key: string, step: number): [number, number] | undefined {
+  const movements: Partial<Record<string, [number, number]>> = {
+    ArrowLeft: [-step, 0],
+    ArrowRight: [step, 0],
+    ArrowUp: [0, -step],
+    ArrowDown: [0, step],
+  };
+  return movements[key];
 }
 
 export function useCanvasCompositor({
@@ -200,8 +215,7 @@ export function useCanvasCompositor({
     const video = createSourceVideo(screenStream);
     screenVideoRef.current = video;
     return () => {
-      video?.pause();
-      if (video) video.srcObject = null;
+      releaseSourceVideo(video);
       if (screenVideoRef.current === video) screenVideoRef.current = null;
     };
   }, [screenStream]);
@@ -210,8 +224,7 @@ export function useCanvasCompositor({
     const video = createSourceVideo(cameraStream);
     cameraVideoRef.current = video;
     return () => {
-      video?.pause();
-      if (video) video.srcObject = null;
+      releaseSourceVideo(video);
       if (cameraVideoRef.current === video) cameraVideoRef.current = null;
     };
   }, [cameraStream]);
@@ -387,12 +400,7 @@ export function useCanvasCompositor({
 
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLCanvasElement>) => {
     const step = event.shiftKey ? 32 : 8;
-    const movement = {
-      ArrowLeft: [-step, 0],
-      ArrowRight: [step, 0],
-      ArrowUp: [0, -step],
-      ArrowDown: [0, step],
-    }[event.key];
+    const movement = getArrowMovement(event.key, step);
     if (!movement) return;
     event.preventDefault();
     nudgePip(movement[0], movement[1]);

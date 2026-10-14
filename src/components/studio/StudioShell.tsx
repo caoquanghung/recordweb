@@ -4,8 +4,9 @@ import { upload } from '@vercel/blob/client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppNavigation } from '@/components/app/AppNavigation';
 import { useMediaSession } from '@/components/media/MediaSessionProvider';
-import { RecordedAudioWaveform } from '@/components/review/RecordedAudioWaveform';
+import { RecordedAudioWaveforms } from '@/components/review/RecordedAudioWaveforms';
 import { RecordedCursorTrajectory } from '@/components/review/RecordedCursorTrajectory';
+import { AudioMeterPanel } from '@/components/studio/AudioMeterPanel';
 import { useCanvasCompositor } from '@/hooks/useCanvasCompositor';
 import { useCursorTrajectory } from '@/hooks/useCursorTrajectory';
 import { useAudioDSP } from '@/hooks/useAudioDSP';
@@ -36,6 +37,23 @@ type SessionState = 'setup' | 'countdown' | 'recording' | 'paused' | 'processing
 type CheckState = 'idle' | 'checking' | 'ready' | 'error';
 type Theme = 'light' | 'dark';
 type UploadState = 'idle' | 'uploading' | 'saving' | 'ready' | 'error';
+
+const MEDIA_ASSET_KINDS: Exclude<RecordingAssetKind, 'cursor'>[] = [
+  'composite',
+  'webcam',
+  'screen',
+  'audio',
+  'microphone-audio',
+  'system-audio',
+];
+const SOURCE_DOWNLOAD_KINDS: Exclude<RecordingAssetKind, 'composite'>[] = [
+  'webcam',
+  'screen',
+  'audio',
+  'microphone-audio',
+  'system-audio',
+  'cursor',
+];
 
 interface HealthResponse {
   auth: 'authenticated';
@@ -102,6 +120,16 @@ function compositeAssetFor(recording: RecordingMetadata): RecordingAssetMetadata
     resolution: recording.resolution,
     fps: recording.fps,
   };
+}
+
+function recordingAssetLabel(kind: RecordingAssetKind) {
+  if (kind === 'webcam') return 'Webcam 720p';
+  if (kind === 'screen') return 'Screen 1080p';
+  if (kind === 'audio') return 'Mixed audio';
+  if (kind === 'microphone-audio') return 'Microphone audio';
+  if (kind === 'system-audio') return 'System audio';
+  if (kind === 'cursor') return 'Cursor path 24 Hz';
+  return 'Composite';
 }
 
 function formatDuration(seconds: number) {
@@ -206,9 +234,13 @@ export function StudioShell() {
 
   const {
     outputStream: mixedAudioStream,
+    microphoneOutputStream,
+    systemAudioOutputStream,
     state: audioState,
-    level: audioLevel,
-    levelDb: audioLevelDb,
+    microphoneLevel,
+    microphoneLevelDb,
+    systemAudioLevel,
+    systemAudioLevelDb,
     error: audioError,
     resume: resumeAudio,
   } = useAudioDSP({
@@ -284,6 +316,8 @@ export function StudioShell() {
     webcamStream: normalizedWebcamStream,
     screenStream: normalizedScreenStream,
     audioStream: mixedAudioStream,
+    microphoneAudioStream: microphoneOutputStream,
+    systemAudioStream: systemAudioOutputStream,
     resolution,
     fps: 30,
     cursorCapture: cursorTrajectory.controller,
@@ -496,7 +530,7 @@ export function StudioShell() {
         },
       } : {});
       const assets: Partial<Record<RecordingAssetKind, RecordingAssetMetadata>> = {};
-      for (const kind of ['composite', 'webcam', 'screen', 'audio'] as RecordingAssetKind[]) {
+      for (const kind of MEDIA_ASSET_KINDS) {
         const draftAsset = draftAssets[kind];
         if (!draftAsset?.chunks.length) continue;
         const rawBlob = new Blob(draftAsset.chunks, { type: draftAsset.mimeType });
@@ -513,8 +547,9 @@ export function StudioShell() {
           sampleRateHz: draftAsset.sampleRateHz,
         };
       }
-      const recoveredAudio = assets.audio;
-      if (recoveredAudio?.blob) {
+      for (const kind of ['audio', 'microphone-audio', 'system-audio'] as const) {
+        const recoveredAudio = assets[kind];
+        if (!recoveredAudio?.blob) continue;
         try {
           recoveredAudio.waveformPeaks = (await decodeRecordedWaveform(recoveredAudio.blob)).peaks;
         } catch {
@@ -595,6 +630,8 @@ export function StudioShell() {
         activeRecording.assets?.webcam,
         activeRecording.assets?.screen,
         activeRecording.assets?.audio,
+        activeRecording.assets?.['microphone-audio'],
+        activeRecording.assets?.['system-audio'],
       ].filter((asset): asset is RecordingAssetMetadata & { blob: Blob } => Boolean(asset?.blob));
       const progressByKind = new Map<RecordingAssetKind, number>();
       const updateTotalProgress = () => {
@@ -623,7 +660,7 @@ export function StudioShell() {
           resolution: asset.resolution ?? null,
           fps: asset.fps ?? null,
           sample_rate_hz: asset.sampleRateHz ?? null,
-          metadata: asset.kind === 'audio' && asset.waveformPeaks
+          metadata: ['audio', 'microphone-audio', 'system-audio'].includes(asset.kind) && asset.waveformPeaks
             ? { waveformPeaks: asset.waveformPeaks, waveformVersion: 1 }
             : {},
         };
@@ -869,11 +906,11 @@ export function StudioShell() {
               )}
             </div>
             {activeRecording?.assets?.audio?.blob && (
-              <RecordedAudioWaveform
-                blob={activeRecording.assets.audio.blob}
+              <RecordedAudioWaveforms
                 durationSeconds={activeRecording.durationSeconds}
-                mimeType={activeRecording.assets.audio.mimeType}
-                peaks={activeRecording.assets.audio.waveformPeaks}
+                mixed={activeRecording.assets.audio}
+                microphone={activeRecording.assets['microphone-audio']}
+                systemAudio={activeRecording.assets['system-audio']}
               />
             )}
             {activeRecording?.assets?.cursor?.blob && (
@@ -885,13 +922,13 @@ export function StudioShell() {
                   <span>Separate source files</span>
                   <strong>Ready for editing</strong>
                 </div>
-                {(['webcam', 'screen', 'audio', 'cursor'] as RecordingAssetKind[]).map((kind) => {
+                {SOURCE_DOWNLOAD_KINDS.map((kind) => {
                   const asset = activeRecording.assets?.[kind];
                   if (!asset?.blob) return null;
                   return (
                     <button key={kind} type="button" onClick={() => downloadRecordingAsset(kind)}>
-                      <Icon name={kind === 'audio' ? 'mic' : kind === 'webcam' ? 'camera' : 'screen'} />
-                      <span><strong>{kind === 'webcam' ? 'Webcam 720p' : kind === 'screen' ? 'Screen 1080p' : kind === 'cursor' ? 'Cursor path 24 Hz' : 'Audio master'}</strong><small>{asset.mimeType.split(';')[0]}</small></span>
+                      <Icon name={kind.includes('audio') ? 'mic' : kind === 'webcam' ? 'camera' : 'screen'} />
+                      <span><strong>{recordingAssetLabel(kind)}</strong><small>{asset.mimeType.split(';')[0]}</small></span>
                     </button>
                   );
                 })}
@@ -1051,6 +1088,25 @@ export function StudioShell() {
               <div className={styles.stageCorner}>Preview · {activeMode.detail}{compositeStream ? ' · composite stream ready' : ''}</div>
             </div>
 
+            {session !== 'processing' && (
+              <AudioMeterPanel
+                key={session === 'setup' ? 'setup-meters' : 'recording-meters'}
+                compact={session !== 'setup'}
+                state={audioState}
+                onResume={() => void resumeAudio()}
+                microphone={{
+                  level: microphoneLevel,
+                  levelDb: microphoneLevelDb,
+                  available: Boolean(microphoneStream),
+                }}
+                systemAudio={{
+                  level: systemAudioLevel,
+                  levelDb: systemAudioLevelDb,
+                  available: hasSystemAudio,
+                }}
+              />
+            )}
+
             <div className={styles.controlDock} aria-label="Recording controls">
               <div className={styles.timerBlock}>
                 <span className={session === 'recording' ? styles.recDot : styles.idleDot} />
@@ -1185,16 +1241,6 @@ export function StudioShell() {
                   <span>System audio</span><small>{hasSystemAudio ? `${Math.round(systemVolume * 100)}%` : 'Unavailable'}</small>
                   <input type="range" min="0" max="2" step="0.05" value={systemVolume} onChange={(event) => setSystemVolume(Number(event.target.value))} disabled={!hasSystemAudio} />
                 </label>
-              </div>
-              {audioState === 'suspended' && (
-                <button className={styles.audioStartButton} type="button" onClick={() => void resumeAudio()}>Start audio processing</button>
-              )}
-              <div className={styles.meterHeader}>
-                <span>Mixed output meter</span>
-                <small>{audioState === 'running' ? `${Math.max(-60, Math.round(audioLevelDb))} dB` : microphoneStream || hasSystemAudio ? audioState : 'Awaiting input'}</small>
-              </div>
-              <div className={styles.meterTrack} role="meter" aria-label="Mixed audio level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(audioLevel * 100)}>
-                <span style={{ width: `${audioLevel * 100}%` }} />
               </div>
               {mixedAudioStream && <p className={styles.audioReady}>Mixed audio track ready for recording</p>}
               {audioError && <p className={styles.sourceError} role="alert">{audioError}</p>}

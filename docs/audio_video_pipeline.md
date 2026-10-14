@@ -114,16 +114,25 @@ DynamicsCompressorNode (Thresh: -24dB, Knee: 30dB, Ratio: 4:1)
     │   ── Levels vocal peaks, prevents digital clipping
     ▼
 GainNode (Noise Gate Threshold Control)
-    │   ── Attenuates gain when mic signal falls below noise floor
-    ├─────────────────────────────┐
-    ▼                             ▼
-MediaStreamAudioDestinationNode  AnalyserNode (FFT size 256)
-    ▲                             │
-    │                             ▼
-GainNode (System Audio)       VU Meter & Waveform Visualizer
-    │
+    ├─► Mixed MediaStreamAudioDestinationNode
+    ├─► Microphone MediaStreamAudioDestinationNode
+    ├─► Mixed AnalyserNode
+    └─► Microphone AnalyserNode
+
 [System / Tab Audio Track]
+    │
+    ▼
+GainNode (System Audio)
+    ├─► Mixed MediaStreamAudioDestinationNode
+    ├─► System MediaStreamAudioDestinationNode
+    ├─► Mixed AnalyserNode
+    └─► System AnalyserNode
 ```
+
+The three analyser branches drive the live mixed, microphone, and system-audio
+meters without interrupting the recorder paths. The dedicated source destinations
+allow optional microphone-only and system-audio-only recordings while preserving
+the existing mixed master stream.
 
 ### 3.2 Sound Filter Parameter Specifications
 
@@ -180,11 +189,12 @@ Upon recording completion, the engine:
 4. Outputs the repaired `Blob` ready for instantaneous local download and scrubbable playback.
 
 ### 5.3 MediaRecorder Encoding & Chunking Invariants
-* Create one recorder for each available asset: composite, webcam, screen, and standalone audio. Each video recorder receives exactly one video track.
+* Create one recorder for each available asset: composite, webcam, screen, mixed audio, microphone audio, and system audio. Each video recorder receives exactly one video track; source-audio recorders remain optional when their inputs are absent.
 * Composite codec selection prefers MP4/H.264 plus AAC when supported, then WebM/VP9 or VP8 plus Opus.
 * Webcam and screen selection prefers MP4/H.264 when supported, then WebM/VP9 or VP8. These files contain no audio track.
-* Standalone audio selection prefers MP4/AAC when supported, then WebM/Opus. It contains the processed master mix and no video track.
+* Standalone audio selection prefers MP4/AAC when supported, then WebM/Opus. Mixed, processed-microphone, and gained-system files each contain one audio track and no video track.
 * Always start every recorder with a one-second chunk timeslice so data is checkpointed periodically instead of retained as one monolithic blob until stop.
 * Pause and resume all active recorders together and use one active-time clock for the 30-minute limit and final duration.
 * Repair every finalized WebM asset independently before preview, download, recovery, or upload.
+* Decode and persist 120 normalized waveform peaks independently for every available audio asset.
 * A missing optional source or a source-recorder failure produces a partial session warning without discarding a valid composite or other successful assets.

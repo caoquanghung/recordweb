@@ -3,7 +3,10 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WorkspaceShell } from '@/components/app/WorkspaceShell';
-import { RecordedAudioWaveform } from '@/components/review/RecordedAudioWaveform';
+import {
+  RecordedAudioWaveforms,
+  type RecordedWaveformSource,
+} from '@/components/review/RecordedAudioWaveforms';
 import { RecordedCursorTrajectory } from '@/components/review/RecordedCursorTrajectory';
 import { deleteLocalRecording, getAllLocalRecordings } from '@/lib/idb';
 import { isRecordedWaveformPeaks } from '@/lib/audioWaveform';
@@ -32,30 +35,36 @@ function extensionForMimeType(mimeType: string) {
   return 'webm';
 }
 
-function cloudWaveform(recording: DbRecording) {
-  const audioAsset = recording.assets?.find((asset) => asset.kind === 'audio');
-  const assetPeaks = audioAsset?.metadata.waveformPeaks;
+function cloudWaveformSource(
+  recording: DbRecording,
+  kind: 'audio' | 'microphone-audio' | 'system-audio',
+): RecordedWaveformSource | undefined {
+  const asset = recording.assets?.find((candidate) => candidate.kind === kind);
+  const assetPeaks = asset?.metadata.waveformPeaks;
+  if (asset) {
+    return {
+      mimeType: asset.mime_type,
+      waveformPeaks: isRecordedWaveformPeaks(assetPeaks) ? assetPeaks : undefined,
+      src: asset.storage_url,
+    };
+  }
+  if (kind !== 'audio' || !recording.storage_url) return undefined;
+
   const recordingPeaks = recording.settings.waveformPeaks;
   return {
-    mimeType: audioAsset?.mime_type ?? recording.mime_type,
-    peaks: isRecordedWaveformPeaks(assetPeaks)
-      ? assetPeaks
-      : isRecordedWaveformPeaks(recordingPeaks)
-        ? recordingPeaks
-        : undefined,
-    src: audioAsset?.storage_url ?? recording.storage_url ?? undefined,
+    mimeType: recording.mime_type,
+    waveformPeaks: isRecordedWaveformPeaks(recordingPeaks) ? recordingPeaks : undefined,
+    src: recording.storage_url,
   };
 }
 
 function CloudRecordingWaveform({ recording }: { recording: DbRecording }) {
-  const waveform = cloudWaveform(recording);
-  if (!waveform.src) return null;
   return (
-    <RecordedAudioWaveform
-      src={waveform.src}
+    <RecordedAudioWaveforms
       durationSeconds={Number(recording.duration_seconds)}
-      mimeType={waveform.mimeType}
-      peaks={waveform.peaks}
+      mixed={cloudWaveformSource(recording, 'audio')}
+      microphone={cloudWaveformSource(recording, 'microphone-audio')}
+      systemAudio={cloudWaveformSource(recording, 'system-audio')}
       compact
     />
   );
@@ -296,18 +305,18 @@ export function LibraryClient() {
               <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{new Date(recording.createdAt).toLocaleString()}</span></div><em className={styles.localStatus}>Local only</em></div>
               <div className={styles.metadata}><span>{formatDuration(recording.durationSeconds)}</span><span>{recording.resolution}</span><span>{formatBytes(recording.fileSizeBytes)}</span></div>
               {recording.assets?.audio?.blob && (
-                <RecordedAudioWaveform
-                  blob={recording.assets.audio.blob}
+                <RecordedAudioWaveforms
                   durationSeconds={recording.durationSeconds}
-                  mimeType={recording.assets.audio.mimeType}
-                  peaks={recording.assets.audio.waveformPeaks}
+                  mixed={recording.assets.audio}
+                  microphone={recording.assets['microphone-audio']}
+                  systemAudio={recording.assets['system-audio']}
                   compact
                 />
               )}
               <div className={styles.cardActions}>
                 <button onClick={() => recording.previewUrl && setPreview({ title: recording.title, url: recording.previewUrl, canDownload: true })}>Preview</button>
                 <button onClick={() => downloadLocal(recording)}>Composite</button>
-                {(['webcam', 'screen', 'audio', 'cursor'] as RecordingAssetKind[]).map((kind) => recording.assets?.[kind]?.blob && (
+                {(['webcam', 'screen', 'audio', 'microphone-audio', 'system-audio', 'cursor'] as RecordingAssetKind[]).map((kind) => recording.assets?.[kind]?.blob && (
                   <button key={kind} onClick={() => downloadLocal(recording, kind)}>{kind}</button>
                 ))}
                 {recording.assets?.cursor?.blob && <button onClick={() => setCursorPreview({ title: recording.title, blob: recording.assets!.cursor!.blob! })}>Open cursor</button>}

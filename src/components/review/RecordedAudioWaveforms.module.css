@@ -1,0 +1,55 @@
+.collection {
+  display: grid;
+  gap: 10px;
+}
+
+.sourceSection {
+  display: grid;
+  gap: 10px;
+}
+
+.toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--panel);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.toggle small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.sourceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sourceWaveform {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.sourceWaveform > span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .sourceGrid {
+    grid-template-columns: 1fr;
+  }
+}

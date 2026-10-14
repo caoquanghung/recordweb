@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createMutedVideo, disposeVideo } from '@/hooks/mediaHookUtils';
 import { startVisibilityAwareFrameLoop } from '@/lib/frameScheduler';
 
 const DEFAULT_FPS = 30;
@@ -52,10 +53,7 @@ export function useNormalizedVideoStream(
       return;
     }
 
-    const video = document.createElement('video');
-    video.muted = true;
-    video.playsInline = true;
-    video.srcObject = sourceStream;
+    const video = createMutedVideo(sourceStream, { autoplay: false, startPlayback: false });
 
     const generatedStream = canvas.captureStream(fps);
     let disposed = false;
@@ -84,8 +82,7 @@ export function useNormalizedVideoStream(
       disposed = true;
       window.clearTimeout(publishTimer);
       stopFrameLoop();
-      video.pause();
-      video.srcObject = null;
+      disposeVideo(video);
       generatedStream.getTracks().forEach((track) => track.stop());
       setOutputStream((current) => current === generatedStream ? null : current);
     };

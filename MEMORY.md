@@ -46,7 +46,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
    * Cloud: 1-click upload to Vercel Blob with shareable link + metadata in Neon Postgres via `src/app/api/recordings/route.ts`.
 6. **UI Standard**: Strictly Vanilla CSS (CSS Modules & custom properties) with adaptive light/dark studio glassmorphism (tokens in `docs/ui_ux_specification.md`). Theme defaults to the OS preference and persists in `localStorage` as `recordweb-theme`. No Tailwind or heavy CSS frameworks.
 7. **Documentation Source of Truth**: `docs/system_architecture.md` is authoritative for subsystem boundaries, data flow, and risks (R1–R5); `docs/audio_video_pipeline.md` is authoritative for the media pipeline. `MEMORY.md` is the persistent state bank. `AGENTS.md` requires agents to conform to these; no duplicate media pipeline rule file exists.
-8. **Multi-Asset Output**: A session now produces the composite plus available clean 720p webcam, normalized 1080p screen, standalone processed audio, and an Electron-assisted 24 Hz cursor JSON. Media assets use separate recorders; the cursor sampler runs in Electron main and follows the same active-time pause/resume lifecycle. Cursor JSON is finalized into IndexedDB and local Review/Library export; cursor draft checkpointing and cloud metadata remain pending.
+8. **Multi-Asset Output**: A session now produces the composite plus available clean 720p webcam, normalized 1080p screen, standalone mixed audio, processed microphone audio, gained system audio, and an Electron-assisted 24 Hz cursor JSON. Media assets use separate coordinated recorders; source-audio assets are optional. Cursor JSON is finalized into IndexedDB and local Review/Library export; cursor draft checkpointing and cloud metadata remain pending.
 
 ---
 
@@ -59,7 +59,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 * **Database Schema**:
   * `users` table (id, email, display_name, created_at).
   * `recordings` table (id, **user_id FK**, title, duration_seconds, file_size_bytes, resolution, fps, mime_type, local_id, storage_url, blob_pathname, **is_public**, settings, created_at).
-  * `recording_assets` table (id, **recording_id FK**, kind, storage_url, blob_pathname, mime_type, file_size_bytes, resolution, fps, sample_rate_hz, metadata, created_at).
+  * `recording_assets` table (id, **recording_id FK**, kind including mixed/microphone/system audio, storage_url, blob_pathname, mime_type, file_size_bytes, resolution, fps, sample_rate_hz, metadata, created_at).
   * `studio_presets` table (id, **user_id FK**, preset_name, pip_shape, pip_size, pip_position, bg_removal_mode, filters_config, updated_at).
   * `recording_shares` table (recording_id, recipient_user_id, permission, created_at).
   * `schema_migrations` table tracks ordered `psql` migrations.
@@ -149,14 +149,19 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added owner sharing controls that resolve registered recipients by email, grant `viewer` or `viewer_download`, list recipients, and revoke access
   - [x] Added a reusable recorded-audio review player that decodes the finalized standalone audio Blob into an amplitude waveform with synchronized playback and click-to-seek controls; the live VU analyser remains separate
   - [x] Persisted 120 normalized recorded-audio waveform peaks in IndexedDB and Neon JSON metadata, and added compact waveform playback/seek controls to local, owned-cloud, and accessible shared Library cards; legacy recordings retain decode fallback
+  - [x] Added separate microphone/system live meters, compact/collapsible recording meters, optional source-audio recording assets, and expandable mixed/source waveform review
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
   - [x] Applied and verified migration `0002_recording_assets`; multi-asset uploads create separate Blob objects and child metadata rows
+  - [x] Applied and verified migration `0003_source_audio_assets`; Neon accepts `microphone-audio` and `system-audio` child assets
   - [x] Added a request-time authorized `/share/[recordingId]` page for public, owner, `viewer`, and `viewer_download` access
   - [x] Verified the live Neon migration status and schema with `npm run db:status` and `npm run db:verify`
   - [x] Added a Chromium Playwright E2E harness with fake camera/microphone devices, local/deployed base URL support, and an anonymous sign-in smoke test
   - [ ] Run an authenticated browser upload/playback test against the connected Vercel Blob store
 - [ ] **Phase 9: Vercel Deployment & Verification**
+- [x] **Hooks Maintainability Refactor**:
+  - [x] Refactored all `src/hooks` modules around shared browser-media helpers, declarative DSP presets, isolated canvas/segmentation rendering, and clearer multi-asset recorder construction/finalization while preserving public hook contracts and pipeline invariants
+  - [x] Verified the refactor with zero-warning lint, a successful Next.js production build, and static media/compositor lifecycle audits; real-device runtime validation remains part of the next step
 
 ---
 
@@ -189,6 +194,6 @@ This file serves as the persistent memory bank for AI agents working on **Record
 
 ## 6. Immediate Next Steps
 
-1. Sign in through the Electron wrapper and run an authenticated real-device session to verify composite, webcam, screen, audio, and 24 Hz cursor JSON synchronization across pause/resume.
-2. Decide whether cursor JSON needs incremental draft recovery and cloud upload/`recording_assets` persistence.
-3. Decide whether sensitive recordings require a private Blob store and authorized media-delivery endpoint instead of public Blob URLs.
+1. Sign in through the Electron wrapper and run an authenticated real-device session to verify composite, webcam, screen, mixed/source audio meters and waveforms, and 24 Hz cursor JSON synchronization across pause/resume.
+2. Run an authenticated source-audio upload/playback test against Neon and the connected Vercel Blob store.
+3. Decide whether cursor JSON needs cloud persistence and whether sensitive recordings require private Blob delivery.

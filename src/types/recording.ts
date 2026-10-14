@@ -9,7 +9,14 @@ export type RecordingStatus =
   | 'processing'
   | 'ready';
 
-export type RecordingAssetKind = 'composite' | 'webcam' | 'screen' | 'audio' | 'cursor';
+export type RecordingAudioAssetKind = 'audio' | 'microphone-audio' | 'system-audio';
+
+export type RecordingAssetKind =
+  | 'composite'
+  | 'webcam'
+  | 'screen'
+  | RecordingAudioAssetKind
+  | 'cursor';
 
 export interface CursorTrajectorySample {
   index: number;

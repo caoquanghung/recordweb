@@ -1,0 +1,66 @@
+.meter {
+  margin-top: 14px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.header small {
+  color: var(--dim);
+}
+
+.track {
+  height: 5px;
+  overflow: hidden;
+  margin-top: 7px;
+  border-radius: 3px;
+  background: #080b11;
+}
+
+.track span {
+  width: var(--audio-level);
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  transition: width 200ms ease;
+}
+
+.microphone {
+  background: linear-gradient(90deg, var(--green), var(--amber));
+}
+
+.system {
+  background: linear-gradient(90deg, var(--primary), var(--primary-bright));
+}
+
+.mixed {
+  background: linear-gradient(90deg, var(--primary-bright), var(--green));
+}
+
+.compact {
+  margin-top: 0;
+}
+
+.compact .header {
+  font-size: 9px;
+}
+
+.compact .track {
+  height: 4px;
+  margin-top: 5px;
+}
+
+:global(html[data-theme='light']) .track {
+  color: var(--text);
+  background: #f6f7fa;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track span {
+    transition: none;
+  }
+}

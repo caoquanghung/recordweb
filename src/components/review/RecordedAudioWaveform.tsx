@@ -1,12 +1,9 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useMemo } from 'react';
 import type { MouseEvent } from 'react';
-import {
-  decodeRecordedWaveform,
-  isRecordedWaveformPeaks,
-  RECORDED_WAVEFORM_PEAK_COUNT,
-} from '@/lib/audioWaveform';
+import { RECORDED_WAVEFORM_PEAK_COUNT } from '@/lib/audioWaveform';
+import { useRecordedAudioWaveform } from './useRecordedAudioWaveform';
 import styles from './RecordedAudioWaveform.module.css';
 
 const VIEWBOX_WIDTH = 1200;
@@ -22,6 +19,8 @@ interface RecordedAudioWaveformProps {
   mimeType: string;
   peaks?: number[];
   compact?: boolean;
+  title?: string;
+  description?: string;
   onPeaksReady?: (peaks: number[]) => void;
 }
 
@@ -39,74 +38,30 @@ export function RecordedAudioWaveform({
   mimeType,
   peaks: storedPeaks,
   compact = false,
+  title = 'Audio master',
+  description,
   onPeaksReady,
 }: RecordedAudioWaveformProps) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const waveformRef = useRef<SVGSVGElement | null>(null);
   const clipId = `recorded-waveform-${useId().replaceAll(':', '')}`;
-  const [decodedPeaks, setDecodedPeaks] = useState<number[]>([]);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [mediaDuration, setMediaDuration] = useState(durationSeconds);
-  const [waveformState, setWaveformState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
-
-  useEffect(() => {
-    const url = blob ? URL.createObjectURL(blob) : src;
-    const audio = audioRef.current;
-    if (audio && url) {
-      audio.src = url;
-      audio.load();
-    }
-    return () => {
-      if (audio) {
-        audio.removeAttribute('src');
-        audio.load();
-      }
-      if (blob && url) URL.revokeObjectURL(url);
-    };
-  }, [blob, src]);
-
-  useEffect(() => {
-    if (isRecordedWaveformPeaks(storedPeaks)) {
-      return;
-    }
-
-    let cancelled = false;
-    const controller = new AbortController();
-
-    const decodeRecordedAudio = async () => {
-      setWaveformState('loading');
-      setDecodedPeaks([]);
-      try {
-        const sourceBlob = blob ?? (src
-          ? await fetch(src, { signal: controller.signal }).then((response) => {
-            if (!response.ok) throw new Error('Could not load the recorded audio file.');
-            return response.blob();
-          })
-          : null);
-        if (!sourceBlob) throw new Error('No recorded audio source is available.');
-        const decoded = await decodeRecordedWaveform(sourceBlob);
-        if (cancelled) return;
-        setDecodedPeaks(decoded.peaks);
-        setMediaDuration(decoded.durationSeconds || durationSeconds);
-        setWaveformState('ready');
-        onPeaksReady?.(decoded.peaks);
-      } catch {
-        if (!cancelled) setWaveformState('unavailable');
-      }
-    };
-
-    void decodeRecordedAudio();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [blob, durationSeconds, onPeaksReady, src, storedPeaks]);
-
-  const peaks = isRecordedWaveformPeaks(storedPeaks) ? storedPeaks : decodedPeaks;
-  const effectiveDuration = isRecordedWaveformPeaks(storedPeaks) ? durationSeconds : mediaDuration;
-  const effectiveWaveformState = isRecordedWaveformPeaks(storedPeaks) ? 'ready' : waveformState;
-  const progress = effectiveDuration > 0 ? Math.min(1, currentTime / effectiveDuration) : 0;
-  const bars = peaks.map((peak, index) => {
+  const {
+    audioRef,
+    currentTime,
+    duration,
+    peaks,
+    progress,
+    waveformState,
+    seekToFraction,
+    setCurrentTime,
+    updateDuration,
+    resetCurrentTime,
+  } = useRecordedAudioWaveform({
+    blob,
+    src,
+    durationSeconds,
+    storedPeaks,
+    onPeaksReady,
+  });
+  const bars = useMemo(() => peaks.map((peak, index) => {
     const height = Math.max(MIN_BAR_HEIGHT, peak * (VIEWBOX_HEIGHT - 24));
     return {
       height,
@@ -114,15 +69,11 @@ export function RecordedAudioWaveform({
       x: index * BAR_GAP + (BAR_GAP - BAR_WIDTH) / 2,
       y: (VIEWBOX_HEIGHT - height) / 2,
     };
-  });
+  }), [peaks]);
 
   const seekFromWaveform = (event: MouseEvent<HTMLButtonElement>) => {
-    const audio = audioRef.current;
-    if (!audio || !effectiveDuration) return;
     const bounds = event.currentTarget.getBoundingClientRect();
-    const nextTime = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width)) * effectiveDuration;
-    audio.currentTime = nextTime;
-    setCurrentTime(nextTime);
+    seekToFraction((event.clientX - bounds.left) / bounds.width);
   };
 
   return (
@@ -135,14 +86,14 @@ export function RecordedAudioWaveform({
             </svg>
           </span>
           <div>
-            <strong>Audio master</strong>
-            <span>{mimeType.split(';')[0]} · waveform decoded from the recorded file</span>
+            <strong>{title}</strong>
+            <span>{description ?? `${mimeType.split(';')[0]} · waveform decoded from the recorded file`}</span>
           </div>
         </div>
         <span className={styles.status}>Recorded waveform</span>
       </div>
 
-      {effectiveWaveformState === 'ready' ? (
+      {waveformState === 'ready' ? (
         <button
           className={styles.waveformButton}
           type="button"
@@ -150,7 +101,6 @@ export function RecordedAudioWaveform({
           aria-label="Seek in recorded audio"
         >
           <svg
-            ref={waveformRef}
             className={styles.waveform}
             viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
             preserveAspectRatio="none"
@@ -172,7 +122,7 @@ export function RecordedAudioWaveform({
         </button>
       ) : (
         <div className={styles.placeholder} role="status">
-          {effectiveWaveformState === 'loading'
+          {waveformState === 'loading'
             ? 'Decoding the recorded audio waveform…'
             : 'Waveform preview is unavailable for this browser codec. Audio playback is still available.'}
         </div>
@@ -180,7 +130,7 @@ export function RecordedAudioWaveform({
 
       <div className={styles.timing} aria-hidden="true">
         <span>{formatTime(currentTime)}</span>
-        <span>{formatTime(effectiveDuration)}</span>
+        <span>{formatTime(duration)}</span>
       </div>
       <audio
         ref={audioRef}
@@ -188,10 +138,8 @@ export function RecordedAudioWaveform({
         controls
         preload="metadata"
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-        onDurationChange={(event) => {
-          if (Number.isFinite(event.currentTarget.duration)) setMediaDuration(event.currentTarget.duration);
-        }}
-        onEnded={() => setCurrentTime(0)}
+        onDurationChange={(event) => updateDuration(event.currentTarget.duration)}
+        onEnded={resetCurrentTime}
       />
     </section>
   );

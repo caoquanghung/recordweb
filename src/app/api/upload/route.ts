@@ -5,8 +5,8 @@ import { getSessionUserId } from '@/lib/auth';
 // Simple in-memory rate limiter; the allowance is defined below.
 // Replace with a Redis-backed solution (e.g. Upstash) for production scale.
 const uploadRateLimiter = new Map<string, { count: number; resetAt: number }>();
-// A complete session can request four client-upload tokens (composite plus
-// webcam, screen, and audio), so the allowance is session-aware.
+// A complete session can request six client-upload tokens (composite, video
+// sources, mixed audio, and two optional source-audio files).
 const MAX_UPLOADS_PER_HOUR = 40;
 
 function checkRateLimit(userId: string): boolean {

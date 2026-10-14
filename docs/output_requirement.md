@@ -6,9 +6,9 @@
 
 ## 1. Purpose
 
-RecordWeb previously produced one composited recording containing the screen, webcam overlay, and mixed audio. It now also produces separate webcam, screen, audio, and Electron-assisted cursor assets so downstream editing and analysis can use the original sources independently.
+RecordWeb previously produced one composited recording containing the screen, webcam overlay, and mixed audio. It now also produces separate webcam, screen, mixed-audio, optional microphone/system-audio, and Electron-assisted cursor assets so downstream editing and analysis can use the original sources independently.
 
-This document defines the complete five-asset target, timing model, formats, cursor coordinate system, failure behavior, storage metadata, and browser limitations.
+This document defines the five required assets plus optional source-audio stems, timing model, formats, cursor coordinate system, failure behavior, storage metadata, and browser limitations.
 
 ### 1.1 Implementation Status
 
@@ -17,7 +17,9 @@ This document defines the complete five-asset target, timing model, formats, cur
 | Composite video | Implemented | Existing 1080p canvas plus processed master audio |
 | Webcam source | Implemented | Raw camera normalized to 1280×720 at 30 FPS |
 | Screen source | Implemented | Raw display stream normalized to 1920×1080 at 30 FPS |
-| Audio source | Implemented | Processed Web Audio master in MP4/AAC or WebM/Opus |
+| Mixed audio | Implemented | Processed Web Audio master in MP4/AAC or WebM/Opus |
+| Microphone audio | Implemented when available | Processed microphone branch with independent waveform metadata |
+| System audio | Implemented when available | Gained system/tab audio branch with independent waveform metadata |
 | Cursor path | Implemented locally | Electron helper samples a selected display at 24 Hz; finalized JSON is stored in IndexedDB and can be opened or downloaded from Review/Library. Cloud upload and crash-draft checkpointing remain pending. |
 
 ## 2. Required Output Set
@@ -29,10 +31,12 @@ Every recording session covered by this requirement must produce the following a
 | Composite video | Screen, processed webcam overlay, and mixed audio | 1920×1080 MP4 preferred | 30 FPS |
 | Webcam source | Webcam only, before PiP placement and visual effects | 1280×720 MP4 preferred | 30 FPS |
 | Screen source | Shared screen/window/tab only | 1920×1080 MP4 preferred | 30 FPS |
-| Audio source | Standalone processed master audio, without video | M4A/AAC preferred | 48 kHz |
+| Mixed audio | Standalone processed master audio, without video | M4A/AAC preferred | 48 kHz |
+| Microphone audio | Processed microphone branch, when connected | M4A/AAC preferred | 48 kHz |
+| System audio | Shared system/tab branch, when present | M4A/AAC preferred | 48 kHz |
 | Cursor path | Time-aligned normalized cursor samples | UTF-8 JSON | 24 samples/second |
 
-The composite output remains the primary playback and sharing asset. The four source assets are separate files and must not be multiplexed as extra tracks inside the composite file.
+The composite output remains the primary playback and sharing asset. Source assets are separate files and must not be multiplexed as extra tracks inside the composite file. Microphone and system audio assets are optional and exist only when their corresponding input was available at recording start.
 
 This output profile requires an active screen source, webcam source, and at least one audio input before recording can start. Existing screen-only or webcam-only modes may remain as separate legacy profiles, but they do not satisfy this five-asset contract.
 
@@ -156,11 +160,11 @@ Required top-level fields are `schemaVersion`, `sessionId`, `sampleRateHz`, `coo
 
 ## 4. Shared Session Timeline
 
-All five assets use one recording coordinator and one monotonic active-time clock:
+All required and optional assets use one recording coordinator and one monotonic active-time clock:
 
 1. The countdown completes.
 2. The coordinator establishes session time `t = 0`.
-3. Composite, webcam, screen, audio, and cursor capture start as one operation.
+3. Composite, webcam, screen, mixed audio, available source-audio stems, and cursor capture start as one operation.
 4. Pause pauses every encoder and the cursor sampler.
 5. Resume resumes them from the same accumulated active timestamp.
 6. Stop requests final data and finalizes every asset.
@@ -193,12 +197,14 @@ recordings/<sessionId>/composite.<ext>
 recordings/<sessionId>/webcam.<ext>
 recordings/<sessionId>/screen.<ext>
 recordings/<sessionId>/audio.<ext>
+recordings/<sessionId>/microphone-audio.<ext>
+recordings/<sessionId>/system-audio.<ext>
 recordings/<sessionId>/cursor.json
 ```
 
 Store the actual browser-produced MIME type and codec. Never give a WebM file an `.mp4` extension.
 
-The review screen should offer individual downloads for the composite, webcam, screen, audio, and cursor assets. When the standalone audio Blob is finalized, the client decodes it once and derives exactly 120 normalized amplitude peaks. These peaks are stored with the local recording in IndexedDB and, after cloud upload, in the audio asset's `metadata.waveformPeaks` JSON plus the parent recording settings for authorized Library views. The waveform is derived metadata, not another Blob object.
+The review screen should offer individual downloads for every available asset. When an audio Blob is finalized, the client decodes it once and derives exactly 120 normalized amplitude peaks. These peaks are stored with the local recording in IndexedDB and, after cloud upload, in that asset's `metadata.waveformPeaks` JSON. Mixed peaks are also mirrored in parent recording settings for compatibility. The waveform is derived metadata, not another Blob object.
 
 Review and Library use the stored peaks to render a responsive waveform without downloading and decoding the complete cloud audio file on every visit. Legacy recordings without stored peaks may decode their local audio Blob or cloud audio URL as a compatibility fallback. The waveform includes synchronized playback and click-to-seek controls. The live analyser remains a VU-meter source and must not be presented as the recorded waveform. Downloading all assets as one package is a future enhancement.
 
@@ -210,19 +216,19 @@ Review and Library use the stored peaks to render a responsive waveform without 
 - Recovery reports every asset as complete, recoverable, unavailable, or corrupted.
 - One source’s checkpoint failure must not delete another source’s recoverable data.
 - WebM duration repair applies independently to each affected WebM asset.
-- Estimate available browser storage before recording and warn when the expected five-asset session approaches quota.
+- Estimate available browser storage before recording and warn when the expected multi-asset session approaches quota.
 
 ## 7. Cloud Storage and Metadata
 
 Each asset uploads directly from the browser to Vercel Blob. Video and audio bytes must not be buffered through a Next.js Route Handler.
 
-Migration `0002_recording_assets.sql` adds a child record for every uploaded source asset while retaining the legacy composite fields on `recordings` for compatibility:
+Migration `0002_recording_assets.sql` adds a child record for uploaded assets, while `0003_source_audio_assets.sql` extends the accepted kinds for independent microphone and system audio. Legacy composite fields remain on `recordings` for compatibility:
 
 ```text
 recording_assets
   id
   recording_id
-  kind                  composite | webcam | screen | audio | cursor
+  kind                  composite | webcam | screen | audio | microphone-audio | system-audio
   storage_url
   blob_pathname
   mime_type
@@ -234,7 +240,7 @@ recording_assets
   created_at
 ```
 
-For the `audio` row, `metadata` includes `waveformPeaks` (120 normalized numbers in the range `[0, 1]`) and `waveformVersion`. No schema migration is required because waveform data uses the existing JSONB metadata column.
+For every audio row, `metadata` includes `waveformPeaks` (120 normalized numbers in the range `[0, 1]`) and `waveformVersion`.
 
 The unique `(recording_id, kind)` constraint prevents duplicate source kinds. Deleting a parent recording cascades its child metadata, while the Route Handler deletes the corresponding Blob objects first.
 
@@ -278,7 +284,7 @@ This pipeline performs three simultaneous video encodes: composite, screen, and 
 
 ## 10. Failure and Completion Semantics
 
-- `complete`: all five assets finalized successfully.
+- `complete`: all required assets and any created optional source-audio recorders finalized successfully.
 - `partial`: the composite is usable, but one or more source assets failed.
 - `failed`: no usable composite was produced.
 
@@ -286,24 +292,24 @@ One encoder failure must not discard the remaining assets. The UI identifies the
 
 ## 11. Acceptance Criteria
 
-1. A 30-second test produces five separate files with one `sessionId`.
+1. A 30-second full-input test produces five required files plus microphone/system audio stems with one `sessionId`.
 2. Composite video is 1920×1080 at a 30 FPS target and includes screen, webcam presentation, and audio.
 3. Webcam source is 1280×720 at a 30 FPS target, with no screen or audio track.
 4. Screen source is 1920×1080 at a 30 FPS target, with no webcam overlay or audio track.
 5. Standalone audio plays independently and matches composite audio within the synchronization tolerance.
-6. Cursor JSON contains 24 timestamped samples per active second using normalized top-left coordinates.
-7. A five-second pause creates no five-second gap in the active media or cursor timelines.
-8. Finalized media durations differ by no more than 250 ms.
-9. Local recovery identifies and recovers chunks for every asset independently.
-10. Every cloud upload goes directly to Blob and has ownership-scoped metadata.
-11. Unsupported cursor-tracking capability is disclosed and represented truthfully.
+6. When microphone or system audio was connected at start, its independent stem and waveform are available in Review.
+7. Cursor JSON contains 24 timestamped samples per active second using normalized top-left coordinates.
+8. A five-second pause creates no five-second gap in the active media or cursor timelines.
+9. Finalized media durations differ by no more than 250 ms.
+10. Local recovery identifies and recovers chunks for every asset independently.
+11. Every cloud upload goes directly to Blob and has ownership-scoped metadata.
+12. Unsupported cursor-tracking capability is disclosed and represented truthfully.
 
 ## 12. Out of Scope
 
 - Server-side video transcoding.
 - Timeline editing or recompositing inside RecordWeb.
 - Automatic speech transcription.
-- Separate microphone and system-audio stem files; the required audio file is the processed master mix.
 - Lossless audio by default.
 - Cursor click, scroll, keyboard, or application-focus logging.
 - Guaranteed MP4 on browsers that cannot encode MP4 through `MediaRecorder`.
