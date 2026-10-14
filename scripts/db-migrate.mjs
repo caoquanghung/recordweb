@@ -208,6 +208,14 @@ if (command === "verify") {
       ) THEN
         RAISE EXCEPTION 'Missing foreign key: studio_presets_user_id_fkey';
       END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'recording_assets'::regclass
+          AND conname = 'recording_assets_kind_check'
+          AND pg_get_constraintdef(oid) LIKE '%cursor%'
+      ) THEN
+        RAISE EXCEPTION 'recording_assets.kind does not allow cursor assets';
+      END IF;
     END
     $$;`,
   ]);

@@ -91,11 +91,17 @@ const audioPresetByLabel: Record<string, AudioDspPreset> = {
   Custom: 'custom',
 };
 
-type BlobContentType = 'video/mp4' | 'video/webm' | 'audio/mp4' | 'audio/webm';
+type BlobContentType = 'video/mp4' | 'video/webm' | 'audio/mp4' | 'audio/webm' | 'application/json';
 
 function getBlobContentType(mimeType: string): BlobContentType {
   const baseType = mimeType.split(';', 1)[0].trim().toLowerCase();
-  if (baseType === 'video/mp4' || baseType === 'video/webm' || baseType === 'audio/mp4' || baseType === 'audio/webm') {
+  if (
+    baseType === 'video/mp4'
+    || baseType === 'video/webm'
+    || baseType === 'audio/mp4'
+    || baseType === 'audio/webm'
+    || baseType === 'application/json'
+  ) {
     return baseType;
   }
   throw new Error(`Unsupported recording content type: ${mimeType || 'unknown'}`);
@@ -285,7 +291,7 @@ export function StudioShell() {
     pipShape,
     pipSize,
     cameraVisible,
-    cameraEffectCanvas: effectCanvas,
+    cameraEffectCanvas: segmentationState === 'running' ? effectCanvas : null,
   });
 
   const normalizedWebcamStream = useNormalizedVideoStream(
@@ -637,6 +643,7 @@ export function StudioShell() {
         activeRecording.assets?.audio,
         activeRecording.assets?.['microphone-audio'],
         activeRecording.assets?.['system-audio'],
+        activeRecording.assets?.cursor,
       ].filter((asset): asset is RecordingAssetMetadata & { blob: Blob } => Boolean(asset?.blob));
       const progressByKind = new Map<RecordingAssetKind, number>();
       const updateTotalProgress = () => {

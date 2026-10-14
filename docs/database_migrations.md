@@ -58,3 +58,6 @@ Do not run database migrations during every Vercel application build. Concurrent
 ## Legacy Data
 
 Migration `0001_user_owned_recordings.sql` upgrades the original RecordWeb tables. It refuses to add mandatory ownership when existing recordings or presets have no user. Assign legacy rows to a real `users.id` first, then rerun the migration. It never invents an owner or silently deletes data.
+
+Migration `0004_cursor_asset.sql` extends the `recording_assets.kind` constraint
+so cursor trajectory JSON can be indexed alongside the recording's media assets.

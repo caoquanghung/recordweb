@@ -181,10 +181,10 @@ stateDiagram-v2
   * **Upload Protocol** (Risk 5 auth-gated):
     1. Client invokes Next.js route `/api/upload` with a valid auth session to request an authorized upload client token.
     2. Route Handler validates the user session and enforces per-user rate limits before issuing the token.
-    3. Client streams each binary media asset directly from the browser to Vercel's global edge blob storage via `upload()` from `@vercel/blob/client`.
+    3. Client streams each media asset and the cursor JSON directly from the browser to Vercel's global edge blob storage via `upload()` from `@vercel/blob/client`.
     4. Vercel Blob returns a permanent public HTTPS URL and pathname for each object.
     5. The composite URL remains on `recordings`; source URLs are stored as child rows in `recording_assets`.
-* **Current upload guard**: `/api/upload` accepts MP4/WebM video and audio assets up to 300 MB and uses an in-memory limit of 40 token requests per user per hour. The limiter is instance-local and must be replaced by durable storage before multi-instance production scale.
+* **Current upload guard**: `/api/upload` accepts MP4/WebM video/audio and `application/json` cursor assets up to 300 MB and uses an in-memory limit of 40 token requests per user per hour. The limiter is instance-local and must be replaced by durable storage before multi-instance production scale.
 * **Future Upgrade Path**: If Vercel Blob bandwidth costs grow, swap for **Cloudflare R2** via S3 presigned URLs (zero egress fees).
 
 ### 2.8 Cloud Database Subsystem (Neon Serverless Postgres)
@@ -226,7 +226,7 @@ stateDiagram-v2
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       recording_id UUID NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
       kind VARCHAR(32) NOT NULL
-          CHECK (kind IN ('composite', 'webcam', 'screen', 'audio', 'microphone-audio', 'system-audio')),
+          CHECK (kind IN ('composite', 'webcam', 'screen', 'audio', 'microphone-audio', 'system-audio', 'cursor')),
       storage_url TEXT NOT NULL,
       blob_pathname TEXT NOT NULL,
       mime_type VARCHAR(128) NOT NULL,

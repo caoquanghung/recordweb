@@ -18,6 +18,15 @@ function formatDuration(seconds: number) {
   return `${minutes}:${remainder}`;
 }
 
+function assetLabel(asset: DbRecordingAsset) {
+  if (asset.kind === 'webcam') return 'Webcam 720p';
+  if (asset.kind === 'screen') return 'Screen 1080p';
+  if (asset.kind === 'microphone-audio') return 'Microphone audio';
+  if (asset.kind === 'system-audio') return 'System audio';
+  if (asset.kind === 'cursor') return 'Cursor trajectory 24 Hz';
+  return 'Audio master';
+}
+
 export default async function SharePage({ params }: PageProps<'/share/[recordingId]'>) {
   const { recordingId } = await params;
   const { userId } = await auth();
@@ -110,7 +119,7 @@ export default async function SharePage({ params }: PageProps<'/share/[recording
             <div><span>Source files</span><strong>Original session assets</strong></div>
             {sourceAssets.map((asset) => (
               <a key={asset.id} href={asset.storage_url} download>
-                <strong>{asset.kind === 'webcam' ? 'Webcam 720p' : asset.kind === 'screen' ? 'Screen 1080p' : 'Audio master'}</strong>
+                <strong>{assetLabel(asset)}</strong>
                 <span>{asset.mime_type.split(';')[0]}</span>
               </a>
             ))}

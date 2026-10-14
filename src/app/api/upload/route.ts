@@ -5,8 +5,8 @@ import { getSessionUserId } from '@/lib/auth';
 // Simple in-memory rate limiter; the allowance is defined below.
 // Replace with a Redis-backed solution (e.g. Upstash) for production scale.
 const uploadRateLimiter = new Map<string, { count: number; resetAt: number }>();
-// A complete session can request six client-upload tokens (composite, video
-// sources, mixed audio, and two optional source-audio files).
+// A complete session can request seven client-upload tokens (composite, video
+// sources, mixed audio, two optional source-audio files, and cursor JSON).
 const MAX_UPLOADS_PER_HOUR = 40;
 
 function checkRateLimit(userId: string): boolean {
@@ -47,7 +47,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         return {
           // §2.10 — Accept both MP4 (preferred) and WebM (fallback) per codec detection
-          allowedContentTypes: ['video/mp4', 'video/webm', 'audio/mp4', 'audio/webm'],
+          allowedContentTypes: [
+            'video/mp4',
+            'video/webm',
+            'audio/mp4',
+            'audio/webm',
+            'application/json',
+          ],
           maximumSizeInBytes: 300 * 1024 * 1024, // 300MB ceiling for 30-min 1080p
           tokenPayload: JSON.stringify({
             userId,

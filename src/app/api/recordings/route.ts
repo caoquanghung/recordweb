@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
       'audio',
       'microphone-audio',
       'system-audio',
+      'cursor',
     ]);
     if (!Array.isArray(assets) || assets.some((asset) => !validAssetKinds.has(asset?.kind))) {
       return NextResponse.json({ error: 'Invalid recording assets.' }, { status: 400 });

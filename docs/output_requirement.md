@@ -216,6 +216,7 @@ Review and Library use the stored peaks to render a responsive waveform without 
 - IndexedDB keys chunks by both `sessionId` and asset kind.
 - Cursor samples are checkpointed incrementally, not only at stop.
 - Recovery reports every asset as complete, recoverable, unavailable, or corrupted.
+- Cloud save uploads the cursor JSON directly to Vercel Blob and stores its URL/pathname as a `recording_assets` row with `kind = 'cursor'`.
 - One source’s checkpoint failure must not delete another source’s recoverable data.
 - WebM duration repair applies independently to each affected WebM asset.
 - Estimate available browser storage before recording and warn when the expected multi-asset session approaches quota.
@@ -224,13 +225,13 @@ Review and Library use the stored peaks to render a responsive waveform without 
 
 Each asset uploads directly from the browser to Vercel Blob. Video and audio bytes must not be buffered through a Next.js Route Handler.
 
-Migration `0002_recording_assets.sql` adds a child record for uploaded assets, while `0003_source_audio_assets.sql` extends the accepted kinds for independent microphone and system audio. Legacy composite fields remain on `recordings` for compatibility:
+Migration `0002_recording_assets.sql` adds a child record for uploaded assets, `0003_source_audio_assets.sql` extends the accepted kinds for independent microphone and system audio, and `0004_cursor_asset.sql` adds cursor JSON. Legacy composite fields remain on `recordings` for compatibility:
 
 ```text
 recording_assets
   id
   recording_id
-  kind                  composite | webcam | screen | audio | microphone-audio | system-audio
+  kind                  composite | webcam | screen | audio | microphone-audio | system-audio | cursor
   storage_url
   blob_pathname
   mime_type

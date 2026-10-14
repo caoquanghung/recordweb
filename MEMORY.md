@@ -59,7 +59,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 * **Database Schema**:
   * `users` table (id, email, display_name, created_at).
   * `recordings` table (id, **user_id FK**, title, duration_seconds, file_size_bytes, resolution, fps, mime_type, local_id, storage_url, blob_pathname, **is_public**, settings, created_at).
-  * `recording_assets` table (id, **recording_id FK**, kind including mixed/microphone/system audio, storage_url, blob_pathname, mime_type, file_size_bytes, resolution, fps, sample_rate_hz, metadata, created_at).
+  * `recording_assets` table (id, **recording_id FK**, kind including mixed/microphone/system audio and cursor JSON, storage_url, blob_pathname, mime_type, file_size_bytes, resolution, fps, sample_rate_hz, metadata, created_at).
   * `studio_presets` table (id, **user_id FK**, preset_name, pip_shape, pip_size, pip_position, bg_removal_mode, filters_config, updated_at).
   * `recording_shares` table (recording_id, recipient_user_id, permission, created_at).
   * `schema_migrations` table tracks ordered `psql` migrations.
@@ -155,6 +155,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
   - [x] Applied and verified migration `0002_recording_assets`; multi-asset uploads create separate Blob objects and child metadata rows
   - [x] Applied and verified migration `0003_source_audio_assets`; Neon accepts `microphone-audio` and `system-audio` child assets
+  - [x] Applied and verified migration `0004_cursor_asset`; cloud save uploads cursor JSON directly to Blob and stores its child metadata row
   - [x] Added a request-time authorized `/share/[recordingId]` page for public, owner, `viewer`, and `viewer_download` access
   - [x] Verified the live Neon migration status and schema with `npm run db:status` and `npm run db:verify`
   - [x] Added a Chromium Playwright E2E harness with fake camera/microphone devices, local/deployed base URL support, and an anonymous sign-in smoke test
@@ -191,6 +192,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Native Picker/Extension Identity Gap** | A webpage cannot obtain the tab ID selected in `getDisplayMedia()`, so a second cursor selection can silently target the wrong tab | In extension mode, let one Manifest V3 action select the tab, inject the cursor tracker, and provide the same tab's `tabCapture` video/audio stream ID. Do not open a second picker. |
 | **One-Use Tab Stream ID** | A `chrome.tabCapture` stream ID expires quickly and can only be consumed once | Keep the RecordWeb bridge connected, issue the ID only after the consumer tab is known, and call `getUserMedia()` immediately; require another extension click after failure or expiry. |
 | **Captured Tab Audio Playback** | Chromium can suppress a tab's normal local audio while `tabCapture` is active | For extension-tab capture only, route the gained system-audio branch to `AudioContext.destination`; native display capture remains unmonitored to avoid feedback. |
+| **Blank Webcam During Segmentation Startup** | MediaPipe publishes its output canvas before the first result, so drawing that blank canvas hides an otherwise-ready webcam | Pass the effect canvas to the compositor only while segmentation state is `running`; use the raw webcam during loading or error states. |
 | **Optional-Chaining Null Comparison** | `captureSession?.timer !== null` evaluates true when `captureSession` is null because the expression yields `undefined`, then a direct `.timer` read crashes the first cursor start | Use the nullish check `captureSession?.timer != null`; the Electron smoke test calls reset twice before initialization to protect idempotent cleanup. |
 
 ---
@@ -198,5 +200,5 @@ This file serves as the persistent memory bank for AI agents working on **Record
 ## 6. Immediate Next Steps
 
 1. Load `extension/` unpacked in Chrome/Arc and runtime-test pairing, one-use stream consumption, cursor start/pause/resume/stop, tab closure/navigation, local audio playback, and global disconnect cleanup.
-2. Run an authenticated multi-asset upload/playback test and decide whether cursor JSON needs cloud persistence and private Blob delivery.
+2. Run an authenticated multi-asset upload/download test including cursor JSON.
 3. After extension parity is verified, remove the deprecated Electron cursor runtime and dependency.
