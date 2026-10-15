@@ -1,0 +1,142 @@
+.showcase {
+  min-height: 100vh;
+  color: #0f172a;
+  background:
+    radial-gradient(circle at 78% 5%, rgb(37 99 235 / 10%), transparent 30rem),
+    #f8fafc;
+  font-family: "Be Vietnam Pro", var(--font-geist-sans), sans-serif;
+}
+
+.adaptiveLayout {
+  display: grid;
+  grid-template-columns: 288px minmax(0, 1fr);
+}
+
+.fixedLayout .content { margin-left: 288px; }
+
+.content {
+  min-width: 0;
+  min-height: 100vh;
+  padding: clamp(80px, 10vw, 132px) clamp(28px, 7vw, 108px);
+}
+
+.contentInner { max-width: 920px; }
+
+.eyebrow,
+.panelLabel {
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.content h1 {
+  max-width: 760px;
+  margin-top: 14px;
+  font-size: clamp(36px, 5vw, 64px);
+  line-height: 1.08;
+  letter-spacing: -.05em;
+}
+
+.lead {
+  max-width: 730px;
+  margin-top: 24px;
+  color: #475569;
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+.lead code,
+.implementationNote code { color: #1d4ed8; font: 600 .94em var(--font-geist-mono), monospace; }
+
+.modePanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 52px;
+  padding: 24px;
+  border: 1px solid #dbe4f0;
+  border-radius: 20px;
+  background: rgb(255 255 255 / 84%);
+  box-shadow: 0 18px 50px rgb(15 23 42 / 7%);
+}
+
+.modePanel h2 { margin-top: 5px; font-size: 20px; }
+
+.segmentedControl {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #eaf0f8;
+}
+
+.segmentedControl button {
+  min-width: 104px;
+  padding: 10px 16px;
+  color: #64748b;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  font: 600 14px/20px inherit;
+  cursor: pointer;
+}
+
+.segmentedControl button:focus-visible { outline: 3px solid rgb(37 99 235 / 28%); }
+
+.segmentedControl .selectedMode {
+  color: #1e40af;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 9%);
+}
+
+.behaviorGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.behaviorGrid article {
+  padding: 28px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.behaviorGrid article > span { color: #2563eb; font-size: 12px; font-weight: 700; }
+.behaviorGrid h2 { margin-top: 14px; font-size: 24px; }
+.behaviorGrid p { min-height: 72px; margin-top: 10px; color: #64748b; font-size: 14px; line-height: 1.7; }
+.behaviorGrid code { display: block; margin-top: 24px; color: #1e40af; font: 600 12px/1.6 var(--font-geist-mono), monospace; }
+
+.implementationNote {
+  margin-top: 18px;
+  padding: 24px;
+  color: #334155;
+  border-left: 4px solid #2563eb;
+  border-radius: 4px 14px 14px 4px;
+  background: #eff6ff;
+}
+
+.implementationNote p { margin-top: 7px; font-size: 14px; line-height: 1.7; }
+.announcement { min-height: 24px; margin-top: 12px; color: #1d4ed8; font-size: 13px; }
+
+@media (max-width: 1100px) {
+  .content { padding-right: 40px; padding-left: 40px; }
+  .modePanel { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 840px) {
+  .adaptiveLayout { display: block; }
+  .adaptiveLayout .content { padding-top: 96px; }
+}
+
+@media (max-width: 720px) {
+  .fixedLayout .content { margin-left: 288px; padding: 64px 24px; }
+  .behaviorGrid { grid-template-columns: 1fr; }
+  .modePanel { padding: 20px; }
+  .segmentedControl { width: 100%; }
+  .segmentedControl button { min-width: 0; flex: 1; }
+}

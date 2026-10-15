@@ -1,0 +1,317 @@
+.sidebar {
+  --sidebar-width: 288px;
+  --sidebar-blue: #1d4ed8;
+  --sidebar-text: #475569;
+  width: var(--sidebar-width);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--sidebar-text);
+  border-right: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 5%);
+  font-family: "Be Vietnam Pro", var(--font-geist-sans), sans-serif;
+}
+
+.fixed {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 40;
+  height: 100dvh;
+}
+
+.adaptive {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: 100dvh;
+}
+
+.topSection {
+  width: 100%;
+  padding: 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.brandMark {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--sidebar-blue);
+  box-shadow: 0 4px 6px -1px rgb(29 78 216 / 20%), 0 2px 4px -2px rgb(29 78 216 / 20%);
+}
+
+.brandMark img {
+  width: 26px;
+  height: 21px;
+}
+
+.brandCopy,
+.userCopy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.brandCopy strong {
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 27.5px;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+
+.brandCopy span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.navItem {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  color: var(--sidebar-text);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.navItem:hover:not(:disabled) {
+  color: #1e40af;
+  background: #f8fafc;
+}
+
+.navItem:focus-visible,
+.signOutButton:focus-visible,
+.menuButton:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 30%);
+  outline-offset: 2px;
+}
+
+.navItem:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.navItemActive {
+  padding: 14px 16px;
+  color: #1e40af;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 5%);
+}
+
+.navIcon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  background: currentColor;
+  mask: var(--sidebar-icon) center / contain no-repeat;
+}
+
+.iconstudio { --sidebar-icon: url('/figma/sidebar/studio.svg'); }
+.iconlibrary { --sidebar-icon: url('/figma/sidebar/library.svg'); }
+.iconsettings { --sidebar-icon: url('/figma/sidebar/settings.svg'); }
+.iconhelp { --sidebar-icon: url('/figma/sidebar/help.svg'); }
+
+.navLabel {
+  min-width: 0;
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.navItemActive .navLabel { font-weight: 700; }
+
+.activeDot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  background: var(--sidebar-blue);
+}
+
+.footer {
+  width: 100%;
+  padding: 17px 16px 16px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.profileCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 5%);
+}
+
+.userIdentity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #1e40af;
+  border: 2px solid #2563eb;
+  border-radius: 50%;
+  background: #dbeafe;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 5%);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 28px;
+}
+
+.userCopy strong {
+  max-width: 132px;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 17.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userCopy span {
+  max-width: 132px;
+  overflow: hidden;
+  color: var(--sidebar-blue);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16.5px;
+  letter-spacing: .275px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.signOutButton {
+  width: 27px;
+  height: 33px;
+  flex: 0 0 27px;
+  display: grid;
+  place-items: center;
+  color: #94a3b8;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.signOutButton:hover { color: #1d4ed8; background: #eff6ff; }
+
+.signOutButton span {
+  width: 15px;
+  height: 15px;
+  background: currentColor;
+  mask: url('/figma/sidebar/logout.svg') center / contain no-repeat;
+}
+
+.menuButton,
+.backdrop { display: none; }
+
+@media (max-width: 840px) {
+  .adaptive {
+    position: fixed;
+    inset: 0 auto 0 0;
+    height: 100dvh;
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition: transform 220ms ease, visibility 220ms;
+  }
+
+  .adaptive.open {
+    visibility: visible;
+    transform: translateX(0);
+  }
+
+  .menuButton {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 60;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-content: center;
+    gap: 4px;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
+    cursor: pointer;
+  }
+
+  .menuButton span {
+    width: 18px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+  }
+
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    display: block;
+    visibility: hidden;
+    border: 0;
+    background: rgb(15 23 42 / 45%);
+    opacity: 0;
+    transition: opacity 220ms ease, visibility 220ms;
+  }
+
+  .backdropVisible {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adaptive,
+  .backdrop,
+  .navItem { transition: none; }
+}
