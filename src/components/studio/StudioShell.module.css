@@ -30,96 +30,6 @@
   flex: 0 0 auto;
 }
 
-.navigation {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px 12px;
-  border-right: 1px solid var(--line);
-  background: rgba(8, 11, 18, 0.94);
-  backdrop-filter: blur(20px);
-}
-
-.brandMark {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 13px;
-  color: white;
-  font-size: 18px;
-  font-weight: 750;
-  letter-spacing: -0.05em;
-  background: linear-gradient(145deg, #9083ff, #5f4bd3);
-  box-shadow: 0 8px 30px rgba(99, 78, 220, 0.35), inset 0 1px rgba(255, 255, 255, 0.28);
-}
-
-.navStack,
-.navBottom {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.navStack {
-  margin-top: 42px;
-}
-
-.navBottom {
-  margin-top: auto;
-}
-
-.navButton {
-  position: relative;
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  color: var(--dim);
-  background: transparent;
-  cursor: pointer;
-  transition: 160ms ease;
-}
-
-.navButton:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.045);
-}
-
-.navButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
-}
-
-.navButton:disabled:hover {
-  color: var(--text-muted);
-  background: transparent;
-}
-
-.navButtonActive {
-  color: #c8c0ff;
-  border-color: rgba(124, 109, 242, 0.28);
-  background: rgba(124, 109, 242, 0.14);
-}
-
-.navButtonActive::before {
-  content: '';
-  position: absolute;
-  left: -13px;
-  width: 3px;
-  height: 20px;
-  border-radius: 0 4px 4px 0;
-  background: var(--primary-bright);
-  box-shadow: 0 0 14px var(--primary);
-}
-
 .workspace {
   width: 100%;
   max-width: 1760px;
@@ -209,31 +119,6 @@
   opacity: 0.55;
 }
 
-.prototypeNotice {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  margin-bottom: 16px;
-  border: 1px solid rgba(70, 214, 231, 0.16);
-  border-radius: 10px;
-  color: #8d9bad;
-  background: rgba(70, 214, 231, 0.035);
-  font-size: 12px;
-}
-
-.prototypeNotice span {
-  flex: 0 0 auto;
-  padding: 4px 7px;
-  border-radius: 6px;
-  color: #a8f3fb;
-  background: rgba(70, 214, 231, 0.12);
-  font-size: 9px;
-  font-weight: 750;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .studioGrid {
   display: grid;
   grid-template-columns: 238px minmax(460px, 1fr) 250px;
@@ -242,9 +127,7 @@
 }
 
 .leftPanel,
-.rightPanel,
-.healthCard,
-.libraryCard {
+.rightPanel {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--panel);
@@ -269,8 +152,7 @@
 }
 
 .sectionHeading,
-.inspectorTitle,
-.cardHeader {
+.inspectorTitle {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -294,8 +176,7 @@
 }
 
 .sectionHeading h2,
-.inspectorTitle h2,
-.cardHeader h2 {
+.inspectorTitle h2 {
   font-size: 12px;
   font-weight: 650;
   letter-spacing: -0.01em;
@@ -762,8 +643,7 @@
   text-transform: uppercase;
 }
 
-.countdownOverlay,
-.reviewOverlay {
+.countdownOverlay {
   position: absolute;
   inset: 0;
   z-index: 5;
@@ -796,10 +676,6 @@
   text-transform: uppercase;
 }
 
-.reviewOverlay {
-  background: rgba(7, 9, 15, 0.84);
-}
-
 .reviewIcon {
   width: 48px;
   height: 48px;
@@ -809,26 +685,6 @@
   border-radius: 50%;
   color: var(--green);
   background: rgba(72, 215, 161, 0.1);
-}
-
-.reviewOverlay > strong {
-  font-size: 20px;
-}
-
-.reviewOverlay p {
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.reviewOverlay button {
-  margin-top: 18px;
-  padding: 9px 14px;
-  border: 1px solid rgba(124, 109, 242, 0.45);
-  border-radius: 8px;
-  color: white;
-  background: rgba(124, 109, 242, 0.14);
-  cursor: pointer;
 }
 
 .controlDock {
@@ -1172,132 +1028,6 @@
 
 .presetList small { color: var(--primary-bright); }
 
-.bottomGrid {
-  display: grid;
-  grid-template-columns: 1.25fr .75fr;
-  gap: 16px;
-  margin: 16px 0 0;
-}
-
-.healthCard,
-.libraryCard {
-  padding: 17px;
-}
-
-.cardHeader > div {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.cardHeader p {
-  margin-top: 3px;
-  color: var(--dim);
-  font-size: 9px;
-}
-
-.cardHeader > button {
-  padding: 6px 9px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  color: var(--muted);
-  background: rgba(255,255,255,.02);
-  font-size: 8px;
-  cursor: pointer;
-}
-
-.cardIcon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
-  color: var(--primary-bright);
-  background: rgba(124,109,242,.1);
-}
-
-.cardIcon .icon { width: 16px; }
-
-.checkGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 7px;
-  margin-top: 14px;
-}
-
-.checkGrid > div {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  padding: 9px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255,255,255,.018);
-}
-
-.checkGrid span:nth-child(2) {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 8px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.checkGrid strong {
-  grid-column: 2;
-  color: #c9cfda;
-  font-size: 8px;
-  font-weight: 580;
-  text-transform: capitalize;
-}
-
-.emptyState {
-  min-height: 86px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin-top: 12px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 9px;
-  color: var(--muted);
-  text-align: center;
-}
-
-.emptyState strong { font-size: 10px; }
-.emptyState span { margin-top: 4px; color: var(--dim); font-size: 8px; }
-
-.recordingList {
-  display: grid;
-  gap: 7px;
-  margin-top: 12px;
-}
-
-.recordingList > div {
-  display: grid;
-  grid-template-columns: 34px 1fr auto;
-  align-items: center;
-  gap: 9px;
-}
-
-.recordingThumb {
-  width: 34px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 6px;
-  color: var(--primary-bright);
-  background: #23283a;
-}
-
-.recordingThumb .icon { width: 12px; }
-.recordingList strong, .recordingList small { display: block; }
-.recordingList strong { font-size: 9px; }
-.recordingList small { margin-top: 2px; color: var(--dim); font-size: 7px; }
-.recordingList em { color: var(--green); font-size: 7px; font-style: normal; }
-
 .srOnly {
   position: absolute;
   width: 1px;
@@ -1331,29 +1061,13 @@
     var(--studio-bg);
 }
 
-:global(html[data-theme='light']) .navigation {
-  background: rgba(248, 249, 252, 0.94);
-}
-
-:global(html[data-theme='light']) .navButton:hover,
 :global(html[data-theme='light']) .privacyPill,
 :global(html[data-theme='light']) .secondaryButton,
 :global(html[data-theme='light']) .themeButton,
 :global(html[data-theme='light']) .modeButton,
 :global(html[data-theme='light']) .audioModes button,
-:global(html[data-theme='light']) .presetList button,
-:global(html[data-theme='light']) .checkGrid > div {
+:global(html[data-theme='light']) .presetList button {
   background: rgba(30, 39, 58, 0.035);
-}
-
-:global(html[data-theme='light']) .prototypeNotice {
-  color: #536578;
-  background: rgba(34, 152, 171, 0.06);
-}
-
-:global(html[data-theme='light']) .prototypeNotice span {
-  color: #176f7e;
-  background: rgba(34, 152, 171, 0.12);
 }
 
 :global(html[data-theme='light']) .fieldLabel select,
@@ -1394,13 +1108,8 @@
   background: #eef1f6;
 }
 
-:global(html[data-theme='light']) .choiceGrid button,
-:global(html[data-theme='light']) .recordingThumb {
+:global(html[data-theme='light']) .choiceGrid button {
   background: #eef1f6;
-}
-
-:global(html[data-theme='light']) .emptyState {
-  background: rgba(30, 39, 58, 0.025);
 }
 
 .workspaceToolbar {

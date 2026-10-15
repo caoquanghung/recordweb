@@ -111,7 +111,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Connected preset save/load and recording library inspection to the existing authenticated APIs
   - [x] Added a persisted light/dark theme switch with system-preference initialization and accessible theme tokens
   - [x] Replaced simulated recording controls with the real recording-session hook
-- [ ] **Housekeeping**: `src/app/page.module.css` is now unused dead code (page renders `StudioShell`) and should be deleted.
+- [x] **UI Housekeeping**: Removed the unused Next.js `src/app/page.module.css`, five unreferenced template SVG assets, and more than 300 lines of obsolete Studio navigation/prototype CSS. `AppNavigation` is now the sole navigation implementation; all custom `use*` hooks remained byte-identical.
 - [x] **Phase 1 (Media Hooks): `useMediaDevices` Implementation**:
   - [x] Added screen, camera, microphone, and browser-supported system-audio acquisition with 30 FPS video constraints
   - [x] Added device enumeration/hot-plug refresh, user-friendly permission/device errors, and external screen-share `ended` handling

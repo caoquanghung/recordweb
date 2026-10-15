@@ -136,21 +136,21 @@ Lưu ý: Studio dùng `AppNavigation` nhưng có shell/layout riêng; Dashboard,
 - `src/app/api/*`: API contract; không thuộc phạm vi UI redesign.
 - `src/types/*`: contract dữ liệu; chỉ đổi khi có thay đổi nghiệp vụ được phê duyệt.
 - `public/frame-ticker-worker.js`: clock cho frame pipeline; tuyệt đối không coi là asset UI.
-- `public/file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg`: asset mặc định; hiện không thấy được import trong UI.
+- Các SVG template mặc định `file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg` đã được xóa sau khi audit xác nhận không có consumer.
 
 ## 4. Technical debt UI nên xử lý trước hoặc trong redesign
 
 1. **Đã tách `StudioShell.tsx`**: shell hiện chỉ còn khoảng 40 dòng composition; processing nằm trong `useStudioController.ts` và UI được chia theo vùng chức năng. Rủi ro chính đã chuyển sang contract giữa controller và các view.
 2. **`useStudioController.ts` vẫn là processing coordinator lớn**: đây là chủ đích để giữ nguyên thứ tự hook và async lifecycle trong lần refactor đầu. Chỉ nên tách tiếp recovery/upload/preset sau khi có characterization tests cho các flow đó.
-3. **`StudioShell.module.css` quá lớn**: gần 2.000 dòng, khó xác định rule còn dùng, dễ xảy ra override và khó review visual diff.
+3. **`StudioShell.module.css` vẫn lớn**: khoảng 1.700 dòng sau khi đã xóa hơn 300 dòng selector không còn consumer; nên tiếp tục tách theo view khi bắt đầu redesign thực tế.
 4. **Token theme bị phân tán**:
    - `globals.css` chỉ có `--background` và `--foreground`.
    - `WorkspaceShell.module.css` định nghĩa bộ token riêng cho Dashboard/Library/Settings.
    - `StudioShell.module.css` có scope token/layout riêng cho Studio.
    - Share/Auth lại có style độc lập.
    Việc đổi branding hiện phải sửa nhiều nơi và dễ lệch light/dark theme.
-5. **Studio còn CSS navigation cũ** trong `StudioShell.module.css` dù JSX đã dùng `AppNavigation`. Cần audit class usage trước khi xóa.
-6. **`src/app/page.module.css` là dead code**: không được import; nội dung vẫn là template Next.js mặc định.
+5. **Đã xóa CSS navigation cũ** khỏi `StudioShell.module.css`; navigation hiện chỉ do `AppNavigation.tsx` và `AppNavigation.module.css` sở hữu.
+6. **Đã xóa `src/app/page.module.css`** sau khi xác nhận không có import; đây là CSS template Next.js không còn được sử dụng.
 7. **Icon SVG được viết inline** ở nhiều component (`AppNavigation`, `StudioPrimitives`, `GlobalMediaControl`), khiến đổi icon system tốn công và dễ thiếu nhất quán.
 8. **Breakpoint phân tán** giữa các CSS Module; cần gom thành chiến lược responsive chung thay vì thay từng màn hình độc lập.
 
@@ -262,8 +262,8 @@ Nếu thiết kế mới thực sự đòi thay đổi một trong các phần t
 
 ### Giai đoạn 4 — Dọn technical debt và kiểm thử tích hợp
 
-- Xóa `src/app/page.module.css` sau khi xác nhận vẫn không được import.
-- Audit/xóa navigation CSS cũ trong Studio.
+- [x] Xóa `src/app/page.module.css` sau khi xác nhận không có import.
+- [x] Audit/xóa navigation CSS và các prototype block không còn consumer trong Studio.
 - Chuẩn hóa icon system và token theme.
 - Chạy lint/build và manual media verification trước khi merge.
 
