@@ -165,6 +165,12 @@ if (command === "verify") {
       IF to_regclass('public.recording_assets') IS NULL THEN
         RAISE EXCEPTION 'Missing table: recording_assets';
       END IF;
+      IF to_regclass('public.recording_projects') IS NULL THEN
+        RAISE EXCEPTION 'Missing table: recording_projects';
+      END IF;
+      IF to_regclass('public.recording_project_segments') IS NULL THEN
+        RAISE EXCEPTION 'Missing table: recording_project_segments';
+      END IF;
       IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public'
@@ -215,6 +221,14 @@ if (command === "verify") {
           AND pg_get_constraintdef(oid) LIKE '%cursor%'
       ) THEN
         RAISE EXCEPTION 'recording_assets.kind does not allow cursor assets';
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'recording_project_segments'::regclass
+          AND conname = 'recording_project_segments_project_sequence_key'
+          AND condeferrable
+      ) THEN
+        RAISE EXCEPTION 'Missing deferrable project segment ordering constraint';
       END IF;
     END
     $$;`,

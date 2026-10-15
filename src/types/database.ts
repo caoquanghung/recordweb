@@ -1,3 +1,5 @@
+import type { RecordingMediaProfile, RecordingProjectStatus } from './recordingProject';
+
 /** Mirrors the `users` table — populated by the auth provider callback. */
 export interface DbUser {
   id: string;           // Clerk / Auth.js user ID (VARCHAR 128)
@@ -53,6 +55,33 @@ export interface DbRecordingShare {
   created_at: string;
   email: string;
   display_name: string | null;
+}
+
+export interface DbRecordingProject {
+  id: string;
+  user_id: string;
+  title: string;
+  status: RecordingProjectStatus;
+  media_profile: RecordingMediaProfile | null;
+  settings: Record<string, unknown>;
+  revision: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbRecordingProjectSegment {
+  id: string;
+  project_id: string;
+  recording_id: string;
+  sequence_number: number;
+  media_profile: RecordingMediaProfile;
+  created_at: string;
+  title: string;
+  duration_seconds: number;
+  file_size_bytes: number;
+  mime_type: string;
+  storage_url: string | null;
+  blob_pathname: string | null;
 }
 
 /** Mirrors the `studio_presets` table. */

@@ -17,6 +17,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   * **Database**: Neon Serverless Postgres (`@neondatabase/serverless`) for metadata, presets, and catalogs.
   * **Authentication**: Clerk (`@clerk/nextjs`) with Next.js 16 `src/proxy.ts`.
   * **Video Object Storage**: Vercel Blob (`@vercel/blob/client`) for direct client-to-edge uploads.
+  * **Lossless Segment Remuxing**: Mediabunny for client-side MP4/WebM parsing and encoded-packet merge without transcoding.
   * **Hosting**: Vercel (Next.js Edge CDN + Serverless Route Handlers in `src/app/api/*`).
   * **Cursor Capture Target**: The `extension/` Chromium Manifest V3 package selects one tab once and supplies its video, audio, and 24 Hz cursor samples. Static/build checks pass; unpacked-extension runtime verification is pending. The existing Electron helper is deprecated legacy fallback code.
   * **Extension App Origin**: `extension/manifest.json` is the single source of truth for the canonical production URL through `homepage_url`; the service worker and bridge derive it at runtime. The obsolete options page and `storage` permission were removed. Local development remains allowed on port 3000.
@@ -48,6 +49,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 6. **UI Standard**: Strictly Vanilla CSS (CSS Modules & custom properties) with adaptive light/dark studio glassmorphism (tokens in `docs/ui_ux_specification.md`). Theme defaults to the OS preference and persists in `localStorage` as `recordweb-theme`. No Tailwind or heavy CSS frameworks.
 7. **Documentation Source of Truth**: `docs/system_architecture.md` is authoritative for subsystem boundaries, data flow, and risks (R1–R5); `docs/audio_video_pipeline.md` is authoritative for the media pipeline. `MEMORY.md` is the persistent state bank. `AGENTS.md` requires agents to conform to these; no duplicate media pipeline rule file exists.
 8. **Multi-Asset Output**: A session produces the composite plus available clean 720p webcam, normalized 1080p tab video, standalone mixed audio, processed microphone audio, gained tab audio, and a 24 Hz cursor JSON. The approved cursor architecture supports exactly one extension-selected Chromium tab per session; that single selection supplies tab video, tab audio, and cursor events. Existing Electron cursor code is legacy until the extension replacement is verified.
+9. **Cross-Session Lecture Projects**: A lecture is an owned `recording_projects` row with ordered associations to independently finalized `recordings`. Each later recording session creates a new immutable segment; no `MediaRecorder` is resumed after reload. Logical playback derives one global timeline, while optional physical merge copies compatible encoded packets without decode/encode. Source recordings remain intact.
 
 ---
 
@@ -61,6 +63,8 @@ This file serves as the persistent memory bank for AI agents working on **Record
   * `users` table (id, email, display_name, created_at).
   * `recordings` table (id, **user_id FK**, title, duration_seconds, file_size_bytes, resolution, fps, mime_type, local_id, storage_url, blob_pathname, **is_public**, settings, created_at).
   * `recording_assets` table (id, **recording_id FK**, kind including mixed/microphone/system audio and cursor JSON, storage_url, blob_pathname, mime_type, file_size_bytes, resolution, fps, sample_rate_hz, metadata, created_at).
+  * `recording_projects` table is defined by pending migration `0005_recording_projects` (owner, title, draft/completed status, locked media profile, settings, optimistic revision, timestamps).
+  * `recording_project_segments` table is defined by pending migration `0005_recording_projects` (project-to-finalized-recording association, ordered sequence, inspected media profile). The live Neon schema has not applied `0005` yet.
   * `studio_presets` table (id, **user_id FK**, preset_name, pip_shape, pip_size, pip_position, bg_removal_mode, filters_config, updated_at).
   * `recording_shares` table (recording_id, recipient_user_id, permission, created_at).
   * `schema_migrations` table tracks ordered `psql` migrations.
@@ -164,6 +168,13 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Verified the live Neon migration status and schema with `npm run db:status` and `npm run db:verify`
   - [x] Added a Chromium Playwright E2E harness with fake camera/microphone devices, local/deployed base URL support, and an anonymous sign-in smoke test
   - [ ] Run an authenticated browser upload/playback test against the connected Vercel Blob store
+- [ ] **Cross-Session Recording Projects**:
+  - [x] Added project/segment contracts, pure playlist timeline and seek mapping, strict media-profile validation, and typed client calls without changing the UI
+  - [x] Added authenticated project and segment Route Handlers with ownership checks, draft/completed lifecycle, optimistic revisions, atomic reordering, and non-destructive detach/delete behavior
+  - [x] Added Mediabunny-based MP4/WebM finalized-segment inspection and lossless packet-copy merge with timestamp shifting, abort, progress, and explicit incompatibility errors
+  - [x] Added `docs/recording_project_modules.md` and synchronized the architecture and media-pipeline specifications
+  - [ ] Apply and verify pending migration `0005_recording_projects` in the intended Neon environment
+  - [ ] Runtime-test logical playback and lossless merge with real same-profile MP4 and WebM RecordWeb outputs before connecting project UI
 - [ ] **Phase 9: Vercel Deployment & Verification**
 - [x] **Hooks Maintainability Refactor**:
   - [x] Refactored all `src/hooks` modules around shared browser-media helpers, declarative DSP presets, isolated canvas/segmentation rendering, and clearer multi-asset recorder construction/finalization while preserving public hook contracts and pipeline invariants
@@ -205,6 +216,8 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **IndexedDB Checkpoint Write Amplification** | Every non-empty one-second chunk from every active recorder invokes `checkpointDraft()`, and each queued checkpoint rewrites a snapshot containing the complete accumulated chunk arrays for every asset. With up to six recorders this can cause several ever-growing full IndexedDB writes per second and near-quadratic total I/O over a long session | Coalesce/debounce checkpoints to one bounded-frequency writer, avoid enqueuing redundant snapshots, and persist only newly produced chunks or use a normalized per-session/per-asset chunk store. Measure write throughput and queue depth during long recordings. |
 | **Studio Eagerly Loads Full Recovery Drafts** | Studio mount calls `getRecordingDrafts()`, which deserializes every draft including every stored media `Blob[]`, then keeps the complete drafts in React state even before a recording session starts. Old or interrupted multi-asset sessions can therefore cause high baseline renderer memory | Add a lightweight draft-index query that returns metadata only; load one draft's chunks lazily when the user explicitly starts recovery. Provide stale-draft size visibility and deletion controls. |
 | **Preview Pipeline Runs Before Recording** | Connecting sources immediately activates the 30 FPS composite canvas, Web Audio graph/meter RAF, and—by default because the Studio starts in `screen-pip` + `blur`—MediaPipe inference. These costs are tied to source availability rather than recording status, so setup mode can already consume significant CPU/GPU memory | Introduce explicit preview activity/quality control: low-rate or lower-resolution idle preview, suspend inference/audio metering when panels are hidden or sources are inactive, and raise to recording quality only during countdown/recording. |
+| **Merged Output Memory Cost** | `segmentMerger.ts` currently writes the complete remuxed MP4/WebM to a Mediabunny `BufferTarget`, so a long lecture requires memory for the output plus bounded input caches | Keep merge optional, retain immutable source segments, show resource guidance in the future UI, and add File System Access or append-only streaming output before targeting very large lectures. |
+| **Same MIME Is Not Merge Compatibility** | Independently finalized files can share a MIME string while differing in codec configuration, resolution, audio layout, or key-frame boundaries | Inspect every Blob with Mediabunny and compare the stored immutable media profile; reject mismatches and never silently transcode. |
 
 ---
 
@@ -213,3 +226,4 @@ This file serves as the persistent memory bank for AI agents working on **Record
 1. Fix extension cleanup so recording completion releases the captured tab and app-port loss clears stale target state; then load `extension/` unpacked in Chrome/Arc and runtime-test stop, reload, tab closure/navigation, one-use stream consumption, cursor lifecycle, local audio playback, and global disconnect cleanup.
 2. Run an authenticated multi-asset upload/download test including cursor JSON.
 3. After extension parity is verified, remove the deprecated Electron cursor runtime and dependency.
+4. Apply migration `0005_recording_projects`, then runtime-test authenticated cross-day segment attachment, ordering, continuous playback, and lossless MP4/WebM merge before adding project UI.

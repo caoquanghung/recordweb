@@ -7,7 +7,7 @@ RecordWeb is a full-stack **Next.js 16 App Router**, **React 19**, and **TypeScr
 - **Browser client**: The root `MediaSessionProvider` owns screen/camera/microphone streams across route navigation, while `StudioShell` coordinates recording UI and the remaining media hooks. Screen/camera capture, source normalization, MediaPipe segmentation, Web Audio DSP, 30 FPS canvas composition, coordinated multi-asset MediaRecorder encoding, EBML repair, and IndexedDB recovery run on the user's device.
 - **Request boundary**: `src/proxy.ts` uses Clerk to protect private pages and API routes before they execute. Public exceptions include sign-in/up, Clerk webhooks, the share page, and the Vercel Blob callback route.
 - **Server application**: Next.js Route Handlers in `src/app/api/**/route.ts` implement health checks, preset CRUD, recording metadata CRUD, share grants, upload-token authorization, and Clerk user synchronization. The dynamic share page is a request-time Server Component with its own server-side access query.
-- **Managed persistence**: Neon stores users, recording metadata, presets, and share grants. Vercel Blob stores video objects. IndexedDB stores local recording drafts and finalized local recordings.
+- **Managed persistence**: Neon stores users, recording metadata, resumable recording projects and ordered finalized-segment associations, presets, and share grants. Vercel Blob stores video objects. IndexedDB stores local recording drafts and finalized local recordings.
 - **Security boundary**: `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, and Clerk server secrets are consumed only by server code. Client Components call same-origin APIs and never query Neon directly.
 
 ```mermaid
@@ -186,6 +186,24 @@ stateDiagram-v2
     5. The composite URL remains on `recordings`; source URLs are stored as child rows in `recording_assets`.
 * **Current upload guard**: `/api/upload` accepts MP4/WebM video/audio and `application/json` cursor assets up to 300 MB and uses an in-memory limit of 40 token requests per user per hour. The limiter is instance-local and must be replaced by durable storage before multi-instance production scale.
 * **Future Upgrade Path**: If Vercel Blob bandwidth costs grow, swap for **Cloudflare R2** via S3 presigned URLs (zero egress fees).
+
+### 2.7.1 Resumable Recording Projects and Lossless Merge
+
+* A lecture project is a Neon `recording_projects` row containing an ordered list
+  of associations in `recording_project_segments`.
+* Each segment points to an existing, owned, finalized `recordings` row. Projects
+  never keep a browser `MediaRecorder` alive across reloads and never duplicate
+  the underlying Blob objects.
+* Project mutations use an optimistic integer `revision`; stale tabs receive a
+  conflict instead of silently overwriting segment order.
+* `src/lib/recordingProjects.ts` builds a continuous logical timeline without
+  rewriting media. `src/lib/segmentMerger.ts` optionally creates one derivative
+  MP4/WebM by copying encoded packets and shifting timestamps.
+* Fast merge requires strict container, video/audio codec configuration,
+  dimensions, frame rate, sample-rate, channel-count, and key-frame compatibility.
+  It does not decode, encode, or silently fall back to transcoding.
+* The original segment recordings remain immutable and recoverable even when a
+  merged derivative fails.
 
 ### 2.8 Cloud Database Subsystem (Neon Serverless Postgres)
 * **Role**: Relational database for recording metadata catalogs, studio presets, and share links.
@@ -431,6 +449,8 @@ Media bodies never pass through `/api/recordings`; only metadata does. This is t
 | `/api/health` | `GET` | Studio diagnostics | Authenticated; checks Clerk, Neon connectivity, and Blob configuration |
 | `/api/presets` | `GET`, `POST`, `DELETE` | Studio preset controls | Authenticated; all reads/writes are scoped to the current `user_id` |
 | `/api/recordings` | `GET`, `POST`, `PATCH`, `DELETE` | Studio/cloud-library clients | Authenticated; metadata CRUD, public-link toggle, and owned Blob deletion |
+| `/api/recording-projects` | `GET`, `POST`, `PATCH`, `DELETE` | Future project orchestration UI | Authenticated; owned project lifecycle with optimistic revision control |
+| `/api/recording-projects/segments` | `POST`, `PATCH`, `DELETE` | Future project orchestration UI | Authenticated; attach, atomically reorder, or detach finalized owned recordings |
 | `/api/shares` | `GET`, `POST`, `DELETE` | Library sharing controls | Authenticated; owner-only email lookup and direct-recipient grants with `viewer` or `viewer_download` permission |
 | `/api/upload` | `POST` | `@vercel/blob/client` | Public at Proxy level for Blob callbacks; token generation verifies Clerk and applies limits internally |
 | `/api/webhooks/clerk` | `POST` | Clerk | Public at Proxy level; request signature is verified before synchronizing Neon users |

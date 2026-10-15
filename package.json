@@ -24,6 +24,7 @@
     "@vercel/blob": "^2.8.1",
     "fix-webm-duration": "^1.0.6",
     "idb-keyval": "^6.3.0",
+    "mediabunny": "^1.61.2",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"

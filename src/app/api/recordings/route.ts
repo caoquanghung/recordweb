@@ -273,7 +273,18 @@ export async function DELETE(request: NextRequest) {
     ].filter((pathname): pathname is string => Boolean(pathname));
     const uniquePathnames = [...new Set(pathnames)];
     if (uniquePathnames.length > 0) await del(uniquePathnames);
-    await sql`DELETE FROM recordings WHERE id = ${id} AND user_id = ${userId};`;
+    await sql.transaction([
+      sql`
+        UPDATE recording_projects rp
+        SET revision = rp.revision + 1, updated_at = NOW()
+        WHERE rp.user_id = ${userId}
+          AND EXISTS (
+            SELECT 1 FROM recording_project_segments rps
+            WHERE rps.project_id = rp.id AND rps.recording_id = ${id}
+          );
+      `,
+      sql`DELETE FROM recordings WHERE id = ${id} AND user_id = ${userId};`,
+    ]);
     return NextResponse.json({ deletedBlobPathnames: uniquePathnames });
   } catch (error) {
     return NextResponse.json(

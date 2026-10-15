@@ -203,3 +203,17 @@ Upon recording completion, the engine:
 * Repair every finalized WebM asset independently before preview, download, recovery, or upload.
 * Decode and persist 120 normalized waveform peaks independently for every available audio asset.
 * A missing optional source or a source-recorder failure produces a partial session warning without discarding a valid composite or other successful assets.
+
+### 5.4 Cross-Session Projects and Fast Merge
+
+* A browser reload or machine shutdown ends the current `MediaRecorder`; continuing
+  a lecture later always starts a new coordinated recording session.
+* Every session is independently stopped, repaired, finalized, cached, and uploaded
+  before it can become a project segment.
+* The 30-minute active-time watchdog applies to each segment, not to the sum of all
+  segments in a project.
+* Continuous playback uses the ordered segment manifest and a derived global
+  timeline; it does not require physical concatenation.
+* Optional physical merge uses `src/lib/segmentMerger.ts` to demux and remux encoded
+  packets with shifted timestamps. No decode/encode path exists. A profile mismatch
+  or a segment without an initial video key frame must fail explicitly.

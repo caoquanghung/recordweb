@@ -61,3 +61,9 @@ Migration `0001_user_owned_recordings.sql` upgrades the original RecordWeb table
 
 Migration `0004_cursor_asset.sql` extends the `recording_assets.kind` constraint
 so cursor trajectory JSON can be indexed alongside the recording's media assets.
+
+Migration `0005_recording_projects.sql` adds resumable lecture projects and their
+ordered associations to existing finalized recordings. Project deletion removes
+only the associations; it does not delete the referenced recordings or Blob assets.
+Its ordering constraint is deferrable so the API can atomically reorder every
+segment inside one transaction.
