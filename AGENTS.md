@@ -48,7 +48,7 @@ recordweb/
 ├── docs/                             # Technical specifications & architecture
 │   ├── requirements.md               # User requirements
 │   ├── requirements_analysis.md      # Detailed requirement breakdown
-│   ├── system_architecture.md        # AUTHORITATIVE architectural subsystems & data flow
+│   ├── system_architecture.md        # Legacy architecture snapshot; not a source of truth
 │   ├── audio_video_pipeline.md       # AUTHORITATIVE 30fps canvas, audio DSP & segmentation specs
 │   ├── ui_ux_specification.md        # Studio interface layout & design tokens
 │   ├── implementation_roadmap.md     # Development phases & verification plan
@@ -119,9 +119,9 @@ Before completing any implementation step:
 
 For any Neon, SQL, migration, database type, authentication ownership, recording metadata, preset, or sharing task, first read [.agents/rules/database_management.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/.agents/rules/database_management.md). Use `database/migrations/` as the schema source of truth and use `npm run db:status`, `npm run db:migrate`, and `npm run db:verify` instead of editing Neon manually.
 
-### Architecture & memory compliance
+### Repository & memory compliance
 
-Before changing any subsystem, read [docs/system_architecture.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/docs/system_architecture.md). It is the **authoritative** source for subsystem boundaries, data flow, and risk mitigations (R1–R5); all implementation MUST conform to it. Media pipeline details are the authority in [docs/audio_video_pipeline.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/docs/audio_video_pipeline.md).
+`docs/system_architecture.md` is a stale legacy snapshot. Do **not** use it as a source of truth or require implementation to conform to it. Determine current subsystem boundaries and data flow from the implemented code, types, tests, route contracts, and the relevant maintained domain document. For media-pipeline work, [docs/audio_video_pipeline.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/docs/audio_video_pipeline.md) remains authoritative. For UI-only work, use [docs/ui_rebuild_impact_analysis.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/docs/ui_rebuild_impact_analysis.md) as the maintained boundary and risk inventory, then verify every referenced path against the current repository.
 
 Agents MUST also follow [MEMORY.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/MEMORY.md) as the persistent state bank: read it on startup and update it on milestones, decisions, and bugs, per [.agents/rules/memory_management.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/.agents/rules/memory_management.md).
 

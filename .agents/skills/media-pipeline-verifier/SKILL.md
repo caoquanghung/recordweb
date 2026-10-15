@@ -18,11 +18,12 @@ code inspection from behavior actually exercised in a browser.
 
 Before assessing a media change, read the relevant sections of:
 
-- `docs/system_architecture.md`
 - `docs/audio_video_pipeline.md`
 - `MEMORY.md`
 
-Trace the current implementation rather than relying on this checklist alone. The
+`docs/system_architecture.md` is a stale legacy snapshot and must not be used as a
+source of truth. Trace the current implementation rather than relying on this
+checklist alone. The
 primary files are:
 
 - `src/hooks/useMediaDevices.ts`

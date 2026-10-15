@@ -25,6 +25,7 @@
 - Close unused WebGL textures or canvas 2D contexts when switching background modes.
 
 ## 4. Architecture & Memory Conformance
-- Treat [docs/system_architecture.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/docs/system_architecture.md) as the **authoritative** source for subsystem boundaries, data flow, and risk mitigations (R1–R5). All implementation MUST conform to it.
+- Do not use `docs/system_architecture.md` as a source of truth; it is a stale legacy snapshot. Verify subsystem boundaries and current behavior from the implemented code, types, tests, and maintained domain documents.
 - Treat [docs/audio_video_pipeline.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/docs/audio_video_pipeline.md) as the authority for the 30 FPS canvas compositor, Web Audio DSP graph, segmentation, and WebM repair.
+- For UI-only changes, use [docs/ui_rebuild_impact_analysis.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/docs/ui_rebuild_impact_analysis.md) as the maintained boundary and risk inventory, and verify its file references against the repository.
 - Follow [MEMORY.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/MEMORY.md) as the persistent state bank: read it on startup and update it on milestones, decisions, and bugs, per [memory_management.md](file:///Users/caoquanghung/HCMUS/HCI/code/webDev/recordweb/.agents/rules/memory_management.md).

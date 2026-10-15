@@ -47,7 +47,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
    * Local: Immediate direct download as `.webm` (with EBML duration fix in `src/lib/ebmlPatcher.ts`) + automatic IndexedDB session backup (`src/lib/idb.ts`).
    * Cloud: 1-click upload to Vercel Blob with shareable link + metadata in Neon Postgres via `src/app/api/recordings/route.ts`.
 6. **UI Standard**: Strictly Vanilla CSS (CSS Modules & custom properties) with adaptive light/dark studio glassmorphism (tokens in `docs/ui_ux_specification.md`). Theme defaults to the OS preference and persists in `localStorage` as `recordweb-theme`. No Tailwind or heavy CSS frameworks.
-7. **Documentation Source of Truth**: `docs/system_architecture.md` is authoritative for subsystem boundaries, data flow, and risks (R1–R5); `docs/audio_video_pipeline.md` is authoritative for the media pipeline. `MEMORY.md` is the persistent state bank. `AGENTS.md` requires agents to conform to these; no duplicate media pipeline rule file exists.
+7. **Documentation Source of Truth**: `docs/system_architecture.md` is a stale legacy snapshot and is not authoritative. Current subsystem boundaries and behavior must be verified from code, types, tests, route contracts, and maintained domain documents. `docs/audio_video_pipeline.md` remains authoritative for the media pipeline; `docs/ui_rebuild_impact_analysis.md` is the maintained UI boundary/risk inventory. `MEMORY.md` is the persistent state bank.
 8. **Multi-Asset Output**: A session produces the composite plus available clean 720p webcam, normalized 1080p tab video, standalone mixed audio, processed microphone audio, gained tab audio, and a 24 Hz cursor JSON. The approved cursor architecture supports exactly one extension-selected Chromium tab per session; that single selection supplies tab video, tab audio, and cursor events. Existing Electron cursor code is legacy until the extension replacement is verified.
 9. **Cross-Session Lecture Projects**: A lecture is an owned `recording_projects` row with ordered associations to independently finalized `recordings`. Each later recording session creates a new immutable segment; no `MediaRecorder` is resumed after reload. Logical playback derives one global timeline, while optional physical merge copies compatible encoded packets without decode/encode. Source recordings remain intact.
 
@@ -75,8 +75,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 
 - [x] **Requirements Analysis & Architecture Specs**:
   - [x] `docs/requirements_analysis.md`
-  - [x] `docs/system_architecture.md` (**Risk mitigations R1-R5 applied**)
-  - [x] Synchronized `docs/system_architecture.md` with the implemented repository: actual client/server boundaries, `src/proxy.ts`, current file tree, Route Handler inventory, direct Blob upload flow, request-time share authorization, and open R6 public-Blob exposure
+  - [x] `docs/system_architecture.md` retained as a historical snapshot only; it is no longer an agent source of truth
   - [x] `docs/audio_video_pipeline.md`
   - [x] `docs/ui_ux_specification.md`
   - [x] `docs/implementation_roadmap.md`
@@ -90,6 +89,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] `.agents/rules/memory_management.md`
   - [x] `.agents/skills/media-pipeline-verifier/SKILL.md`
   - [x] `.agents/skills/canvas-compositor-check/SKILL.md`
+  - [x] Added `figma-to-page` with a strict two-input contract: a node-specific Figma URL and an explicit target route/page; agents must never infer the implementation destination
   - [x] Consolidated the media/audio/video invariants into the authoritative `docs/audio_video_pipeline.md`; removed the duplicate `.agents/rules/media_audio_video.md`
 - [x] **Phase 1 (Scaffolding): Next.js 16 + React 19 + TypeScript Setup**:
   - [x] Initialized Next.js App Router with TypeScript and Turbopack
@@ -159,6 +159,8 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added an interactive cursor trajectory timeline player for local and cloud Library assets with play/pause, seek, playback speed, interpolated motion, and recent-trail visualization; JSON remains the only persisted cursor asset
   - [x] Added `docs/ui_rebuild_impact_analysis.md` with the current UI file inventory, behavioral coupling map, redesign risk levels, protected boundaries, staged rebuild plan, and regression checklist
   - [x] Refactored the 1,318-line `StudioShell` into a 40-line composition root, a behavior-preserving `useStudioController`, shared Studio configuration/helpers, and focused Header/Sources/Stage/Effects/Review/Diagnostics view modules; lint, production build, and the Chromium auth smoke test pass
+  - [x] Standardized the two-phase Figma workflow with `analyze-ui-design` for versioned evidence/spec handoff and `react-ui-implementer` for readiness-gated Vanilla CSS implementation with protected-hook integrity checks
+  - [x] Added a Figma-reconstructed 288 px `AppSidebar` with explicit `fixed` and responsive `adaptive` behaviors, dynamic route state, Clerk-backed user controls, and the `/component/sidebar` showcase; existing routes and media hooks remain unchanged
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
   - [x] Applied and verified migration `0002_recording_assets`; multi-asset uploads create separate Blob objects and child metadata rows
