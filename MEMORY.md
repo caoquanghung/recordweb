@@ -19,6 +19,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   * **Video Object Storage**: Vercel Blob (`@vercel/blob/client`) for direct client-to-edge uploads.
   * **Hosting**: Vercel (Next.js Edge CDN + Serverless Route Handlers in `src/app/api/*`).
   * **Cursor Capture Target**: The `extension/` Chromium Manifest V3 package selects one tab once and supplies its video, audio, and 24 Hz cursor samples. Static/build checks pass; unpacked-extension runtime verification is pending. The existing Electron helper is deprecated legacy fallback code.
+  * **Extension App Origin**: `extension/manifest.json` is the single source of truth for the canonical production URL through `homepage_url`; the service worker and bridge derive it at runtime. The obsolete options page and `storage` permission were removed. Local development remains allowed on port 3000.
 
 ---
 

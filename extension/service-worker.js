@@ -1,6 +1,11 @@
-const DEFAULT_APP_URL = 'http://localhost:3000/';
 const APP_PORT_NAME = 'recordweb-app';
 const TRACKER_PORT_NAME = 'recordweb-tracker';
+const APP_URL = chrome.runtime.getManifest().homepage_url;
+const APP_ORIGINS = new Set([
+  new URL(APP_URL).origin,
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+]);
 
 const appPorts = new Map();
 const trackerPorts = new Map();
@@ -23,18 +28,8 @@ function setBadge(tabId, text, color) {
   void chrome.action.setBadgeText({ tabId, text });
 }
 
-async function configuredAppUrl() {
-  const result = await chrome.storage.sync.get({ recordWebAppUrl: DEFAULT_APP_URL });
-  try {
-    return new URL(result.recordWebAppUrl).toString();
-  } catch {
-    return DEFAULT_APP_URL;
-  }
-}
-
-async function openRecordWeb() {
-  const appUrl = await configuredAppUrl();
-  return chrome.tabs.create({ url: appUrl });
+function openRecordWeb() {
+  return chrome.tabs.create({ url: APP_URL });
 }
 
 async function offerCapture(target, appTabId, appPort) {
@@ -86,8 +81,7 @@ async function prepareTarget(tab) {
     setBadge(tab.id, '!', '#dc5964');
     return;
   }
-  const appUrl = await configuredAppUrl();
-  if (new URL(tab.url).origin === new URL(appUrl).origin) {
+  if (APP_ORIGINS.has(new URL(tab.url).origin)) {
     setBadge(tab.id, '!', '#dc5964');
     sendAppMessage({
       type: 'EXTENSION_ERROR',
