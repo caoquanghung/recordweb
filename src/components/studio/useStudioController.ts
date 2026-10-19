@@ -1,6 +1,6 @@
 'use client';
 
-import { upload } from '@vercel/blob/client';
+import { upload, uploadPresigned } from '@vercel/blob/client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMediaSession } from '@/components/media/MediaSessionProvider';
 import { useAudioDSP } from '@/hooks/useAudioDSP';
@@ -562,6 +562,15 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     setUploadProgress(0);
     setUploadMessage('Uploading composite and source assets directly to Vercel Blob…');
     try {
+      const uploadConfigResponse = await fetch('/api/upload', { cache: 'no-store' });
+      const uploadConfig = await uploadConfigResponse.json() as { uploadMethod?: string; error?: string };
+      if (!uploadConfigResponse.ok) {
+        throw new Error(uploadConfig.error ?? 'Could not determine the Blob upload method.');
+      }
+      if (uploadConfig.uploadMethod !== 'client-token' && uploadConfig.uploadMethod !== 'presigned') {
+        throw new Error('The Blob upload method is invalid.');
+      }
+      const uploadToBlob = uploadConfig.uploadMethod === 'presigned' ? uploadPresigned : upload;
       const localAssets = [
         composite,
         activeRecording.assets?.webcam,
@@ -579,7 +588,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       const uploadedAssets = await Promise.all(localAssets.map(async (asset) => {
         const contentType = getBlobContentType(asset.mimeType);
         const extension = extensionForMimeType(asset.mimeType);
-        const uploaded = await upload(`recordings/${activeRecording.id}/${asset.kind}.${extension}`, asset.blob, {
+        const uploaded = await uploadToBlob(`recordings/${activeRecording.id}/${asset.kind}.${extension}`, asset.blob, {
           access: 'public',
           handleUploadUrl: '/api/upload',
           contentType,

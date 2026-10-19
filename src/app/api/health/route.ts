@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionUserId, unauthorizedResponse } from '@/lib/auth';
+import { isBlobStorageConfigured } from '@/lib/blobCredentials';
 import { getDb, isDbConfigured } from '@/lib/db';
 
 export async function GET() {
@@ -22,7 +23,7 @@ export async function GET() {
     {
       auth: 'authenticated',
       database,
-      blob: process.env.BLOB_READ_WRITE_TOKEN ? 'configured' : 'not-configured',
+      blob: isBlobStorageConfigured() ? 'configured' : 'not-configured',
       checkedAt: new Date().toISOString(),
     },
     { status: database === 'error' ? 503 : 200 }

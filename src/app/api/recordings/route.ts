@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, isDbConfigured } from '@/lib/db';
 import { getSessionUserId, unauthorizedResponse } from '@/lib/auth';
+import { getBlobCommandCredentials } from '@/lib/blobCredentials';
 import { DbRecording, DbRecordingAsset, DbSharedRecording } from '@/types/database';
 import { del } from '@vercel/blob';
 
@@ -272,7 +273,9 @@ export async function DELETE(request: NextRequest) {
       ...assetRows.map((asset) => asset.blob_pathname as string | null),
     ].filter((pathname): pathname is string => Boolean(pathname));
     const uniquePathnames = [...new Set(pathnames)];
-    if (uniquePathnames.length > 0) await del(uniquePathnames);
+    if (uniquePathnames.length > 0) {
+      await del(uniquePathnames, getBlobCommandCredentials());
+    }
     await sql.transaction([
       sql`
         UPDATE recording_projects rp

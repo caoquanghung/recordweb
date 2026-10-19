@@ -38,10 +38,10 @@ This file serves as the persistent memory bank for AI agents working on **Record
    * System audio (from `getDisplayMedia`) is mixed into master destination without passing through vocal mic filters.
    * `AnalyserNode` connected for real-time VU meter (`VuMeter.tsx`).
    * Encapsulated in `src/hooks/useAudioDSP.ts`.
-4. **Direct Client Upload to Vercel Blob**:
+4. **Environment-Aware Direct Client Upload to Vercel Blob**:
    * Standard Vercel Serverless Functions have a 4.5MB request body size limit.
    * Video recordings are far larger than the 4.5MB serverless body limit, especially at the 30-minute maximum.
-   * Videos **MUST** be uploaded using `@vercel/blob/client` (`upload()`) directly from the browser to edge storage after fetching a client token from `src/app/api/upload/route.ts`.
+   * Videos **MUST** be uploaded directly from the browser to edge storage through `src/app/api/upload/route.ts`. Production uses `upload()` / `handleUpload()` with `BLOB_READ_WRITE_TOKEN`; Preview and Development use `uploadPresigned()` / `handleUploadPresigned()` with Vercel OIDC, `BLOB_STORE_ID`, and `BLOB_WEBHOOK_PUBLIC_KEY`.
    * Resulting CDN URL is stored in Neon Postgres `recordings.storage_url`.
 5. **Resilient Dual Storage**:
    * Local: Immediate direct download as `.webm` (with EBML duration fix in `src/lib/ebmlPatcher.ts`) + automatic IndexedDB session backup (`src/lib/idb.ts`).
@@ -60,7 +60,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 * **Node.js**: `v26.7.0` | **npm**: `11.19.0`
 * **Local Secrets File**: `.env.local` (ignored by Git)
   * `DATABASE_URL`: Neon pooled Postgres connection string (`postgresql://...pooler...neon.tech/neondb?sslmode=require`).
-  * `BLOB_READ_WRITE_TOKEN`: Vercel Blob store token (`vercel_blob_rw_...`).
+  * Local Blob Development uses `BLOB_STORE_ID`, `VERCEL_OIDC_TOKEN`, and `BLOB_WEBHOOK_PUBLIC_KEY`; Production alone uses `BLOB_READ_WRITE_TOKEN`.
 * **Database Schema**:
   * `users` table (id, email, display_name, created_at).
   * `recordings` table (id, **user_id FK**, title, duration_seconds, file_size_bytes, resolution, fps, mime_type, local_id, storage_url, blob_pathname, **is_public**, settings, created_at).
@@ -162,11 +162,13 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Replaced scattered composite/source downloads with one client-generated ZIP across Review, local/cloud Library, and download-authorized share pages
   - [x] Removed standalone cursor JSON import from Library; cursor visualization now opens only from recording-owned local or cloud assets
   - [x] Added `docs/ui_rebuild_impact_analysis.md` with the current UI file inventory, behavioral coupling map, redesign risk levels, protected boundaries, staged rebuild plan, and regression checklist
+  - [x] Added `docs/current_ux_flow.md` with the current authenticated, Studio, Presentation, review, recovery, Library, sharing, and Settings user journeys traced from implemented routes and UI state transitions
   - [x] Refactored the 1,318-line `StudioShell` into a 40-line composition root, a behavior-preserving `useStudioController`, shared Studio configuration/helpers, and focused Header/Sources/Stage/Effects/Review/Diagnostics view modules; lint, production build, and the Chromium auth smoke test pass
   - [x] Standardized the two-phase Figma workflow with `analyze-ui-design` for versioned evidence/spec handoff and `react-ui-implementer` for readiness-gated Vanilla CSS implementation with protected-hook integrity checks
   - [x] Added a Figma-reconstructed 288 px `AppSidebar` with explicit `fixed` and responsive `adaptive` behaviors, dynamic route state, Clerk-backed user controls, and the `/component/sidebar` showcase; existing routes and media hooks remain unchanged
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
+  - [x] Split Blob authentication by environment: Production uses the read-write-token client flow; Preview/Development use OIDC-backed presigned uploads, with matching health checks and delete credentials
   - [x] Applied and verified migration `0002_recording_assets`; multi-asset uploads create separate Blob objects and child metadata rows
   - [x] Applied and verified migration `0003_source_audio_assets`; Neon accepts `microphone-audio` and `system-audio` child assets
   - [x] Applied and verified migration `0004_cursor_asset`; cloud save uploads cursor JSON directly to Blob and stores its child metadata row
@@ -215,6 +217,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Clerk Dev Proxy Origin** | Playwright requests through `127.0.0.1` can trigger Clerk development-proxy socket resets | Use `http://localhost:3000` consistently for the Playwright base URL and local web server. |
 | **Blob Store Access Mismatch** | If the client `access` option differs from the connected Blob store mode, uploads can remain at 0% and no metadata request is sent | Keep the current MVP store and client set to `public`. Private storage would also require an authenticated delivery route or short-lived signed URLs. |
 | **Blob MIME Allowlist Mismatch** | `MediaRecorder` reports codec-qualified MIME values such as `video/mp4;codecs=avc1,mp4a.40.2`, while the upload token permits base types | Normalize only the Blob upload `contentType` to `video/mp4` or `video/webm`; retain the codec-qualified MIME value in recording metadata. |
+| **Blob Credentials Differ by Environment** | `handleUpload()` only understands a read-write token and cannot use an OIDC-only Preview/Development store; using it there fails before the browser receives upload authorization | Keep Production on `BLOB_READ_WRITE_TOKEN`. Use presigned client uploads with `VERCEL_OIDC_TOKEN`, `BLOB_STORE_ID`, and `BLOB_WEBHOOK_PUBLIC_KEY` outside Production; never expose these server credentials to the browser. |
 | **Concurrent Encoder Load** | Composite, webcam, and screen encoding can saturate low-power devices and cause dropped frames | Keep one video track per recorder, use fixed-rate normalization canvases, expose partial results, and validate real 30-minute sessions on target hardware. |
 | **Background-Tab RAF Suspension** | Switching to another browser tab pauses `requestAnimationFrame`, freezing canvas-derived composite, screen, and webcam frames while audio continues | Use `src/lib/frameScheduler.ts`: RAF in visible tabs and a worker timer while `document.hidden`; retain delta clamping and test target browsers. Full browser/OS process suspension remains outside webpage control. |
 | **Native Picker/Extension Identity Gap** | A webpage cannot obtain the tab ID selected in `getDisplayMedia()`, so a second cursor selection can silently target the wrong tab | In extension mode, let one Manifest V3 action select the tab, inject the cursor tracker, and provide the same tab's `tabCapture` video/audio stream ID. Do not open a second picker. |
