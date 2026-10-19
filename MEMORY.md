@@ -41,7 +41,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 4. **Environment-Aware Direct Client Upload to Vercel Blob**:
    * Standard Vercel Serverless Functions have a 4.5MB request body size limit.
    * Video recordings are far larger than the 4.5MB serverless body limit, especially at the 30-minute maximum.
-   * Videos **MUST** be uploaded directly from the browser to edge storage through `src/app/api/upload/route.ts`. Production uses `upload()` / `handleUpload()` with `BLOB_READ_WRITE_TOKEN`; Preview and Development use `uploadPresigned()` / `handleUploadPresigned()` with Vercel OIDC, `BLOB_STORE_ID`, and `BLOB_WEBHOOK_PUBLIC_KEY`. At Vercel Function runtime, the OIDC token comes from the `x-vercel-oidc-token` request header rather than `process.env`.
+   * Videos **MUST** be uploaded directly from the browser to edge storage through `src/app/api/upload/route.ts`. Every environment prefers `upload()` / `handleUpload()` whenever `BLOB_READ_WRITE_TOKEN` is configured; Vercel OIDC, `BLOB_STORE_ID`, and `BLOB_WEBHOOK_PUBLIC_KEY` provide the `uploadPresigned()` / `handleUploadPresigned()` fallback when the read-write token is absent. At Vercel Function runtime, the OIDC token comes from the `x-vercel-oidc-token` request header rather than `process.env`.
    * Resulting CDN URL is stored in Neon Postgres `recordings.storage_url`.
 5. **Resilient Dual Storage**:
    * Local: Immediate direct download as `.webm` (with EBML duration fix in `src/lib/ebmlPatcher.ts`) + automatic IndexedDB session backup (`src/lib/idb.ts`).
@@ -60,7 +60,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 * **Node.js**: `v26.7.0` | **npm**: `11.19.0`
 * **Local Secrets File**: `.env.local` (ignored by Git)
   * `DATABASE_URL`: Neon pooled Postgres connection string (`postgresql://...pooler...neon.tech/neondb?sslmode=require`).
-  * Local Blob Development uses `BLOB_STORE_ID`, `VERCEL_OIDC_TOKEN`, and `BLOB_WEBHOOK_PUBLIC_KEY`; Production alone uses `BLOB_READ_WRITE_TOKEN`.
+  * Blob storage prefers `BLOB_READ_WRITE_TOKEN` in Production, Preview, and local Development. `BLOB_STORE_ID`, `VERCEL_OIDC_TOKEN`, and `BLOB_WEBHOOK_PUBLIC_KEY` are optional fallback credentials when the read-write token is unavailable.
 * **Database Schema**:
   * `users` table (id, email, display_name, created_at).
   * `recordings` table (id, **user_id FK**, title, duration_seconds, file_size_bytes, resolution, fps, mime_type, local_id, storage_url, blob_pathname, **is_public**, settings, created_at).
@@ -168,7 +168,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added a Figma-reconstructed 288 px `AppSidebar` with explicit `fixed` and responsive `adaptive` behaviors, dynamic route state, Clerk-backed user controls, and the `/component/sidebar` showcase; existing routes and media hooks remain unchanged
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
-  - [x] Split Blob authentication by environment: Production uses the read-write-token client flow; Preview/Development use OIDC-backed presigned uploads, with matching health checks and delete credentials
+  - [x] Centralize Blob authentication with read-write-token priority in every environment and OIDC-backed presigned upload fallback, including matching health checks and delete credentials
   - [x] Applied and verified migration `0002_recording_assets`; multi-asset uploads create separate Blob objects and child metadata rows
   - [x] Applied and verified migration `0003_source_audio_assets`; Neon accepts `microphone-audio` and `system-audio` child assets
   - [x] Applied and verified migration `0004_cursor_asset`; cloud save uploads cursor JSON directly to Blob and stores its child metadata row
@@ -217,7 +217,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Clerk Dev Proxy Origin** | Playwright requests through `127.0.0.1` can trigger Clerk development-proxy socket resets | Use `http://localhost:3000` consistently for the Playwright base URL and local web server. |
 | **Blob Store Access Mismatch** | If the client `access` option differs from the connected Blob store mode, uploads can remain at 0% and no metadata request is sent | Keep the current MVP store and client set to `public`. Private storage would also require an authenticated delivery route or short-lived signed URLs. |
 | **Blob MIME Allowlist Mismatch** | `MediaRecorder` reports codec-qualified MIME values such as `video/mp4;codecs=avc1,mp4a.40.2`, while the upload token permits base types | Normalize only the Blob upload `contentType` to `video/mp4` or `video/webm`; retain the codec-qualified MIME value in recording metadata. |
-| **Blob Credentials Differ by Environment** | `handleUpload()` only understands a read-write token and cannot use an OIDC-only Preview/Development store; additionally, Vercel Functions deliver the runtime OIDC token through `x-vercel-oidc-token`, so reading only `process.env.VERCEL_OIDC_TOKEN` fails on deployed Preview functions | Keep Production on `BLOB_READ_WRITE_TOKEN`. Use presigned uploads with `BLOB_STORE_ID` and `BLOB_WEBHOOK_PUBLIC_KEY` outside Production, and resolve OIDC from the request header with an environment fallback for build/local; never expose credentials to the browser. |
+| **Blob Credential Priority** | `handleUpload()` only understands a read-write token, while OIDC-only stores require the presigned upload path; additionally, Vercel Functions deliver the runtime OIDC token through `x-vercel-oidc-token`, so reading only `process.env.VERCEL_OIDC_TOKEN` fails on deployed functions | Prefer `BLOB_READ_WRITE_TOKEN` in every environment. Only fall back to presigned uploads with `BLOB_STORE_ID` and `BLOB_WEBHOOK_PUBLIC_KEY` when it is absent, and resolve OIDC from the request header with an environment fallback for build/local; never expose credentials to the browser. |
 | **Concurrent Encoder Load** | Composite, webcam, and screen encoding can saturate low-power devices and cause dropped frames | Keep one video track per recorder, use fixed-rate normalization canvases, expose partial results, and validate real 30-minute sessions on target hardware. |
 | **Background-Tab RAF Suspension** | Switching to another browser tab pauses `requestAnimationFrame`, freezing canvas-derived composite, screen, and webcam frames while audio continues | Use `src/lib/frameScheduler.ts`: RAF in visible tabs and a worker timer while `document.hidden`; retain delta clamping and test target browsers. Full browser/OS process suspension remains outside webpage control. |
 | **Native Picker/Extension Identity Gap** | A webpage cannot obtain the tab ID selected in `getDisplayMedia()`, so a second cursor selection can silently target the wrong tab | In extension mode, let one Manifest V3 action select the tab, inject the cursor tracker, and provide the same tab's `tabCapture` video/audio stream ID. Do not open a second picker. |

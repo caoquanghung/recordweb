@@ -9,7 +9,7 @@ function requireEnvironmentVariable(name: string): string {
 }
 
 export function getBlobClientUploadMethod(): BlobClientUploadMethod {
-  return process.env.VERCEL_ENV === 'production' ? 'client-token' : 'presigned';
+  return process.env.BLOB_READ_WRITE_TOKEN ? 'client-token' : 'presigned';
 }
 
 function getOidcToken(request?: Request): string | undefined {
