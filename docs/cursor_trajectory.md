@@ -98,3 +98,20 @@ The existing Electron display cursor helper is a legacy implementation and remai
 6. update deployment instructions for loading an unpacked extension and publishing it later.
 
 Review and Library render the JSON as an interactive timeline player. The player interpolates the visible cursor between adjacent 24 Hz samples, shows a short recent trail over a faint full-session path, and provides play, pause, seek, and playback-speed controls. This visualization is derived in the browser and does not create or upload a second encoded video asset. The stored raw samples remain unchanged.
+
+## 7. RecordWeb Presentation Cursor
+
+An internal RecordWeb presentation is the exception to the extension-only target
+flow above. The pointer already occurs inside the trusted presentation DOM, so
+`usePresentationCursor` samples it directly at 24 Hz without a second tab identity
+or extension injection step.
+
+- Coordinates are normalized to the presentation root and use
+  `relativeTo: "captured-presentation-content"`.
+- Active recording time excludes pauses using the same start/pause/resume/stop
+  controller contract as extension capture.
+- The cursor JSON uses `tracking.mode: "recordweb-presentation"`.
+- The UI must hide the native cursor and draw the hook's custom cursor state inside
+  the captured presentation root before claiming `cursorBakedIntoScreenVideo`.
+- Self-tab video, presentation audio, webcam DOM overlay, and cursor samples all
+  belong to one recording session and share its session ID.

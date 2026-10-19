@@ -47,6 +47,51 @@ The worker clock prevents the common short/medium background-tab freeze. Browser
 * Normalization runs only while a recording is being prepared or active to avoid permanent extra rendering work.
 * Both normalization canvases use the visibility-aware frame scheduler so their encoded source files continue receiving frames when the RecordWeb tab is hidden.
 
+### 1.4 Presentation Self-Tab Capture (Non-Compositor Path)
+
+The presentation path is intentionally separate from `CanvasCompositor`. PDF and
+PPTX files are parsed locally, and the future presentation workspace renders the
+slide, raw webcam element, and custom cursor in one DOM subtree. The browser then
+self-captures the current RecordWeb tab through `getDisplayMedia()`:
+
+```text
+PDF/PPTX renderer -> presentation DOM (slide + raw webcam + cursor)
+                 -> current-tab video track
+Microphone + captured presentation audio -> Web Audio mixed destination
+current-tab video + mixed audio -> useRecordingSession composite recorder
+```
+
+* `preferCurrentTab` and `selfBrowserSurface: "include"` make the current tab the
+  intended picker target, but the browser still requires a user gesture and an
+  explicit permission choice.
+* The selected surface is rejected when the browser reports a non-tab
+  `displaySurface`. Capture Handle verifies the RecordWeb tab when the API is
+  available.
+* Chromium Element Capture restricts the stream to the presentation root when
+  supported. Otherwise the UI must enter a clean presenter mode because the full
+  tab is recorded.
+* The captured tab supplies exactly one video track. Webcam remains a DOM overlay
+  in that captured track and may also retain the existing optional clean-webcam
+  asset. Presentation mode does not run MediaPipe blur/cutout.
+* Tab audio is routed into the existing Web Audio system branch with local playback
+  suppression disabled. Microphone processing and source-audio outputs keep their
+  existing contracts.
+* `usePresentationTabCapture` owns and stops the self-capture tracks. Recording
+  completion or error releases the self-capture source after recorder finalization.
+* Presentation files are limited to 50 MB and 300 pages/slides. They remain local;
+  this core phase adds no Blob upload, database row, or sharing contract.
+* `/presentation` reuses the existing Studio chrome, review flow, diagnostics, audio
+  controls, and recording controls without modifying `/`. Its source panel never
+  requests screen sharing; the recording gesture starts current-tab capture only
+  after a deck is ready.
+* The capturable DOM root contains only the slide canvas, raw webcam element,
+  countdown, and custom cursor. When Element Capture is unavailable, that root is
+  promoted to a fixed full-viewport clean presenter surface so full-tab capture
+  does not include navigation, side panels, or recording controls.
+* Presentation workspace initialization passes `null` to MediaPipe and the canvas
+  compositor even before capture starts. A screen stream retained by the global
+  media provider is never used as presentation video or tab audio.
+
 ---
 
 ## 2. Background Segmentation & Virtual Studio Engine

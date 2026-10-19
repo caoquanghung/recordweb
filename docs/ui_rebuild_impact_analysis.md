@@ -69,7 +69,11 @@ Lưu ý: Studio dùng `AppNavigation` nhưng có shell/layout riêng; Dashboard,
 | File | Trách nhiệm UI | Logic đang gắn trực tiếp |
 | --- | --- | --- |
 | `src/app/page.tsx` | Route `/`, chỉ render `StudioShell` | Gần như không có logic |
+| `src/app/presentation/page.tsx` | Route `/presentation`, render `PresentationShell` độc lập | Dùng controller ở chế độ presentation; không thay UI route `/` |
 | `src/components/studio/StudioShell.tsx` | Composition root của Studio; lắp navigation, header, toolbar, notice, workspace/review và diagnostics | Không còn chứa processing; gọi `useStudioController()` một lần và phân phối controller cho các view |
+| `src/components/studio/PresentationShell.tsx` | Bản sao composition của Studio dành cho slide | Reuse chrome/review/diagnostics/effects; lắp source panel và stage riêng |
+| `src/components/studio/PresentationStage.tsx` | Slide canvas, raw webcam, custom cursor, slide navigation và recording dock | Giữ `presentationElement` ref làm Element Capture root; full-tab fallback chuyển root thành clean viewport |
+| `src/components/studio/PresentationSourcesPanel.tsx` | Trạng thái deck, camera/microphone và output | Không expose screen-share/extension source trong presentation route |
 | `src/components/studio/useStudioController.ts` | Sở hữu state/effect/action và điều phối toàn bộ media + persistence + cloud flow | **Rất cao**: giữ thứ tự hook, async semantics, cleanup và state transition |
 | `src/components/studio/studioConfig.ts` | Type, option list, MIME/extension, asset và duration helper dùng chung | Trung bình: một số helper tham gia upload/download contract |
 | `src/components/studio/StudioChrome.tsx` | Header, theme/diagnostics actions, panel toolbar và session notice | Presentation + phát event qua controller |
@@ -184,6 +188,11 @@ Lưu ý: Studio dùng `AppNavigation` nhưng có shell/layout riêng; Dashboard,
 - `src/hooks/useNormalizedVideoStream.ts`
 - `src/hooks/useCursorTrajectory.ts`
 - `src/hooks/useTabCaptureExtension.ts`
+- `src/hooks/usePresentationDeck.ts`
+- `src/hooks/usePresentationTabCapture.ts`
+- `src/hooks/usePresentationCursor.ts`
+- `src/hooks/usePresentationRecordingSource.ts`
+- `src/lib/presentation/*`
 - `src/lib/idb.ts`, `src/lib/ebmlPatcher.ts`, `src/lib/db.ts`
 - `src/app/api/*`, database migrations và upload/storage contract
 - Toàn bộ `extension/`
@@ -198,6 +207,7 @@ Nếu thiết kế mới thực sự đòi thay đổi một trong các phần t
 | Theme | `html[data-theme]` và key `recordweb-theme`; bootstrap trước hydrate để tránh flash sai theme |
 | Navigation | Route `/`, `/dashboard`, `/library`, `/settings`; active state và `UserButton` |
 | Studio stage | Canvas/ref, tỷ lệ 16:9, pointer/keyboard PiP interaction, preview tiếp tục chạy đúng trạng thái |
+| Presentation stage | Presentation root/ref phải chứa slide, raw webcam và custom cursor; self-tab capture chỉ bắt đầu từ user gesture và UI không tự dừng/chiếm ownership của capture tracks |
 | Recording controls | Start/countdown/pause/resume/stop, trạng thái disabled, cảnh báo 15/29/30 phút và `aria-live` |
 | Shortcuts | Space/Alt+P pause-resume, Alt+S stop, Alt+M mute, Alt+C camera; bỏ qua khi focus vào input/editable |
 | Dashboard → Studio | `recordweb-quick-start`, `recordweb-pending-preset` và navigation về `/` |

@@ -7,6 +7,8 @@ import { useAudioDSP } from '@/hooks/useAudioDSP';
 import { useCanvasCompositor } from '@/hooks/useCanvasCompositor';
 import { useCursorTrajectory } from '@/hooks/useCursorTrajectory';
 import { useNormalizedVideoStream } from '@/hooks/useNormalizedVideoStream';
+import { usePresentationDeck } from '@/hooks/usePresentationDeck';
+import { usePresentationRecordingSource } from '@/hooks/usePresentationRecordingSource';
 import { useRecordingSession } from '@/hooks/useRecordingSession';
 import { useVisionSegmentation } from '@/hooks/useVisionSegmentation';
 import { decodeRecordedWaveform } from '@/lib/audioWaveform';
@@ -44,7 +46,14 @@ import {
   type UploadState,
 } from './studioConfig';
 
-export function useStudioController() {
+export type StudioWorkspaceKind = 'studio' | 'presentation';
+
+interface UseStudioControllerOptions {
+  workspace?: StudioWorkspaceKind;
+}
+
+export function useStudioController({ workspace = 'studio' }: UseStudioControllerOptions = {}) {
+  const presentationWorkspace = workspace === 'presentation';
   const [mode, setMode] = useState<RecordingMode>('screen-pip');
   const [background, setBackground] = useState<BackgroundRemovalMode>('blur');
   const [pipShape, setPipShape] = useState<PipShape>('rounded');
@@ -64,7 +73,7 @@ export function useStudioController() {
   const [sourcesOpen, setSourcesOpen] = useState(true);
   const [effectsOpen, setEffectsOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
-  const [effectsTab, setEffectsTab] = useState<EffectsTab>('camera');
+  const [effectsTab, setEffectsTab] = useState<EffectsTab>(workspace === 'presentation' ? 'audio' : 'camera');
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [selectedMicrophoneId, setSelectedMicrophoneId] = useState('');
   const [isConnectingSources, setIsConnectingSources] = useState(false);
@@ -87,6 +96,7 @@ export function useStudioController() {
     noiseGateEnabled: true,
     micGain: 1,
   });
+  const [presentationElement, setPresentationElement] = useState<HTMLElement | null>(null);
 
   const {
     screenStream,
@@ -97,7 +107,6 @@ export function useStudioController() {
     microphones,
     statuses: mediaStatuses,
     error: mediaError,
-    hasSystemAudio,
     acquireScreen,
     acquireCamera,
     acquireMicrophone,
@@ -107,6 +116,21 @@ export function useStudioController() {
     clearError: clearMediaError,
     tabCapture,
   } = useMediaSession();
+
+  const presentationDeck = usePresentationDeck();
+  const presentationSource = usePresentationRecordingSource({
+    presentationElement,
+    presentationTitle: presentationDeck.metadata?.name,
+  });
+  const {
+    capture: presentationCapture,
+    stop: stopPresentationCapture,
+    videoStream: presentationVideoStream,
+    presentationAudioStream,
+    cursorController: presentationCursorController,
+  } = presentationSource;
+  const activeSystemAudioStream = presentationWorkspace ? presentationAudioStream : systemAudioStream;
+  const hasActiveSystemAudio = Boolean(activeSystemAudioStream?.getAudioTracks().length);
 
   const {
     outputStream: mixedAudioStream,
@@ -121,12 +145,12 @@ export function useStudioController() {
     resume: resumeAudio,
   } = useAudioDSP({
     microphoneStream,
-    systemAudioStream,
+    systemAudioStream: activeSystemAudioStream,
     preset: audioPresetByLabel[audioMode] ?? 'voice-clarity',
     muted: micMuted,
     micGain,
     systemGain: systemVolume,
-    monitorSystemAudio: tabCapture.connected,
+    monitorSystemAudio: tabCapture.connected && !presentationCapture,
     customConfig: customAudioConfig,
   });
 
@@ -136,7 +160,7 @@ export function useStudioController() {
     error: segmentationError,
     inferenceFps,
   } = useVisionSegmentation(
-    mode === 'screen-only' || !cameraVisible ? null : cameraStream,
+    presentationWorkspace || presentationCapture || mode === 'screen-only' || !cameraVisible ? null : cameraStream,
     background,
   );
 
@@ -153,8 +177,8 @@ export function useStudioController() {
     setPipPosition,
     canvasPointerHandlers,
   } = useCanvasCompositor({
-    screenStream,
-    cameraStream,
+    screenStream: presentationWorkspace || presentationCapture ? null : screenStream,
+    cameraStream: presentationWorkspace || presentationCapture ? null : cameraStream,
     mode,
     resolution: compositorResolution,
     pipShape,
@@ -164,11 +188,19 @@ export function useStudioController() {
   });
 
   const normalizedWebcamStream = useNormalizedVideoStream(cameraStream, 1280, 720, sourceCaptureEnabled);
-  const normalizedScreenStream = useNormalizedVideoStream(screenStream, 1920, 1080, sourceCaptureEnabled);
-  const legacyCursorTrajectory = useCursorTrajectory(screenStream);
-  const cursorCapture = tabCapture.connected
-    ? tabCapture.cursorController
-    : legacyCursorTrajectory.controller;
+  const normalizedScreenStream = useNormalizedVideoStream(
+    presentationWorkspace || presentationCapture ? null : screenStream,
+    1920,
+    1080,
+    sourceCaptureEnabled,
+  );
+  const legacyCursorTrajectory = useCursorTrajectory(presentationWorkspace ? null : screenStream);
+  const cursorCapture = presentationCapture
+    ? presentationCursorController
+    : tabCapture.connected
+      ? tabCapture.cursorController
+      : legacyCursorTrajectory.controller;
+  const recordingVideoStream = presentationVideoStream ?? compositeStream;
 
   const {
     status: recordingStatus,
@@ -182,9 +214,9 @@ export function useStudioController() {
     stop: stopRecording,
     reset: resetRecording,
   } = useRecordingSession({
-    videoStream: compositeStream,
+    videoStream: recordingVideoStream,
     webcamStream: normalizedWebcamStream,
-    screenStream: normalizedScreenStream,
+    screenStream: presentationWorkspace || presentationCapture ? null : normalizedScreenStream,
     audioStream: mixedAudioStream,
     microphoneAudioStream: microphoneOutputStream,
     systemAudioStream: systemAudioOutputStream,
@@ -203,14 +235,21 @@ export function useStudioController() {
         : 'setup';
   const elapsed = activeRecording?.durationSeconds ?? elapsedMs / 1000;
   const activeMode = useMemo(() => modes.find((item) => item.value === mode) ?? modes[0], [mode]);
-  const sourcesConnected = Boolean(screenStream || cameraStream || microphoneStream);
+  const sourcesConnected = Boolean(
+    screenStream
+    || cameraStream
+    || microphoneStream
+    || presentationCapture
+    || (workspace === 'presentation' && presentationDeck.status === 'ready'),
+  );
   const visualSourcesConnected = Boolean(screenStream || cameraStream);
 
   useEffect(() => {
     if (recordingStatus !== 'ready' && recordingStatus !== 'error') return;
     const releaseSourceCanvases = window.setTimeout(() => setSourceCaptureEnabled(false), 0);
+    if (presentationCapture) stopPresentationCapture();
     return () => window.clearTimeout(releaseSourceCanvases);
-  }, [recordingStatus]);
+  }, [presentationCapture, recordingStatus, stopPresentationCapture]);
 
   const loadPresets = useCallback(async () => {
     try {
@@ -295,6 +334,16 @@ export function useStudioController() {
     setIsConnectingSources(true);
     clearMediaError();
     try {
+      if (workspace === 'presentation') {
+        stopScreen();
+        await Promise.all([
+          acquireCamera(selectedCameraId || undefined),
+          acquireMicrophone(selectedMicrophoneId || undefined),
+        ]);
+        setSourcesOpen(false);
+        return;
+      }
+
       if (mode === 'webcam-only') stopScreen();
       else if (!tabCapture.available && legacyCursorTrajectory.available) await acquireScreen();
 
@@ -355,9 +404,32 @@ export function useStudioController() {
   }, [countdown, startRecording]);
 
   const startUiTest = async () => {
-    if (!compositeStream?.getVideoTracks().length) {
-      setRecoveryMessage('Connect a screen or camera source before recording.');
-      setSourcesOpen(true);
+    let presentationCaptureStarted = false;
+    if (workspace === 'presentation') {
+      if (presentationDeck.status !== 'ready' || !presentationDeck.metadata) {
+        setRecoveryMessage('Upload a PDF or PPTX presentation before recording.');
+        return;
+      }
+      if (!presentationElement) {
+        setRecoveryMessage('The presentation area is not ready yet. Please try again.');
+        return;
+      }
+      const capture = await presentationSource.start(presentationElement);
+      if (!capture?.videoStream.getVideoTracks().length) {
+        setRecoveryMessage('Current-tab capture did not start. Select “This Tab” in the browser picker.');
+        return;
+      }
+      presentationCaptureStarted = true;
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => window.setTimeout(resolve, 0));
+      });
+    }
+
+    if (!recordingVideoStream?.getVideoTracks().length && !presentationCaptureStarted) {
+      if (workspace !== 'presentation') {
+        setRecoveryMessage('Connect a screen, camera, or presentation source before recording.');
+        setSourcesOpen(true);
+      }
       return;
     }
     if (recoveredPreviewUrlRef.current) {
@@ -661,6 +733,7 @@ export function useStudioController() {
   }[session];
 
   return {
+    workspace,
     mode, setMode,
     background, setBackground,
     pipShape, setPipShape,
@@ -700,7 +773,7 @@ export function useStudioController() {
     microphones,
     mediaStatuses,
     mediaError,
-    hasSystemAudio,
+    hasSystemAudio: hasActiveSystemAudio,
     stopAllMedia,
     tabCapture,
     mixedAudioStream,
@@ -723,6 +796,11 @@ export function useStudioController() {
     compositorWarning,
     setPipPosition,
     canvasPointerHandlers,
+    presentationDeck,
+    presentationSource,
+    presentationElement,
+    setPresentationElement,
+    recordingVideoStream,
     legacyCursorTrajectory,
     recordingWarning,
     recordingError,

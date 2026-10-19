@@ -2,7 +2,17 @@ import type { StudioController } from './useStudioController';
 import { StudioIcon } from './StudioPrimitives';
 import styles from './StudioShell.module.css';
 
-export function StudioHeader({ studio }: { studio: StudioController }) {
+interface StudioHeaderProps {
+  studio: StudioController;
+  eyebrow?: string;
+  title?: string;
+}
+
+export function StudioHeader({
+  studio,
+  eyebrow = 'RecordWeb studio',
+  title = 'Recording workspace',
+}: StudioHeaderProps) {
   const {
     theme,
     toggleTheme,
@@ -14,8 +24,8 @@ export function StudioHeader({ studio }: { studio: StudioController }) {
   return (
     <header className={styles.topbar}>
       <div>
-        <div className={styles.eyebrow}>RecordWeb studio</div>
-        <h1>Recording workspace</h1>
+        <div className={styles.eyebrow}>{eyebrow}</div>
+        <h1>{title}</h1>
       </div>
       <div className={styles.topbarActions}>
         <button
@@ -44,7 +54,19 @@ export function StudioHeader({ studio }: { studio: StudioController }) {
   );
 }
 
-export function StudioToolbar({ studio }: { studio: StudioController }) {
+interface StudioToolbarProps {
+  studio: StudioController;
+  sourcesLabel?: string;
+  connectedLabel?: string;
+  idleLabel?: string;
+}
+
+export function StudioToolbar({
+  studio,
+  sourcesLabel = 'Sources',
+  connectedLabel = 'Sources connected',
+  idleLabel = 'Connect sources to begin',
+}: StudioToolbarProps) {
   const {
     sourcesOpen,
     setSourcesOpen,
@@ -64,7 +86,7 @@ export function StudioToolbar({ studio }: { studio: StudioController }) {
           }}
           aria-pressed={sourcesOpen}
         >
-          <StudioIcon name="screen" /> Sources
+          <StudioIcon name="screen" /> {sourcesLabel}
         </button>
         <button
           className={`${styles.drawerButton} ${effectsOpen ? styles.drawerButtonActive : ''}`}
@@ -79,7 +101,7 @@ export function StudioToolbar({ studio }: { studio: StudioController }) {
       </div>
       <div className={styles.liveSummary}>
         <span className={sourcesConnected ? styles.summaryReady : styles.summaryIdle} />
-        {sourcesConnected ? 'Sources connected' : 'Connect sources to begin'}
+        {sourcesConnected ? connectedLabel : idleLabel}
       </div>
     </div>
   );

@@ -50,6 +50,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 7. **Documentation Source of Truth**: `docs/system_architecture.md` is a stale legacy snapshot and is not authoritative. Current subsystem boundaries and behavior must be verified from code, types, tests, route contracts, and maintained domain documents. `docs/audio_video_pipeline.md` remains authoritative for the media pipeline; `docs/ui_rebuild_impact_analysis.md` is the maintained UI boundary/risk inventory. `MEMORY.md` is the persistent state bank.
 8. **Multi-Asset Output**: A session produces the composite plus available clean 720p webcam, normalized 1080p tab video, standalone mixed audio, processed microphone audio, gained tab audio, and a 24 Hz cursor JSON. The approved cursor architecture supports exactly one extension-selected Chromium tab per session; that single selection supplies tab video, tab audio, and cursor events. Existing Electron cursor code is legacy until the extension replacement is verified.
 9. **Cross-Session Lecture Projects**: A lecture is an owned `recording_projects` row with ordered associations to independently finalized `recordings`. Each later recording session creates a new immutable segment; no `MediaRecorder` is resumed after reload. Logical playback derives one global timeline, while optional physical merge copies compatible encoded packets without decode/encode. Source recordings remain intact.
+10. **In-App Presentation Recording**: PDF/PPTX presentation mode uses a separate self-tab capture path rather than `CanvasCompositor`. The presentation DOM will contain the rendered slide, raw webcam overlay, and baked custom cursor; `getDisplayMedia()` provides one current-tab video track, while captured tab audio and microphone audio flow through the existing Web Audio graph. Presentation files remain local in the initial implementation, and MediaPipe blur/cutout is not used in this mode.
 
 ---
 
@@ -181,6 +182,13 @@ This file serves as the persistent memory bank for AI agents working on **Record
 - [x] **Hooks Maintainability Refactor**:
   - [x] Refactored all `src/hooks` modules around shared browser-media helpers, declarative DSP presets, isolated canvas/segmentation rendering, and clearer multi-asset recorder construction/finalization while preserving public hook contracts and pipeline invariants
   - [x] Verified the refactor with zero-warning lint, a successful Next.js production build, and static media/compositor lifecycle audits; real-device runtime validation remains part of the next step
+- [ ] **In-App Presentation Recording**:
+  - [x] Added local PDF/PPTX validation and lazy render adapters (`pdfjs-dist`, `pptx-browser`) with 50 MB and 300-page limits
+  - [x] Added self-tab capture with current-tab hints, Capture Handle validation, optional Element Capture restriction, tab-audio exposure, and owned-track cleanup
+  - [x] Added a direct presentation cursor controller with normalized 24 Hz active-time samples and integrated the dormant presentation source into `useStudioController` / `useRecordingSession`
+  - [x] Added the authenticated `/presentation` workspace and navigation tab by reusing the Studio shell/review/diagnostics UI; its capture root contains only the rendered slide, raw webcam, and custom cursor, with no screen-share or MediaPipe path
+  - [x] Added clean full-tab fallback mode, local PDF/PPTX file controls, slide navigation, presentation-specific device controls, and recording startup from the browser's explicit “This Tab” picker
+  - [ ] Runtime-test PDF/PPTX fidelity, current-tab selection, Element Capture fallback, tab audio, raw webcam, cursor baking, pause/resume, and finalized output in Chrome/Edge
 
 ---
 
@@ -220,12 +228,14 @@ This file serves as the persistent memory bank for AI agents working on **Record
 | **Preview Pipeline Runs Before Recording** | Connecting sources immediately activates the 30 FPS composite canvas, Web Audio graph/meter RAF, and—by default because the Studio starts in `screen-pip` + `blur`—MediaPipe inference. These costs are tied to source availability rather than recording status, so setup mode can already consume significant CPU/GPU memory | Introduce explicit preview activity/quality control: low-rate or lower-resolution idle preview, suspend inference/audio metering when panels are hidden or sources are inactive, and raise to recording quality only during countdown/recording. |
 | **Merged Output Memory Cost** | `segmentMerger.ts` currently writes the complete remuxed MP4/WebM to a Mediabunny `BufferTarget`, so a long lecture requires memory for the output plus bounded input caches | Keep merge optional, retain immutable source segments, show resource guidance in the future UI, and add File System Access or append-only streaming output before targeting very large lectures. |
 | **Same MIME Is Not Merge Compatibility** | Independently finalized files can share a MIME string while differing in codec configuration, resolution, audio layout, or key-frame boundaries | Inspect every Blob with Mediabunny and compare the stored immutable media profile; reject mismatches and never silently transcode. |
+| **Self-Tab Capture Is Permission-Gated** | `preferCurrentTab` only promotes “This Tab”; it cannot silently select it, and unsupported browsers may not expose Capture Handle or Element Capture | Start capture from a user gesture, reject reported non-tab surfaces, verify the capture handle when available, and use clean full-tab presenter mode only as the explicit fallback. |
+| **PPTX Browser Font Substitution** | `pptx-browser` may request mapped Google Fonts and cannot guarantee PowerPoint-perfect charts, SmartArt, embedded media, or typography | Keep the file itself local, pin the renderer version, surface fidelity limitations in the future UI, and runtime-test representative decks before expanding the supported feature claim. |
 
 ---
 
 ## 6. Immediate Next Steps
 
-1. Fix extension cleanup so recording completion releases the captured tab and app-port loss clears stale target state; then load `extension/` unpacked in Chrome/Arc and runtime-test stop, reload, tab closure/navigation, one-use stream consumption, cursor lifecycle, local audio playback, and global disconnect cleanup.
-2. Run an authenticated multi-asset upload/download test including cursor JSON.
-3. After extension parity is verified, remove the deprecated Electron cursor runtime and dependency.
+1. Runtime-test `/presentation` with representative PDF/PPTX files in authenticated Chrome/Edge: current-tab selection, Element Capture and clean fallback, tab audio, raw webcam, cursor baking, pause/resume, cleanup, and finalized output.
+2. Fix extension cleanup so recording completion releases the captured tab and app-port loss clears stale target state; then runtime-test the unpacked extension lifecycle.
+3. Run an authenticated multi-asset upload/download test including cursor JSON.
 4. Apply migration `0005_recording_projects`, then runtime-test authenticated cross-day segment attachment, ordering, continuous playback, and lossless MP4/WebM merge before adding project UI.

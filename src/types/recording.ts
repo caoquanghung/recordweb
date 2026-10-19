@@ -34,7 +34,7 @@ export interface CursorTrajectory {
     origin: 'top-left';
     xRange: [0, 1];
     yRange: [0, 1];
-    relativeTo: 'captured-screen-content';
+    relativeTo: 'captured-screen-content' | 'captured-presentation-content';
     sourceWidth: number;
     sourceHeight: number;
   };
@@ -55,6 +55,11 @@ export interface CursorTrajectory {
         cursorBakedIntoScreenVideo: boolean;
         targetTabId: number;
         targetTitle: string;
+      }
+    | {
+        mode: 'recordweb-presentation';
+        cursorBakedIntoScreenVideo: boolean;
+        presentationTitle: string;
       };
   samples: CursorTrajectorySample[];
 }

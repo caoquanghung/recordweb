@@ -6,6 +6,7 @@ import styles from './StudioShell.module.css';
 
 export function StudioEffectsPanel({ studio }: { studio: StudioController }) {
   const {
+    workspace,
     effectsTab,
     setEffectsTab,
     mode,
@@ -44,8 +45,8 @@ export function StudioEffectsPanel({ studio }: { studio: StudioController }) {
 
   return (
     <aside className={styles.rightPanel}>
-      <div className={styles.effectTabs} role="tablist" aria-label="Effect controls">
-        {(['camera', 'audio', 'preset'] as const).map((tab) => (
+      <div className={`${styles.effectTabs} ${workspace === 'presentation' ? styles.effectTabsTwo : ''}`} role="tablist" aria-label="Effect controls">
+        {(workspace === 'presentation' ? ['audio', 'preset'] as const : ['camera', 'audio', 'preset'] as const).map((tab) => (
           <button
             key={tab}
             role="tab"
@@ -59,7 +60,7 @@ export function StudioEffectsPanel({ studio }: { studio: StudioController }) {
         ))}
       </div>
 
-      {effectsTab === 'camera' && (
+      {workspace === 'studio' && effectsTab === 'camera' && (
         <section className={styles.inspectorSection}>
           <div className={styles.inspectorTitle}><div><StudioIcon name="spark" /><h2>Camera style</h2></div><span>Live</span></div>
           <label className={styles.fieldLabel}>Background</label>
