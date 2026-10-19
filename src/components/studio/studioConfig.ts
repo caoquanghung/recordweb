@@ -32,15 +32,6 @@ export const MEDIA_ASSET_KINDS: Exclude<RecordingAssetKind, 'cursor'>[] = [
   'system-audio',
 ];
 
-export const SOURCE_DOWNLOAD_KINDS: Exclude<RecordingAssetKind, 'composite'>[] = [
-  'webcam',
-  'screen',
-  'audio',
-  'microphone-audio',
-  'system-audio',
-  'cursor',
-];
-
 export const modes: Array<{ value: RecordingMode; label: string; detail: string }> = [
   { value: 'screen-pip', label: 'Studio', detail: 'Screen + camera' },
   { value: 'screen-only', label: 'Screen', detail: 'Display only' },
@@ -98,16 +89,6 @@ export function compositeAssetFor(recording: RecordingMetadata): RecordingAssetM
     resolution: recording.resolution,
     fps: recording.fps,
   };
-}
-
-export function recordingAssetLabel(kind: RecordingAssetKind) {
-  if (kind === 'webcam') return 'Webcam 720p';
-  if (kind === 'screen') return 'Screen 1080p';
-  if (kind === 'audio') return 'Mixed audio';
-  if (kind === 'microphone-audio') return 'Microphone audio';
-  if (kind === 'system-audio') return 'System audio';
-  if (kind === 'cursor') return 'Cursor path 24 Hz';
-  return 'Composite';
 }
 
 export function formatDuration(seconds: number) {

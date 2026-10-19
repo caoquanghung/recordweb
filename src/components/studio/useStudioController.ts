@@ -19,6 +19,10 @@ import {
   saveLocalRecording,
   type RecordingDraft,
 } from '@/lib/idb';
+import {
+  downloadRecordingArchive,
+  RECORDING_ARCHIVE_KINDS,
+} from '@/lib/recordingArchive';
 import type { DbRecording, DbStudioPreset } from '@/types/database';
 import type {
   AudioFilterConfig,
@@ -523,6 +527,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       URL.revokeObjectURL(recoveredPreviewUrlRef.current);
       recoveredPreviewUrlRef.current = null;
     }
+    if (workspace === 'presentation') presentationDeck.clear();
     setRecoveredRecording(null);
     setSourceCaptureEnabled(false);
     resetRecording();
@@ -532,22 +537,21 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     setUploadMessage('');
   };
 
-  const downloadRecordingAsset = (kind: RecordingAssetKind) => {
+  const downloadRecordingFiles = async () => {
     if (!activeRecording) return;
-    const asset = kind === 'composite'
-      ? compositeAssetFor(activeRecording)
-      : activeRecording.assets?.[kind] ?? null;
-    if (!asset?.blob) return;
-    const temporaryUrl = kind === 'composite' && activeRecording.previewUrl
-      ? activeRecording.previewUrl
-      : URL.createObjectURL(asset.blob);
-    const anchor = document.createElement('a');
-    anchor.href = temporaryUrl;
-    anchor.download = kind === 'cursor'
-      ? `${activeRecording.id}-cursor.json`
-      : `recordweb-${activeRecording.id}-${kind}.${extensionForMimeType(asset.mimeType)}`;
-    anchor.click();
-    if (temporaryUrl !== activeRecording.previewUrl) URL.revokeObjectURL(temporaryUrl);
+    const recordingAssets = RECORDING_ARCHIVE_KINDS.flatMap((kind) => {
+      const asset = kind === 'composite'
+        ? compositeAssetFor(activeRecording)
+        : activeRecording.assets?.[kind];
+      return asset?.blob ? [{ kind, mimeType: asset.mimeType, blob: asset.blob }] : [];
+    });
+    setUploadMessage('Preparing recording ZIP…');
+    try {
+      await downloadRecordingArchive(activeRecording.title, recordingAssets);
+      setUploadMessage(`${recordingAssets.length} recording files downloaded as one ZIP.`);
+    } catch (cause) {
+      setUploadMessage(`Recording ZIP failed: ${(cause as Error).message}`);
+    }
   };
 
   const uploadRecording = async () => {
@@ -819,7 +823,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     startUiTest,
     recoverLatestDraft,
     resetReview,
-    downloadRecordingAsset,
+    downloadRecordingFiles,
     uploadRecording,
     publishAndCopyLink,
     runSystemCheck,

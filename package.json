@@ -22,6 +22,7 @@
     "@mediapipe/selfie_segmentation": "0.1.1675465747",
     "@neondatabase/serverless": "^1.2.0",
     "@vercel/blob": "^2.8.1",
+    "client-zip": "^2.5.1",
     "fix-webm-duration": "^1.0.6",
     "idb-keyval": "^6.3.0",
     "mediabunny": "^1.61.2",

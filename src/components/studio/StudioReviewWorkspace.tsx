@@ -1,6 +1,7 @@
 import { RecordedAudioWaveforms } from '@/components/review/RecordedAudioWaveforms';
 import { RecordedCursorTrajectory } from '@/components/review/RecordedCursorTrajectory';
-import { formatDuration, recordingAssetLabel, SOURCE_DOWNLOAD_KINDS } from './studioConfig';
+import { RECORDING_ARCHIVE_KINDS } from '@/lib/recordingArchive';
+import { formatDuration } from './studioConfig';
 import { StudioIcon } from './StudioPrimitives';
 import type { StudioController } from './useStudioController';
 import styles from './StudioShell.module.css';
@@ -15,10 +16,13 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
     uploadMessage,
     cloudRecording,
     resetReview,
-    downloadRecordingAsset,
+    downloadRecordingFiles,
     publishAndCopyLink,
     uploadRecording,
   } = studio;
+  const recordingFileCount = RECORDING_ARCHIVE_KINDS.filter(
+    (kind) => Boolean(activeRecording?.assets?.[kind]?.blob || (kind === 'composite' && activeRecording?.blob)),
+  ).length;
 
   return (
     <section className={styles.reviewWorkspace}>
@@ -54,22 +58,16 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
       {activeRecording?.assets?.cursor?.blob && (
         <RecordedCursorTrajectory blob={activeRecording.assets.cursor.blob} />
       )}
-      {activeRecording?.assets && (
+      {recordingFileCount > 0 && (
         <div className={styles.sourceAssets}>
           <div>
-            <span>Separate source files</span>
-            <strong>Ready for editing</strong>
+            <span>Recording files</span>
+            <strong>Composite and separate sources</strong>
           </div>
-          {SOURCE_DOWNLOAD_KINDS.map((kind) => {
-            const asset = activeRecording.assets?.[kind];
-            if (!asset?.blob) return null;
-            return (
-              <button key={kind} type="button" onClick={() => downloadRecordingAsset(kind)}>
-                <StudioIcon name={kind.includes('audio') ? 'mic' : kind === 'webcam' ? 'camera' : 'screen'} />
-                <span><strong>{recordingAssetLabel(kind)}</strong><small>{asset.mimeType.split(';')[0]}</small></span>
-              </button>
-            );
-          })}
+          <button type="button" onClick={() => void downloadRecordingFiles()}>
+            <StudioIcon name="screen" />
+            <span><strong>Download all files</strong><small>{recordingFileCount} files · ZIP</small></span>
+          </button>
         </div>
       )}
       <div className={styles.reviewActions}>
@@ -78,7 +76,6 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
           <span>{uploadMessage || 'This recording is available locally until you upload it.'}</span>
         </div>
         <button className={styles.reviewSecondary} onClick={resetReview}>Record another</button>
-        <button className={styles.reviewSecondary} onClick={() => downloadRecordingAsset('composite')}>Download composite</button>
         {cloudRecording ? (
           <button className={styles.reviewPrimary} onClick={() => void publishAndCopyLink()}>
             {cloudRecording.is_public ? 'Copy public link' : 'Make public & copy link'}

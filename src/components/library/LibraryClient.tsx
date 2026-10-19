@@ -10,8 +10,12 @@ import {
 import { RecordedCursorTrajectory } from '@/components/review/RecordedCursorTrajectory';
 import { deleteLocalRecording, getAllLocalRecordings } from '@/lib/idb';
 import { isRecordedWaveformPeaks } from '@/lib/audioWaveform';
+import {
+  downloadRecordingArchive,
+  RECORDING_ARCHIVE_KINDS,
+} from '@/lib/recordingArchive';
 import type { DbRecording, DbRecordingAsset, DbRecordingShare, DbSharedRecording } from '@/types/database';
-import type { RecordingAssetKind, RecordingMetadata } from '@/types/recording';
+import type { RecordingMetadata } from '@/types/recording';
 import styles from './LibraryClient.module.css';
 
 type LibraryTab = 'mine' | 'shared' | 'local' | 'cloud';
@@ -25,14 +29,6 @@ function formatDuration(seconds: number) {
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function extensionForMimeType(mimeType: string) {
-  const baseType = mimeType.split(';', 1)[0].toLowerCase();
-  if (baseType === 'application/json') return 'json';
-  if (baseType === 'audio/mp4') return 'm4a';
-  if (baseType.endsWith('/mp4')) return 'mp4';
-  return 'webm';
 }
 
 function cloudWaveformSource(
@@ -85,7 +81,6 @@ export function LibraryClient() {
   const [permission, setPermission] = useState<'viewer' | 'viewer_download'>('viewer');
   const [shareBusy, setShareBusy] = useState(false);
   const localUrlsRef = useRef<string[]>([]);
-  const cursorFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadLibrary = useCallback(async () => {
     setLoading(true);
@@ -134,25 +129,6 @@ export function LibraryClient() {
   const visibleShared = tab === 'shared' ? shared : [];
   const visibleCount = visibleLocal.length + visibleCloud.length + visibleShared.length;
 
-  const downloadLocal = (recording: RecordingMetadata, kind: RecordingAssetKind = 'composite') => {
-    const asset = kind === 'composite'
-      ? recording.assets?.composite
-      : recording.assets?.[kind];
-    const blob = asset?.blob ?? (kind === 'composite' ? recording.blob : undefined);
-    const mimeType = asset?.mimeType ?? recording.mimeType;
-    if (!blob) return;
-    const url = kind === 'composite' && recording.previewUrl
-      ? recording.previewUrl
-      : URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = kind === 'cursor'
-      ? `${recording.id}-cursor.json`
-      : `recordweb-${recording.id}-${kind}.${extensionForMimeType(mimeType)}`;
-    anchor.click();
-    if (url !== recording.previewUrl) URL.revokeObjectURL(url);
-  };
-
   const removeLocal = async (recording: RecordingMetadata) => {
     if (!window.confirm('Delete this recording from this browser? Cloud copies are not affected.')) return;
     await deleteLocalRecording(recording.id);
@@ -167,6 +143,44 @@ export function LibraryClient() {
       if (!response.ok) throw new Error(`Could not load cursor trajectory (${response.status}).`);
       setCursorPreview({ title, blob: await response.blob() });
       setMessage('');
+    } catch (error) {
+      setMessage((error as Error).message);
+    }
+  };
+
+  const downloadLocalFiles = async (recording: RecordingMetadata) => {
+    const assets = RECORDING_ARCHIVE_KINDS.flatMap((kind) => {
+      const asset = recording.assets?.[kind];
+      const blob = asset?.blob ?? (kind === 'composite' ? recording.blob : undefined);
+      const mimeType = asset?.mimeType ?? (kind === 'composite' ? recording.mimeType : '');
+      return blob ? [{ kind, mimeType, blob }] : [];
+    });
+    setMessage('Preparing recording ZIP…');
+    try {
+      await downloadRecordingArchive(recording.title, assets);
+      setMessage(`${assets.length} recording files downloaded as one ZIP.`);
+    } catch (error) {
+      setMessage((error as Error).message);
+    }
+  };
+
+  const downloadCloudFiles = async (recording: DbRecording) => {
+    const assets = recording.assets?.map((asset) => ({
+      kind: asset.kind,
+      mimeType: asset.mime_type,
+      storageUrl: asset.storage_url,
+    })) ?? [];
+    if (recording.storage_url && !assets.some((asset) => asset.kind === 'composite')) {
+      assets.unshift({
+        kind: 'composite',
+        mimeType: recording.mime_type,
+        storageUrl: recording.storage_url,
+      });
+    }
+    setMessage('Downloading recording files and preparing ZIP…');
+    try {
+      await downloadRecordingArchive(recording.title, assets);
+      setMessage(`${assets.length} recording files downloaded as one ZIP.`);
     } catch (error) {
       setMessage((error as Error).message);
     }
@@ -275,18 +289,6 @@ export function LibraryClient() {
       description="Preview, download, publish, share, or remove recordings while keeping local and cloud copies clearly separated."
       actions={(
         <>
-          <input
-            ref={cursorFileInputRef}
-            type="file"
-            accept="application/json,.json"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) setCursorPreview({ title: file.name, blob: file });
-              event.target.value = '';
-            }}
-          />
-          <button className={styles.refreshButton} onClick={() => cursorFileInputRef.current?.click()}>Open cursor JSON</button>
           <button className={styles.refreshButton} onClick={() => void loadLibrary()}>Refresh</button>
           <Link className={styles.primaryAction} href="/">New recording</Link>
         </>
@@ -327,10 +329,7 @@ export function LibraryClient() {
               )}
               <div className={styles.cardActions}>
                 <button onClick={() => recording.previewUrl && setPreview({ title: recording.title, url: recording.previewUrl, canDownload: true })}>Preview</button>
-                <button onClick={() => downloadLocal(recording)}>Composite</button>
-                {(['webcam', 'screen', 'audio', 'microphone-audio', 'system-audio', 'cursor'] as RecordingAssetKind[]).map((kind) => recording.assets?.[kind]?.blob && (
-                  <button key={kind} onClick={() => downloadLocal(recording, kind)}>{kind}</button>
-                ))}
+                {(recording.blob || RECORDING_ARCHIVE_KINDS.some((kind) => recording.assets?.[kind]?.blob)) && <button onClick={() => void downloadLocalFiles(recording)}>All files ZIP</button>}
                 {recording.assets?.cursor?.blob && <button onClick={() => setCursorPreview({ title: recording.title, blob: recording.assets!.cursor!.blob! })}>Open cursor</button>}
                 <button className={styles.danger} onClick={() => void removeLocal(recording)}>Delete local</button>
               </div>
@@ -347,7 +346,7 @@ export function LibraryClient() {
               <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{new Date(recording.created_at).toLocaleString()}</span></div><em className={recording.is_public ? styles.publicStatus : styles.privateStatus}>{recording.is_public ? 'Public link' : 'Private cloud'}</em></div>
               <div className={styles.metadata}><span>{formatDuration(Number(recording.duration_seconds))}</span><span>{recording.resolution}</span><span>{formatBytes(Number(recording.file_size_bytes))}</span></div>
               <CloudRecordingWaveform recording={recording} />
-              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link><button onClick={() => void openSharing(recording)}>Share</button>{recording.assets?.filter((asset) => asset.kind !== 'composite').map((asset) => asset.kind === 'cursor' ? <button key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}>Cursor player</button> : <a key={asset.id} href={asset.storage_url} download>{asset.kind}</a>)}<button onClick={() => void togglePublic(recording)}>{recording.is_public ? 'Make private' : 'Make public'}</button><button className={styles.danger} onClick={() => void removeCloud(recording)}>Delete cloud</button></div>
+              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link><button onClick={() => void openSharing(recording)}>Share</button>{(recording.storage_url || recording.assets?.length) && <button onClick={() => void downloadCloudFiles(recording)}>All files ZIP</button>}{recording.assets?.filter((asset) => asset.kind === 'cursor').map((asset) => <button key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}>Cursor player</button>)}<button onClick={() => void togglePublic(recording)}>{recording.is_public ? 'Make private' : 'Make public'}</button><button className={styles.danger} onClick={() => void removeCloud(recording)}>Delete cloud</button></div>
             </div>
           </article>
         ))}
@@ -361,7 +360,7 @@ export function LibraryClient() {
               <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{recording.owner_email}</span></div><em className={styles.sharedStatus}>{recording.share_permission === 'viewer_download' ? 'View + download' : 'View only'}</em></div>
               <div className={styles.metadata}><span>{formatDuration(Number(recording.duration_seconds))}</span><span>{recording.resolution}</span><span>{new Date(recording.created_at).toLocaleDateString()}</span></div>
               <CloudRecordingWaveform recording={recording} />
-              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link>{recording.share_permission === 'viewer_download' && recording.storage_url && <a href={recording.storage_url} download>Composite</a>}{recording.share_permission === 'viewer_download' && recording.assets?.filter((asset) => asset.kind !== 'composite').map((asset) => asset.kind === 'cursor' ? <button key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}>Cursor player</button> : <a key={asset.id} href={asset.storage_url} download>{asset.kind}</a>)}</div>
+              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link>{recording.share_permission === 'viewer_download' && (recording.storage_url || recording.assets?.length) && <button onClick={() => void downloadCloudFiles(recording)}>All files ZIP</button>}{recording.share_permission === 'viewer_download' && recording.assets?.filter((asset) => asset.kind === 'cursor').map((asset) => <button key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}>Cursor player</button>)}</div>
             </div>
           </article>
         ))}

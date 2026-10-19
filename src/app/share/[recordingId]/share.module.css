@@ -122,31 +122,41 @@
   border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.sourceAssets > div {
+.sourceAssets > div:first-child {
   display: grid;
   gap: 2px;
   margin-right: auto;
 }
 
-.sourceAssets > div span,
-.sourceAssets a span {
+.sourceAssets > div:first-child span,
+.archiveDownload span {
   color: #929bad;
   font-size: 10px;
 }
 
-.sourceAssets > div strong { font-size: 12px; }
+.sourceAssets > div:first-child strong { font-size: 12px; }
 
-.sourceAssets a {
+.archiveDownload {
+  display: grid;
+  gap: 5px;
+}
+
+.archiveDownload button {
   display: grid;
   gap: 3px;
   padding: 9px 11px;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 9px;
+  color: inherit;
+  background: transparent;
   text-decoration: none;
+  cursor: pointer;
 }
 
-.sourceAssets a:hover { border-color: rgba(124, 109, 242, 0.5); }
-.sourceAssets a strong { font-size: 11px; }
+.archiveDownload button:hover { border-color: rgba(124, 109, 242, 0.5); }
+.archiveDownload button:disabled { cursor: wait; opacity: 0.65; }
+.archiveDownload button strong { font-size: 11px; }
+.archiveDownload small { max-width: 220px; color: #ff8e9c; font-size: 9px; }
 
 .download {
   padding: 10px 14px;
@@ -187,8 +197,9 @@
     flex-direction: column;
   }
 
-  .sourceAssets > div { margin-right: 0; }
-  .sourceAssets a { width: 100%; }
+  .sourceAssets > div:first-child { margin-right: 0; }
+  .archiveDownload,
+  .archiveDownload button { width: 100%; }
 
   .metadata {
     justify-content: flex-start;

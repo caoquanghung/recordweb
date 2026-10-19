@@ -2,7 +2,9 @@ import { auth } from '@clerk/nextjs/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDb, isDbConfigured } from '@/lib/db';
+import type { RecordingArchiveAsset } from '@/lib/recordingArchive';
 import type { DbRecording, DbRecordingAsset } from '@/types/database';
+import { RecordingArchiveDownloadButton } from './RecordingArchiveDownloadButton';
 import styles from './share.module.css';
 
 // Access checks depend on the current Clerk session and must run for each request.
@@ -16,15 +18,6 @@ function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
   const remainder = Math.floor(seconds % 60).toString().padStart(2, '0');
   return `${minutes}:${remainder}`;
-}
-
-function assetLabel(asset: DbRecordingAsset) {
-  if (asset.kind === 'webcam') return 'Webcam 720p';
-  if (asset.kind === 'screen') return 'Screen 1080p';
-  if (asset.kind === 'microphone-audio') return 'Microphone audio';
-  if (asset.kind === 'system-audio') return 'System audio';
-  if (asset.kind === 'cursor') return 'Cursor trajectory 24 Hz';
-  return 'Audio master';
 }
 
 export default async function SharePage({ params }: PageProps<'/share/[recordingId]'>) {
@@ -76,7 +69,18 @@ export default async function SharePage({ params }: PageProps<'/share/[recording
         ORDER BY created_at ASC;
       ` as DbRecordingAsset[]
     : [];
-  const sourceAssets = assetRows.filter((asset) => asset.kind !== 'composite');
+  const archiveAssets: RecordingArchiveAsset[] = assetRows.map((asset) => ({
+    kind: asset.kind,
+    mimeType: asset.mime_type,
+    storageUrl: asset.storage_url,
+  }));
+  if (canDownload && recording.storage_url && !archiveAssets.some((asset) => asset.kind === 'composite')) {
+    archiveAssets.unshift({
+      kind: 'composite',
+      mimeType: recording.mime_type,
+      storageUrl: recording.storage_url,
+    });
+  }
 
   return (
     <main className={styles.page}>
@@ -114,15 +118,13 @@ export default async function SharePage({ params }: PageProps<'/share/[recording
           <div className={styles.emptyVideo}>This recording does not have an uploaded video.</div>
         )}
 
-        {sourceAssets.length > 0 && (
+        {archiveAssets.length > 0 && (
           <section className={styles.sourceAssets} aria-label="Recording source files">
-            <div><span>Source files</span><strong>Original session assets</strong></div>
-            {sourceAssets.map((asset) => (
-              <a key={asset.id} href={asset.storage_url} download>
-                <strong>{assetLabel(asset)}</strong>
-                <span>{asset.mime_type.split(';')[0]}</span>
-              </a>
-            ))}
+            <div><span>Recording files</span><strong>Composite and separate sources</strong></div>
+            <RecordingArchiveDownloadButton
+              recordingTitle={recording.title}
+              assets={archiveAssets}
+            />
           </section>
         )}
 
