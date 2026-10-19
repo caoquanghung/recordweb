@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { WorkspaceShell } from '@/components/app/WorkspaceShell';
+import { AppSidebar } from '@/components/app/AppSidebar';
 import {
   RecordedAudioWaveforms,
   type RecordedWaveformSource,
@@ -19,6 +19,59 @@ import type { RecordingMetadata } from '@/types/recording';
 import styles from './LibraryClient.module.css';
 
 type LibraryTab = 'mine' | 'shared' | 'local' | 'cloud';
+type LibrarySort = 'newest' | 'oldest';
+type LibraryIconName = 'search' | 'sync' | 'play' | 'share' | 'download' | 'cursor' | 'lock' | 'trash' | 'chevron';
+
+type LibraryEntry =
+  | { kind: 'local'; recording: RecordingMetadata; title: string; createdAt: number }
+  | { kind: 'cloud'; recording: DbRecording; title: string; createdAt: number }
+  | { kind: 'shared'; recording: DbSharedRecording; title: string; createdAt: number };
+
+const PAGE_SIZE = 6;
+const CLOUD_ALLOWANCE_BYTES = 50 * 1024 * 1024 * 1024;
+
+function LibraryIcon({ name }: { name: LibraryIconName }) {
+  const paths: Record<LibraryIconName, React.ReactNode> = {
+    search: <><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></>,
+    sync: <><path d="M20 12a8 8 0 0 0-14.9-4" /><path d="M5 3v5h5" /><path d="M4 12a8 8 0 0 0 14.9 4" /><path d="M19 21v-5h-5" /></>,
+    play: <><circle cx="12" cy="12" r="9" /><path d="m10 8 6 4-6 4Z" /></>,
+    share: <><circle cx="18" cy="5" r="2" /><circle cx="6" cy="12" r="2" /><circle cx="18" cy="19" r="2" /><path d="m8 11 8-5M8 13l8 5" /></>,
+    download: <><path d="M12 3v12" /><path d="m8 11 4 4 4-4" /><path d="M5 20h14" /></>,
+    cursor: <><path d="m5 3 6.5 16 2.2-5.3L19 11.5Z" /><path d="m14 14 4 4" /></>,
+    lock: <><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
+    trash: <><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13" /></>,
+    chevron: <path d="m9 18 6-6-6-6" />,
+  };
+
+  return <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
+}
+
+function formatLibraryDate(value: string) {
+  return new Date(value).toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function RecordingThumbnail({
+  src,
+  badge,
+  summary,
+  title,
+  onClick,
+}: {
+  src?: string | null;
+  badge: string;
+  summary: string;
+  title: string;
+  onClick: () => void;
+}) {
+  return (
+    <button className={styles.thumbnail} type="button" onClick={onClick} aria-label={`Xem lại ${title}`} disabled={!src}>
+      {src ? <video src={src} muted playsInline preload="metadata" tabIndex={-1} /> : <span className={styles.thumbnailFallback} aria-hidden="true" />}
+      <span className={styles.thumbnailShade} aria-hidden="true" />
+      <span className={styles.mediaBadge}>{badge}</span>
+      <span className={styles.mediaSummary}>{summary}</span>
+    </button>
+  );
+}
 
 function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -68,6 +121,9 @@ function CloudRecordingWaveform({ recording }: { recording: DbRecording }) {
 
 export function LibraryClient() {
   const [tab, setTab] = useState<LibraryTab>('mine');
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<LibrarySort>('newest');
+  const [page, setPage] = useState(1);
   const [cloud, setCloud] = useState<DbRecording[]>([]);
   const [shared, setShared] = useState<DbSharedRecording[]>([]);
   const [local, setLocal] = useState<RecordingMetadata[]>([]);
@@ -124,10 +180,45 @@ export function LibraryClient() {
     return local.filter((recording) => !uploadedLocalIds.has(recording.localId ?? recording.id));
   }, [cloud, local]);
 
-  const visibleLocal = tab === 'mine' || tab === 'local' ? localOnly : [];
-  const visibleCloud = tab === 'mine' || tab === 'cloud' ? cloud : [];
-  const visibleShared = tab === 'shared' ? shared : [];
-  const visibleCount = visibleLocal.length + visibleCloud.length + visibleShared.length;
+  const filteredEntries = useMemo<LibraryEntry[]>(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase('vi');
+    const visibleLocal = tab === 'mine' || tab === 'local' ? localOnly : [];
+    const visibleCloud = tab === 'mine' || tab === 'cloud' ? cloud : [];
+    const visibleShared = tab === 'shared' ? shared : [];
+    const entries: LibraryEntry[] = [
+      ...visibleLocal.map((recording) => ({
+        kind: 'local' as const,
+        recording,
+        title: recording.title,
+        createdAt: new Date(recording.createdAt).getTime(),
+      })),
+      ...visibleCloud.map((recording) => ({
+        kind: 'cloud' as const,
+        recording,
+        title: recording.title,
+        createdAt: new Date(recording.created_at).getTime(),
+      })),
+      ...visibleShared.map((recording) => ({
+        kind: 'shared' as const,
+        recording,
+        title: recording.title,
+        createdAt: new Date(recording.created_at).getTime(),
+      })),
+    ];
+
+    return entries
+      .filter((entry) => !normalizedQuery || entry.title.toLocaleLowerCase('vi').includes(normalizedQuery))
+      .sort((left, right) => sort === 'newest' ? right.createdAt - left.createdAt : left.createdAt - right.createdAt);
+  }, [cloud, localOnly, query, shared, sort, tab]);
+
+  const visibleCount = filteredEntries.length;
+  const pageCount = Math.max(1, Math.ceil(visibleCount / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const paginatedEntries = filteredEntries.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const cloudBytes = cloud.reduce((total, recording) => total + Number(recording.file_size_bytes || 0), 0);
+  const cloudGigabytes = cloudBytes / 1024 / 1024 / 1024;
+  const storagePercent = Math.min(100, (cloudBytes / CLOUD_ALLOWANCE_BYTES) * 100);
+  const totalCount = cloud.length + localOnly.length + shared.length;
 
   const removeLocal = async (recording: RecordingMetadata) => {
     if (!window.confirm('Delete this recording from this browser? Cloud copies are not affected.')) return;
@@ -282,89 +373,182 @@ export function LibraryClient() {
   };
 
   return (
-    <WorkspaceShell
-      active="library"
-      eyebrow="Local and cloud media"
-      title="Recording library"
-      description="Preview, download, publish, share, or remove recordings while keeping local and cloud copies clearly separated."
-      actions={(
-        <>
-          <button className={styles.refreshButton} onClick={() => void loadLibrary()}>Refresh</button>
-          <Link className={styles.primaryAction} href="/">New recording</Link>
-        </>
-      )}
-    >
-      <div className={styles.tabs} role="tablist" aria-label="Recording filters">
-        {([
-          ['mine', 'Mine', cloud.length + localOnly.length],
-          ['shared', 'Shared with me', shared.length],
-          ['local', 'Local only', localOnly.length],
-          ['cloud', 'Cloud', cloud.length],
-        ] as Array<[LibraryTab, string, number]>).map(([value, label, count]) => (
-          <button key={value} role="tab" aria-selected={tab === value} className={tab === value ? styles.tabActive : ''} onClick={() => setTab(value)}>{label}<span>{count}</span></button>
-        ))}
-      </div>
-
-      {message && <p className={styles.message} role="status">{message}</p>}
-      {loading && <div className={styles.empty}>Loading recordings…</div>}
-      {!loading && visibleCount === 0 && <div className={styles.empty}><strong>No recordings in this view</strong><span>Record locally in Studio or select another filter.</span></div>}
-
-      <section className={styles.recordingGrid}>
-        {visibleLocal.map((recording) => (
-          <article className={styles.card} key={`local-${recording.id}`}>
-            <button className={styles.thumbnail} onClick={() => recording.previewUrl && setPreview({ title: recording.title, url: recording.previewUrl, canDownload: true })}>
-              <span>LOCAL</span><strong>Preview recording</strong>
-            </button>
-            <div className={styles.cardBody}>
-              <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{new Date(recording.createdAt).toLocaleString()}</span></div><em className={styles.localStatus}>Local only</em></div>
-              <div className={styles.metadata}><span>{formatDuration(recording.durationSeconds)}</span><span>{recording.resolution}</span><span>{formatBytes(recording.fileSizeBytes)}</span></div>
-              {recording.assets?.audio?.blob && (
-                <RecordedAudioWaveforms
-                  durationSeconds={recording.durationSeconds}
-                  mixed={recording.assets.audio}
-                  microphone={recording.assets['microphone-audio']}
-                  systemAudio={recording.assets['system-audio']}
-                  compact
-                />
-              )}
-              <div className={styles.cardActions}>
-                <button onClick={() => recording.previewUrl && setPreview({ title: recording.title, url: recording.previewUrl, canDownload: true })}>Preview</button>
-                {(recording.blob || RECORDING_ARCHIVE_KINDS.some((kind) => recording.assets?.[kind]?.blob)) && <button onClick={() => void downloadLocalFiles(recording)}>All files ZIP</button>}
-                {recording.assets?.cursor?.blob && <button onClick={() => setCursorPreview({ title: recording.title, blob: recording.assets!.cursor!.blob! })}>Open cursor</button>}
-                <button className={styles.danger} onClick={() => void removeLocal(recording)}>Delete local</button>
+    <div className={styles.libraryShell}>
+      <AppSidebar activeHref="/library" />
+      <main className={styles.libraryMain}>
+        <div className={styles.libraryContent}>
+          <header className={styles.summaryPanel}>
+            <div className={styles.summaryCopy}>
+              <div className={styles.summaryMeta}>
+                <span className={styles.liveDot} aria-hidden="true" />
+                <span className={styles.eyebrow}>Kho lưu trữ bài giảng</span>
+                <span className={styles.countBadge}>{totalCount} bài giảng đã ghi</span>
               </div>
+              <h1>Thư viện bài giảng đã ghi</h1>
+              <p>Quản lý, xem lại và chia sẻ video bài giảng của Thầy/Cô cho học sinh một cách an toàn và thuận tiện.</p>
             </div>
-          </article>
-        ))}
 
-        {visibleCloud.map((recording) => (
-          <article className={styles.card} key={`cloud-${recording.id}`}>
-            <button className={styles.thumbnail} onClick={() => recording.storage_url && setPreview({ title: recording.title, url: recording.storage_url, canDownload: true })}>
-              <span>{recording.mime_type.includes('mp4') ? 'MP4' : 'WEBM'}</span><strong>Cloud playback</strong>
-            </button>
-            <div className={styles.cardBody}>
-              <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{new Date(recording.created_at).toLocaleString()}</span></div><em className={recording.is_public ? styles.publicStatus : styles.privateStatus}>{recording.is_public ? 'Public link' : 'Private cloud'}</em></div>
-              <div className={styles.metadata}><span>{formatDuration(Number(recording.duration_seconds))}</span><span>{recording.resolution}</span><span>{formatBytes(Number(recording.file_size_bytes))}</span></div>
-              <CloudRecordingWaveform recording={recording} />
-              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link><button onClick={() => void openSharing(recording)}>Share</button>{(recording.storage_url || recording.assets?.length) && <button onClick={() => void downloadCloudFiles(recording)}>All files ZIP</button>}{recording.assets?.filter((asset) => asset.kind === 'cursor').map((asset) => <button key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}>Cursor player</button>)}<button onClick={() => void togglePublic(recording)}>{recording.is_public ? 'Make private' : 'Make public'}</button><button className={styles.danger} onClick={() => void removeCloud(recording)}>Delete cloud</button></div>
-            </div>
-          </article>
-        ))}
+            <section className={styles.storageCard} aria-label="Dung lượng lưu trữ bài giảng">
+              <div className={styles.storageDetails}>
+                <div className={styles.storageHeading}>
+                  <span>Dung lượng học viện cấp</span>
+                  <strong>{cloudGigabytes.toFixed(cloudGigabytes >= 1 ? 1 : 2)} / 50.0 GB ({storagePercent.toFixed(storagePercent >= 1 ? 0 : 2)}%)</strong>
+                </div>
+                <div className={styles.progressTrack} aria-hidden="true"><span style={{ width: `${Math.max(storagePercent, cloudBytes > 0 ? 2 : 0)}%` }} /></div>
+                <small>Đã tự động sao lưu an toàn vào máy chủ trường</small>
+              </div>
+              <button className={styles.syncButton} type="button" onClick={() => void loadLibrary()} disabled={loading}>
+                <LibraryIcon name="sync" />{loading ? 'Đang đồng bộ' : 'Đồng bộ ngay'}
+              </button>
+            </section>
+          </header>
 
-        {visibleShared.map((recording) => (
-          <article className={styles.card} key={`shared-${recording.id}`}>
-            <button className={styles.thumbnail} onClick={() => recording.storage_url && setPreview({ title: recording.title, url: recording.storage_url, canDownload: recording.share_permission === 'viewer_download' })}>
-              <span>SHARED</span><strong>From {recording.owner_display_name || recording.owner_email}</strong>
-            </button>
-            <div className={styles.cardBody}>
-              <div className={styles.cardTitle}><div><strong>{recording.title}</strong><span>{recording.owner_email}</span></div><em className={styles.sharedStatus}>{recording.share_permission === 'viewer_download' ? 'View + download' : 'View only'}</em></div>
-              <div className={styles.metadata}><span>{formatDuration(Number(recording.duration_seconds))}</span><span>{recording.resolution}</span><span>{new Date(recording.created_at).toLocaleDateString()}</span></div>
-              <CloudRecordingWaveform recording={recording} />
-              <div className={styles.cardActions}><Link href={`/share/${recording.id}`}>Open</Link>{recording.share_permission === 'viewer_download' && (recording.storage_url || recording.assets?.length) && <button onClick={() => void downloadCloudFiles(recording)}>All files ZIP</button>}{recording.share_permission === 'viewer_download' && recording.assets?.filter((asset) => asset.kind === 'cursor').map((asset) => <button key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}>Cursor player</button>)}</div>
+          <section className={styles.toolbarPanel} aria-label="Bộ lọc thư viện">
+            <label className={styles.searchField}>
+              <span className={styles.srOnly}>Tìm bài giảng</span>
+              <LibraryIcon name="search" />
+              <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Tìm bài giảng" />
+            </label>
+
+            <div className={styles.tabs} role="tablist" aria-label="Lọc bài giảng">
+              {([
+                ['mine', 'Tất cả bài giảng', cloud.length + localOnly.length],
+                ['shared', 'Được chia sẻ', shared.length],
+                ['local', 'Chỉ trên máy', localOnly.length],
+                ['cloud', 'Đã lưu đám mây', cloud.length],
+              ] as Array<[LibraryTab, string, number]>).map(([value, label, count]) => (
+                <button key={value} type="button" role="tab" aria-selected={tab === value} className={tab === value ? styles.tabActive : ''} onClick={() => { setTab(value); setPage(1); }}>
+                  {label} ({count})
+                </button>
+              ))}
             </div>
-          </article>
-        ))}
-      </section>
+
+            <label className={styles.sortField}>
+              <span className={styles.sortGlyph} aria-hidden="true">↕</span>
+              <span className={styles.srOnly}>Sắp xếp bài giảng</span>
+              <select value={sort} onChange={(event) => { setSort(event.target.value as LibrarySort); setPage(1); }}>
+                <option value="newest">Mới nhất trước</option>
+                <option value="oldest">Cũ nhất trước</option>
+              </select>
+            </label>
+          </section>
+
+          {message && <p className={styles.message} role="status">{message}</p>}
+          {loading && <div className={styles.empty} aria-busy="true">Đang tải thư viện bài giảng…</div>}
+          {!loading && visibleCount === 0 && (
+            <div className={styles.empty}>
+              <strong>Chưa có bài giảng trong mục này</strong>
+              <span>{query ? 'Thử một từ khoá khác hoặc xoá bộ lọc tìm kiếm.' : 'Quay bài giảng trong Studio hoặc chọn một bộ lọc khác.'}</span>
+              {!query && <Link href="/">Ghi bài giảng mới</Link>}
+            </div>
+          )}
+
+          {!loading && visibleCount > 0 && (
+            <section className={styles.recordingGrid} aria-label="Danh sách bài giảng">
+              {paginatedEntries.map((entry) => {
+                if (entry.kind === 'local') {
+                  const recording = entry.recording;
+                  const canDownload = Boolean(recording.blob || RECORDING_ARCHIVE_KINDS.some((kind) => recording.assets?.[kind]?.blob));
+                  return (
+                    <article className={styles.card} key={`local-${recording.id}`}>
+                      <RecordingThumbnail
+                        src={recording.previewUrl}
+                        badge="Bài giảng trên máy"
+                        summary={`${formatDuration(recording.durationSeconds)} • ${formatBytes(recording.fileSizeBytes)}`}
+                        title={recording.title}
+                        onClick={() => recording.previewUrl && setPreview({ title: recording.title, url: recording.previewUrl, canDownload: true })}
+                      />
+                      <div className={styles.cardBody}>
+                        <div className={styles.cardCopy}>
+                          <h2>{recording.title}</h2>
+                          <p>Bản ghi được lưu an toàn trong trình duyệt này và chưa đồng bộ lên đám mây.</p>
+                        </div>
+                        <div className={styles.cardMeta}><span><i className={styles.readyDot} />Sẵn sàng xem lại</span><time>{formatLibraryDate(recording.createdAt)}</time></div>
+                        {recording.assets?.audio?.blob && <div className={styles.waveform}><RecordedAudioWaveforms durationSeconds={recording.durationSeconds} mixed={recording.assets.audio} microphone={recording.assets['microphone-audio']} systemAudio={recording.assets['system-audio']} compact /></div>}
+                        <div className={styles.cardActions}>
+                          {recording.previewUrl && <button className={styles.primaryCardButton} type="button" onClick={() => setPreview({ title: recording.title, url: recording.previewUrl!, canDownload: true })}><LibraryIcon name="play" />Xem lại</button>}
+                          {canDownload && <button type="button" onClick={() => void downloadLocalFiles(recording)}><LibraryIcon name="download" />Tải về</button>}
+                          {recording.assets?.cursor?.blob && <button type="button" onClick={() => setCursorPreview({ title: recording.title, blob: recording.assets!.cursor!.blob! })}><LibraryIcon name="cursor" />Con trỏ</button>}
+                          <button className={styles.danger} type="button" onClick={() => void removeLocal(recording)}><LibraryIcon name="trash" />Xoá</button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                }
+
+                if (entry.kind === 'cloud') {
+                  const recording = entry.recording;
+                  return (
+                    <article className={styles.card} key={`cloud-${recording.id}`}>
+                      <RecordingThumbnail
+                        src={recording.storage_url}
+                        badge={recording.is_public ? 'Đã gửi lớp học' : 'Bài giảng đám mây'}
+                        summary={`${formatDuration(Number(recording.duration_seconds))} • ${formatBytes(Number(recording.file_size_bytes))}`}
+                        title={recording.title}
+                        onClick={() => recording.storage_url && setPreview({ title: recording.title, url: recording.storage_url, canDownload: true })}
+                      />
+                      <div className={styles.cardBody}>
+                        <div className={styles.cardCopy}>
+                          <h2>{recording.title}</h2>
+                          <p>{recording.is_public ? 'Bài giảng đã sẵn sàng chia sẻ qua liên kết cho học sinh.' : 'Bài giảng riêng tư đã được đồng bộ an toàn lên đám mây.'}</p>
+                        </div>
+                        <div className={styles.cardMeta}><span>{recording.is_public ? 'Liên kết công khai' : recording.resolution}</span><time>{formatLibraryDate(recording.created_at)}</time></div>
+                        <div className={styles.waveform}><CloudRecordingWaveform recording={recording} /></div>
+                        <div className={styles.cardActions}>
+                          <Link className={styles.primaryCardButton} href={`/share/${recording.id}`}><LibraryIcon name="play" />Xem lại</Link>
+                          <button type="button" onClick={() => void openSharing(recording)}><LibraryIcon name="share" />Chia sẻ</button>
+                          {(recording.storage_url || recording.assets?.length) && <button type="button" onClick={() => void downloadCloudFiles(recording)}><LibraryIcon name="download" />Tải về</button>}
+                          {recording.assets?.filter((asset) => asset.kind === 'cursor').map((asset) => <button type="button" key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}><LibraryIcon name="cursor" />Con trỏ</button>)}
+                          <button type="button" onClick={() => void togglePublic(recording)}><LibraryIcon name="lock" />{recording.is_public ? 'Đặt riêng tư' : 'Mở liên kết'}</button>
+                          <button className={styles.danger} type="button" onClick={() => void removeCloud(recording)}><LibraryIcon name="trash" />Xoá</button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                }
+
+                const recording = entry.recording;
+                return (
+                  <article className={styles.card} key={`shared-${recording.id}`}>
+                    <RecordingThumbnail
+                      src={recording.storage_url}
+                      badge="Được chia sẻ"
+                      summary={`${formatDuration(Number(recording.duration_seconds))} • ${recording.resolution}`}
+                      title={recording.title}
+                      onClick={() => recording.storage_url && setPreview({ title: recording.title, url: recording.storage_url, canDownload: recording.share_permission === 'viewer_download' })}
+                    />
+                    <div className={styles.cardBody}>
+                      <div className={styles.cardCopy}>
+                        <h2>{recording.title}</h2>
+                        <p>Được chia sẻ bởi {recording.owner_display_name || recording.owner_email}.</p>
+                      </div>
+                      <div className={styles.cardMeta}><span>{recording.share_permission === 'viewer_download' ? 'Được xem và tải' : 'Chỉ được xem'}</span><time>{formatLibraryDate(recording.created_at)}</time></div>
+                      <div className={styles.waveform}><CloudRecordingWaveform recording={recording} /></div>
+                      <div className={styles.cardActions}>
+                        <Link className={styles.primaryCardButton} href={`/share/${recording.id}`}><LibraryIcon name="play" />Xem lại</Link>
+                        {recording.share_permission === 'viewer_download' && (recording.storage_url || recording.assets?.length) && <button type="button" onClick={() => void downloadCloudFiles(recording)}><LibraryIcon name="download" />Tải về</button>}
+                        {recording.share_permission === 'viewer_download' && recording.assets?.filter((asset) => asset.kind === 'cursor').map((asset) => <button type="button" key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}><LibraryIcon name="cursor" />Con trỏ</button>)}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </section>
+          )}
+
+          {!loading && visibleCount > 0 && (
+            <footer className={styles.libraryFooter}>
+              <p><span aria-hidden="true" />Tất cả bài giảng đã được đồng bộ an toàn • Hiển thị {(currentPage - 1) * PAGE_SIZE + 1} – {Math.min(currentPage * PAGE_SIZE, visibleCount)} trên tổng số {visibleCount} bài giảng</p>
+              <nav className={styles.pagination} aria-label="Phân trang thư viện">
+                <button type="button" onClick={() => setPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}>‹ <span>Trang trước</span></button>
+                {Array.from({ length: pageCount }, (_, index) => index + 1).slice(Math.max(0, currentPage - 3), Math.min(pageCount, currentPage + 2)).map((pageNumber) => (
+                  <button type="button" key={pageNumber} className={pageNumber === currentPage ? styles.currentPage : ''} aria-current={pageNumber === currentPage ? 'page' : undefined} onClick={() => setPage(pageNumber)}>{pageNumber}</button>
+                ))}
+                <button type="button" onClick={() => setPage(Math.min(pageCount, currentPage + 1))} disabled={currentPage === pageCount}><span>Trang sau</span> ›</button>
+              </nav>
+            </footer>
+          )}
+        </div>
 
       {preview && (
         <div className={styles.modalBackdrop} onMouseDown={() => setPreview(null)}>
@@ -408,6 +592,7 @@ export function LibraryClient() {
           </section>
         </div>
       )}
-    </WorkspaceShell>
+      </main>
+    </div>
   );
 }
