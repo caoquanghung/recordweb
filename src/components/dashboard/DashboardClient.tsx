@@ -1,40 +1,48 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { WorkspaceShell } from '@/components/app/WorkspaceShell';
-import { getAllLocalRecordings, getRecordingDrafts } from '@/lib/idb';
+import { AppSidebar } from '@/components/app/AppSidebar';
+import { getAllLocalRecordings, getRecordingDrafts, type RecordingDraft } from '@/lib/idb';
 import type { DbRecording, DbStudioPreset } from '@/types/database';
 import styles from './DashboardClient.module.css';
 
 const quickStarts = [
-  { title: 'Presentation', detail: 'Screen, camera, and voice clarity', mode: 'screen-pip', background: 'blur', audioMode: 'Voice clarity' },
-  { title: 'Coding tutorial', detail: 'Screen-first with a compact camera', mode: 'screen-pip', background: 'original', audioMode: 'Natural' },
-  { title: 'Webcam message', detail: 'Camera-only with a clean background', mode: 'webcam-only', background: 'blur', audioMode: 'Voice clarity' },
-  { title: 'Product demo', detail: 'Screen and presenter cutout', mode: 'screen-pip', background: 'cutout', audioMode: 'Podcast' },
-  { title: 'Online lecture', detail: 'Screen capture with noise reduction', mode: 'screen-pip', background: 'blur', audioMode: 'Noise reduction' },
+  { title: 'Trình chiếu bài giảng', detail: 'Màn hình, camera và giọng nói rõ ràng', mode: 'screen-pip', background: 'blur', audioMode: 'Voice clarity' },
+  { title: 'Hướng dẫn thực hành', detail: 'Ưu tiên màn hình với camera thu gọn', mode: 'screen-pip', background: 'original', audioMode: 'Natural' },
+  { title: 'Lời nhắn qua camera', detail: 'Chỉ dùng camera với nền gọn gàng', mode: 'webcam-only', background: 'blur', audioMode: 'Voice clarity' },
+  { title: 'Giới thiệu sản phẩm', detail: 'Màn hình và người trình bày tách nền', mode: 'screen-pip', background: 'cutout', audioMode: 'Podcast' },
+  { title: 'Bài giảng trực tuyến', detail: 'Ghi màn hình với lọc tiếng ồn', mode: 'screen-pip', background: 'blur', audioMode: 'Noise reduction' },
 ];
 
-function formatDuration(seconds: number) {
-  const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
-  const remainder = Math.floor(seconds % 60).toString().padStart(2, '0');
-  return `${minutes}:${remainder}`;
+const dashboardAsset = (name: string) => `/figma/dashboard/${name}`;
+
+function formatLongDuration(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = Math.floor(seconds % 60);
+  if (minutes === 0) return `${remainder} giây`;
+  return `${minutes} phút${remainder ? ` ${remainder} giây` : ''}`;
+}
+
+function Icon({ src, size = 18 }: { src: string; size?: number }) {
+  return <Image src={dashboardAsset(src)} alt="" width={size} height={size} aria-hidden="true" />;
 }
 
 export function DashboardClient() {
   const router = useRouter();
   const [recordings, setRecordings] = useState<DbRecording[]>([]);
   const [presets, setPresets] = useState<DbStudioPreset[]>([]);
+  const [drafts, setDrafts] = useState<RecordingDraft[]>([]);
   const [localCount, setLocalCount] = useState(0);
-  const [draftCount, setDraftCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     try {
-      const [recordingResponse, presetResponse, local, drafts] = await Promise.all([
+      const [recordingResponse, presetResponse, local, storedDrafts] = await Promise.all([
         fetch('/api/recordings', { cache: 'no-store' }),
         fetch('/api/presets', { cache: 'no-store' }),
         getAllLocalRecordings(),
@@ -42,12 +50,12 @@ export function DashboardClient() {
       ]);
       const recordingData = await recordingResponse.json();
       const presetData = await presetResponse.json();
-      if (!recordingResponse.ok) throw new Error(recordingData.error ?? 'Could not load recordings.');
-      if (!presetResponse.ok) throw new Error(presetData.error ?? 'Could not load presets.');
+      if (!recordingResponse.ok) throw new Error(recordingData.error ?? 'Không thể tải danh sách bài giảng.');
+      if (!presetResponse.ok) throw new Error(presetData.error ?? 'Không thể tải cấu hình đã lưu.');
       setRecordings(recordingData.recordings ?? []);
       setPresets(presetData.presets ?? []);
       setLocalCount(local.length);
-      setDraftCount(drafts.length);
+      setDrafts(storedDrafts);
     } catch (error) {
       setMessage((error as Error).message);
     } finally {
@@ -76,7 +84,7 @@ export function DashboardClient() {
   };
 
   const deletePreset = async (id: string) => {
-    if (!window.confirm('Delete this saved preset?')) return;
+    if (!window.confirm('Xoá cấu hình đã lưu này?')) return;
     const response = await fetch('/api/presets', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -84,83 +92,176 @@ export function DashboardClient() {
     });
     const data = await response.json();
     if (!response.ok) {
-      setMessage(data.error ?? 'Could not delete preset.');
+      setMessage(data.error ?? 'Không thể xoá cấu hình.');
       return;
     }
     setPresets((current) => current.filter((preset) => preset.id !== id));
-    setMessage('Preset deleted.');
+    setMessage('Đã xoá cấu hình.');
   };
 
+  const recentRecordings = recordings.slice(0, drafts.length > 0 ? 2 : 3);
+  const recentCount = Math.min(3, recentRecordings.length + (drafts.length > 0 ? 1 : 0));
+
   return (
-    <WorkspaceShell
-      active="dashboard"
-      eyebrow="RecordWeb workspace"
-      title="Dashboard"
-      description="Start quickly, resume recoverable work, and keep an eye on local and cloud recordings."
-      actions={<Link className={styles.primaryAction} href="/">New recording</Link>}
-    >
-      {draftCount > 0 && (
-        <section className={styles.recoveryBanner}>
-          <div><strong>{draftCount} interrupted recording{draftCount === 1 ? '' : 's'} can be recovered</strong><span>Open Studio to repair and save the latest local checkpoint.</span></div>
-          <Link href="/">Recover in Studio</Link>
-        </section>
-      )}
+    <div className={styles.dashboardShell}>
+      <AppSidebar behavior="adaptive" activeHref="/dashboard" />
 
-      {message && <p className={styles.message} role="status">{message}</p>}
-
-      <section className={styles.statsGrid} aria-label="Workspace summary">
-        <article><span>Cloud recordings</span><strong>{loading ? '—' : recordings.length}</strong><small>Saved in Neon + Blob</small></article>
-        <article><span>Local recordings</span><strong>{loading ? '—' : localCount}</strong><small>Available in this browser</small></article>
-        <article><span>Cloud storage</span><strong>{loading ? '—' : `${(cloudBytes / 1024 / 1024).toFixed(1)} MB`}</strong><small>Recorded file metadata</small></article>
-        <article><span>Saved presets</span><strong>{loading ? '—' : presets.length}</strong><small>Reusable studio setups</small></article>
-      </section>
-
-      <section className={styles.section}>
-        <div className={styles.sectionHeading}><div><span>Quick start</span><h2>Choose a recording workflow</h2></div></div>
-        <div className={styles.quickGrid}>
-          {quickStarts.map((item, index) => (
-            <button key={item.title} onClick={() => startQuickRecording(item)}>
-              <span>{String(index + 1).padStart(2, '0')}</span>
-              <strong>{item.title}</strong>
-              <small>{item.detail}</small>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <div className={styles.contentGrid}>
-        <section className={styles.section}>
-          <div className={styles.sectionHeading}>
-            <div><span>Recent</span><h2>Cloud recordings</h2></div>
-            <Link href="/library">Open library</Link>
-          </div>
-          <div className={styles.list}>
-            {!loading && recordings.length === 0 && <p className={styles.empty}>No cloud recordings yet. Your local recording stays private until you upload it.</p>}
-            {recordings.slice(0, 5).map((recording) => (
-              <Link className={styles.listRow} href={`/share/${recording.id}`} key={recording.id}>
-                <span className={styles.formatBadge}>{recording.mime_type.includes('mp4') ? 'MP4' : 'WEBM'}</span>
-                <div><strong>{recording.title}</strong><small>{new Date(recording.created_at).toLocaleDateString()} · {recording.resolution}</small></div>
-                <span>{formatDuration(Number(recording.duration_seconds))}</span>
-                <em>{recording.is_public ? 'Public' : 'Private'}</em>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className={styles.section}>
-          <div className={styles.sectionHeading}><div><span>Presets</span><h2>Saved setups</h2></div></div>
-          <div className={styles.list}>
-            {!loading && presets.length === 0 && <p className={styles.empty}>Save a setup from the Studio Effects panel to reuse it here.</p>}
-            {presets.slice(0, 5).map((preset) => (
-              <div className={styles.presetRow} key={preset.id}>
-                <div><strong>{preset.preset_name}</strong><small>{preset.pip_shape} · {preset.pip_size} · {preset.bg_removal_mode}</small></div>
-                <button onClick={() => openPresetInStudio(preset)}>Use</button>
-                <button className={styles.dangerText} onClick={() => void deletePreset(preset.id)}>Delete</button>
+      <main className={styles.dashboardMain}>
+        <div className={styles.dashboardContent}>
+          {drafts.length > 0 && (
+            <section className={styles.recoveryBanner} aria-labelledby="recovery-title">
+              <div className={styles.recoveryLead}>
+                <span className={styles.alertIcon}><Icon src="alert.svg" size={30} /></span>
+                <div className={styles.recoveryCopy}>
+                  <div className={styles.recoveryMeta}>
+                    <span className={styles.urgentBadge}><i />Cần xử lý ngay</span>
+                    <span>Chưa hoàn tất lưu trữ</span>
+                  </div>
+                  <h2 id="recovery-title">
+                    {drafts.length} bản ghi chưa lưu <small>(hệ thống đã tự động sao lưu an toàn)</small>
+                  </h2>
+                  <p>Hệ thống phát hiện phiên ghi gần nhất chưa được lưu hoàn chỉnh. Hãy mở Studio để phục hồi dữ liệu.</p>
+                </div>
               </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </WorkspaceShell>
+              <div className={styles.recoveryActions}>
+                <Link className={styles.secondaryButton} href="/">
+                  <Icon src="eye.svg" />
+                  Xem lại hoặc huỷ
+                </Link>
+                <Link className={styles.dangerButton} href="/">
+                  <Icon src="save.svg" />
+                  Lưu bài giảng ngay
+                </Link>
+              </div>
+            </section>
+          )}
+
+          {message && <p className={styles.message} role="status">{message}</p>}
+
+          <section className={styles.hero} aria-labelledby="dashboard-heading">
+            <div className={styles.heroCopy}>
+              <span className={styles.greeting}><Icon src="greeting.svg" />Kính chào Thầy/Cô</span>
+              <h1 id="dashboard-heading">Hôm nay Thầy/Cô muốn giảng bài gì?</h1>
+              <p>Chỉ cần một bấm chuột, hệ thống sẽ tự động bật máy ảnh, mở trình chiếu slide và thu âm bài giảng rõ ràng, sắc nét.</p>
+            </div>
+            <button className={styles.heroButton} type="button" onClick={() => startQuickRecording(quickStarts[0])}>
+              <Icon src="video.svg" size={27} />
+              Bắt đầu ghi bài giảng mới
+            </button>
+          </section>
+
+          <section className={styles.recentSection} aria-labelledby="recent-title">
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionTitle}>
+                <Icon src="lectures.svg" size={24} />
+                <h2 id="recent-title">Bài giảng gần đây</h2>
+                <span>{loading ? 'Đang tải' : `${recentCount} bài gần nhất`}</span>
+              </div>
+              <Link href="/library">Xem toàn bộ thư viện <Icon src="arrow.svg" size={14} /></Link>
+            </div>
+
+            <div className={styles.recordingGrid}>
+              {loading && (
+                <article className={styles.recordingCard} aria-busy="true">
+                  <div className={styles.cardBody}>
+                    <span className={`${styles.statusBadge} ${styles.statusProcessing}`}><Icon src="hourglass.svg" size={14} />Đang tải dữ liệu...</span>
+                    <h3>Đang đồng bộ thư viện bài giảng</h3>
+                    <p>Hệ thống đang lấy dữ liệu mới nhất</p>
+                    <div className={`${styles.thumbnail} ${styles.processingThumbnail}`}>
+                      <Image src={dashboardAsset('recording-processing.png')} alt="" fill sizes="(max-width: 720px) 100vw, 33vw" />
+                      <span><Icon src="spinner.svg" size={27} />Vui lòng chờ trong giây lát</span>
+                    </div>
+                  </div>
+                  <button className={styles.disabledAction} type="button" disabled><Icon src="processing.svg" />Đang tải bài giảng...</button>
+                </article>
+              )}
+
+              {!loading && drafts.length > 0 && (
+                <article className={`${styles.recordingCard} ${styles.draftCard}`}>
+                  <div className={styles.cardBody}>
+                    <span className={`${styles.statusBadge} ${styles.statusDraft}`}><i />Bài giảng đang quay dở</span>
+                    <h3>Bản ghi chưa hoàn tất gần nhất</h3>
+                    <p>Đã quay được: {formatLongDuration(drafts[0].durationMs / 1000)}</p>
+                    <div className={styles.thumbnail}>
+                      <Image src={dashboardAsset('recording-draft.png')} alt="Xem trước bản ghi bài giảng chưa hoàn tất" fill sizes="(max-width: 720px) 100vw, 33vw" />
+                    </div>
+                  </div>
+                  <button className={styles.primaryCardAction} type="button" onClick={() => router.push('/')}>
+                    <Icon src="play.svg" />Vào quay tiếp
+                  </button>
+                </article>
+              )}
+
+              {!loading && recentRecordings.map((recording) => (
+                <article className={styles.recordingCard} key={recording.id}>
+                  <div className={styles.cardBody}>
+                    <span className={`${styles.statusBadge} ${styles.statusReady}`}><Icon src="check.svg" size={15} />Sẵn sàng xem</span>
+                    <h3>{recording.title}</h3>
+                    <p>Đã quay: {new Date(recording.created_at).toLocaleDateString('vi-VN')} • Thời lượng {formatLongDuration(Number(recording.duration_seconds))}</p>
+                    <div className={styles.thumbnail}>
+                      <Image src={dashboardAsset('recording-ready.png')} alt={`Xem trước ${recording.title}`} fill sizes="(max-width: 720px) 100vw, 33vw" />
+                    </div>
+                  </div>
+                  <div className={styles.cardActions}>
+                    <Link className={styles.watchButton} href={`/share/${recording.id}`}><Icon src="watch.svg" size={20} />Xem lại</Link>
+                    <Link className={styles.shareButton} href={`/share/${recording.id}`}><Icon src="share.svg" size={18} />Gửi sinh viên</Link>
+                  </div>
+                </article>
+              ))}
+
+              {!loading && recentCount === 0 && (
+                <div className={styles.emptyState}>
+                  <Icon src="video.svg" size={32} />
+                  <h3>Chưa có bài giảng nào</h3>
+                  <p>Bắt đầu bản ghi đầu tiên; dữ liệu chỉ được tải lên đám mây khi Thầy/Cô chủ động lưu.</p>
+                  <button type="button" onClick={() => startQuickRecording(quickStarts[0])}>Ghi bài giảng mới</button>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className={styles.workspaceSection} aria-labelledby="workspace-title">
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionTitle}><h2 id="workspace-title">Tổng quan không gian làm việc</h2></div>
+            </div>
+            <div className={styles.statsGrid} aria-label="Tóm tắt không gian làm việc">
+              <article><span>Bản ghi đám mây</span><strong>{loading ? '—' : recordings.length}</strong><small>Đã lưu trên Neon + Blob</small></article>
+              <article><span>Bản ghi cục bộ</span><strong>{loading ? '—' : localCount}</strong><small>Có trong trình duyệt này</small></article>
+              <article><span>Dung lượng đám mây</span><strong>{loading ? '—' : `${(cloudBytes / 1024 / 1024).toFixed(1)} MB`}</strong><small>Theo metadata tệp ghi</small></article>
+              <article><span>Cấu hình đã lưu</span><strong>{loading ? '—' : presets.length}</strong><small>Sẵn sàng dùng lại</small></article>
+            </div>
+
+            <div className={styles.utilityGrid}>
+              <div className={styles.utilityPanel}>
+                <div className={styles.utilityHeading}><span>Bắt đầu nhanh</span><h3>Chọn quy trình ghi</h3></div>
+                <div className={styles.quickGrid}>
+                  {quickStarts.map((item, index) => (
+                    <button key={item.title} type="button" onClick={() => startQuickRecording(item)}>
+                      <span>{String(index + 1).padStart(2, '0')}</span>
+                      <strong>{item.title}</strong>
+                      <small>{item.detail}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.utilityPanel}>
+                <div className={styles.utilityHeading}><span>Cấu hình</span><h3>Thiết lập đã lưu</h3></div>
+                <div className={styles.presetList}>
+                  {!loading && presets.length === 0 && <p className={styles.emptyCopy}>Lưu một thiết lập từ bảng Hiệu ứng trong Studio để dùng lại tại đây.</p>}
+                  {presets.slice(0, 5).map((preset) => (
+                    <div className={styles.presetRow} key={preset.id}>
+                      <div><strong>{preset.preset_name}</strong><small>{preset.pip_shape} · {preset.pip_size} · {preset.bg_removal_mode}</small></div>
+                      <button type="button" onClick={() => openPresetInStudio(preset)}>Dùng</button>
+                      <button className={styles.deleteButton} type="button" onClick={() => void deletePreset(preset.id)}>Xoá</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
   );
 }
