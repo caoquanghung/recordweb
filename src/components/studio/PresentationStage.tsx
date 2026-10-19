@@ -34,6 +34,8 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
       currentPageIndex,
       progress,
       progressMessage,
+      isRendering: deckIsRendering,
+      canAdvance: canAdvanceDeck,
       error: deckError,
       canvasRef,
       load: loadPresentation,
@@ -146,9 +148,9 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
             <input type="file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" onChange={loadFile} disabled={recordingLocked} />
           </label>
           <div>
-            <button type="button" onClick={previousPage} disabled={currentPageIndex === 0} aria-label="Previous slide">←</button>
+            <button type="button" onClick={previousPage} disabled={deckIsRendering || currentPageIndex === 0} aria-label="Previous slide">←</button>
             <span>{currentPageIndex + 1} / {metadata.pageCount}</span>
-            <button type="button" onClick={nextPage} disabled={currentPageIndex >= metadata.pageCount - 1} aria-label="Next slide">→</button>
+            <button type="button" onClick={nextPage} disabled={deckIsRendering || !canAdvanceDeck} aria-label="Next animation or slide">→</button>
           </div>
           <span className={styles.presentationFileName} title={metadata.name}>{metadata.name}</span>
         </div>

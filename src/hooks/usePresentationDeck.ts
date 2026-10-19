@@ -29,6 +29,7 @@ export interface UsePresentationDeckResult {
   progress: number;
   progressMessage: string;
   isRendering: boolean;
+  canAdvance: boolean;
   error: string | null;
   canvasRef: RefCallback<HTMLCanvasElement>;
   load: (file: File) => Promise<boolean>;
@@ -51,6 +52,7 @@ export function usePresentationDeck({
   const rendererRef = useRef<PresentationRenderer | null>(null);
   const operationIdRef = useRef(0);
   const renderRequestIdRef = useRef(0);
+  const playbackAdvancePendingRef = useRef(false);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const [status, setStatus] = useState<PresentationDeckStatus>('idle');
   const [metadata, setMetadata] = useState<PresentationFileMetadata | null>(null);
@@ -58,6 +60,7 @@ export function usePresentationDeck({
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState('');
   const [isRendering, setIsRendering] = useState(false);
+  const [hasPendingPlaybackSteps, setHasPendingPlaybackSteps] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const disposeCurrentRenderer = useCallback(() => {
@@ -68,6 +71,7 @@ export function usePresentationDeck({
 
   const clear = useCallback(() => {
     operationIdRef.current += 1;
+    playbackAdvancePendingRef.current = false;
     disposeCurrentRenderer();
     setStatus('idle');
     setMetadata(null);
@@ -75,6 +79,7 @@ export function usePresentationDeck({
     setProgress(0);
     setProgressMessage('');
     setIsRendering(false);
+    setHasPendingPlaybackSteps(false);
     setError(null);
     if (canvas) {
       const context = canvas.getContext('2d');
@@ -89,6 +94,7 @@ export function usePresentationDeck({
     setStatus('validating');
     setMetadata(null);
     setCurrentPageIndex(0);
+    setHasPendingPlaybackSteps(false);
     setProgress(0);
     setProgressMessage('Validating presentation…');
     setError(null);
@@ -164,12 +170,20 @@ export function usePresentationDeck({
       setIsRendering(true);
       setError(null);
       try {
-        await renderInto(
-          currentPageIndex,
-          canvas,
-          renderWidth,
-          () => !cancelled && renderRequestId === renderRequestIdRef.current,
-        );
+        const renderer = rendererRef.current;
+        if (renderer?.presentPage) {
+          await renderer.presentPage(currentPageIndex, canvas, renderWidth);
+          if (!cancelled && renderRequestId === renderRequestIdRef.current) {
+            setHasPendingPlaybackSteps(Boolean(renderer.hasPendingPlaybackSteps?.()));
+          }
+        } else {
+          await renderInto(
+            currentPageIndex,
+            canvas,
+            renderWidth,
+            () => !cancelled && renderRequestId === renderRequestIdRef.current,
+          );
+        }
       } catch (cause) {
         if (!cancelled) setError(toErrorMessage(cause));
       } finally {
@@ -183,17 +197,49 @@ export function usePresentationDeck({
   const goToPage = useCallback((pageIndex: number) => {
     const pageCount = rendererRef.current?.pageCount ?? 0;
     if (pageCount <= 0) return;
-    setCurrentPageIndex(Math.min(pageCount - 1, Math.max(0, Math.trunc(pageIndex))));
-  }, []);
+    const nextPageIndex = Math.min(pageCount - 1, Math.max(0, Math.trunc(pageIndex)));
+    if (nextPageIndex === currentPageIndex) return;
+    setHasPendingPlaybackSteps(false);
+    setCurrentPageIndex(nextPageIndex);
+  }, [currentPageIndex]);
 
   const nextPage = useCallback(() => {
-    const pageCount = rendererRef.current?.pageCount ?? 0;
-    setCurrentPageIndex((current) => Math.min(Math.max(0, pageCount - 1), current + 1));
+    const renderer = rendererRef.current;
+    const pageCount = renderer?.pageCount ?? 0;
+    if (!renderer?.advancePlaybackStep) {
+      setCurrentPageIndex((current) => Math.min(Math.max(0, pageCount - 1), current + 1));
+      return;
+    }
+    if (playbackAdvancePendingRef.current) return;
+
+    const operationId = operationIdRef.current;
+    playbackAdvancePendingRef.current = true;
+    setIsRendering(true);
+    setError(null);
+    void renderer.advancePlaybackStep()
+      .then((advanced) => {
+        if (operationId !== operationIdRef.current || rendererRef.current !== renderer) return;
+        setHasPendingPlaybackSteps(Boolean(renderer.hasPendingPlaybackSteps?.()));
+        if (!advanced) {
+          setCurrentPageIndex((current) => Math.min(Math.max(0, pageCount - 1), current + 1));
+        }
+      })
+      .catch((cause) => {
+        if (operationId === operationIdRef.current) setError(toErrorMessage(cause));
+      })
+      .finally(() => {
+        if (operationId === operationIdRef.current) {
+          playbackAdvancePendingRef.current = false;
+          setIsRendering(false);
+        }
+      });
   }, []);
 
   const previousPage = useCallback(() => {
-    setCurrentPageIndex((current) => Math.max(0, current - 1));
-  }, []);
+    if (currentPageIndex <= 0) return;
+    setHasPendingPlaybackSteps(false);
+    setCurrentPageIndex(currentPageIndex - 1);
+  }, [currentPageIndex]);
 
   const renderThumbnail = useCallback(async (
     pageIndex: number,
@@ -215,6 +261,8 @@ export function usePresentationDeck({
     progress,
     progressMessage,
     isRendering,
+    canAdvance: hasPendingPlaybackSteps
+      || currentPageIndex < Math.max(0, (metadata?.pageCount ?? 0) - 1),
     error,
     canvasRef: setCanvas,
     load,
