@@ -1935,3 +1935,395 @@
   .recDot { animation: none; }
   .recordButton, .roundControl, .stage { transition: none; }
 }
+
+/* Studio screen reconstruction: scoped so Presentation keeps its existing shell. */
+.studioScreen {
+  --studio-bg: #0d1324;
+  --panel: #151d31;
+  --panel-solid: #151d31;
+  --panel-raised: #1c2740;
+  --line: rgba(204, 214, 235, 0.12);
+  --line-strong: rgba(204, 214, 235, 0.22);
+  --primary: #5367de;
+  --primary-bright: #7d8df0;
+  --cyan: #2cc8bd;
+  --green: #2cc8a6;
+  --red: #e95368;
+  --amber: #e2a84a;
+  --text: #f6f8fc;
+  --muted: #a5afc2;
+  --dim: #6f7a90;
+  display: block;
+  color: var(--text);
+  background: var(--studio-bg);
+  font-family: "Be Vietnam Pro", var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.studioScreen .workspace {
+  max-width: none;
+  min-height: 100vh;
+  padding: 0 8px 28px;
+  background:
+    radial-gradient(circle at 50% -30%, rgba(83, 103, 222, 0.16), transparent 42rem),
+    var(--studio-bg);
+}
+
+.studioScreen .studioTopbar {
+  min-height: 56px;
+  margin: 0 -8px 8px;
+  padding: 7px 24px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel-solid) 92%, transparent);
+  box-shadow: 0 8px 30px rgba(2, 6, 23, 0.12);
+  backdrop-filter: blur(18px);
+}
+
+.studioBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.studioBrandMark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: white;
+  background: linear-gradient(145deg, #5367de, #3547a8);
+  box-shadow: 0 6px 18px rgba(83, 103, 222, 0.28);
+}
+
+.studioBrandMark .icon { width: 17px; }
+.studioBrand > span:last-child { display: grid; gap: 1px; }
+.studioBrand strong { font-size: 15px; line-height: 1.2; letter-spacing: -.02em; }
+.studioBrand small { color: var(--muted); font-size: 10px; line-height: 1.2; }
+
+.studioReady {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #b9f4e8;
+  background: rgba(44, 200, 166, 0.14);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.studioReady i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px rgba(44, 200, 166, .65); }
+
+.studioDashboardLink {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 11px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.studioScreen .themeButton,
+.studioScreen .secondaryButton {
+  height: 36px;
+  padding: 0 11px;
+  border-radius: 9px;
+  font-size: 11px;
+}
+
+.studioScreen .studioSessionBar {
+  min-height: 42px;
+  margin: 0 8px 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  box-shadow: 0 6px 22px rgba(2, 6, 23, 0.08);
+}
+
+.studioSessionTitle,
+.studioSessionActions {
+  display: flex;
+  align-items: center;
+}
+
+.studioSessionTitle { min-width: 0; gap: 8px; }
+.studioSessionTitle .icon { width: 15px; color: var(--primary-bright); }
+.studioSessionTitle span { color: var(--primary-bright); font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.studioSessionTitle strong { min-width: 0; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.studioSessionActions { gap: 12px; }
+.studioScreen .drawerButton { height: 30px; padding: 0 10px; border-radius: 8px; font-size: 10px; }
+.studioScreen .drawerButton:hover,
+.studioScreen .drawerButtonActive { border-color: rgba(125, 141, 240, 0.46); background: rgba(83, 103, 222, 0.16); }
+.studioScreen .liveSummary { font-size: 10px; }
+
+.studioScreen .studioGrid,
+.studioScreen .studioGrid.sourcesClosed,
+.studioScreen .studioGrid.effectsClosed,
+.studioScreen .studioGrid.sourcesClosed.effectsClosed {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "stage stage"
+    "sources effects";
+  gap: 10px;
+  padding: 0 8px;
+}
+
+.studioScreen .studioGrid.sourcesClosed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "stage" "effects";
+}
+
+.studioScreen .studioGrid.effectsClosed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "stage" "sources";
+}
+
+.studioScreen .studioGrid.sourcesClosed.effectsClosed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "stage";
+}
+
+.studioScreen .stageColumn {
+  width: min(100%, 1024px);
+  justify-self: center;
+}
+
+.studioScreen .stageToolbar {
+  height: 42px;
+  align-items: center;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--panel-solid);
+}
+
+.studioScreen .stageMode,
+.studioScreen .stageTags { font-size: 10px; }
+.studioScreen .stageTags span { padding-left: 10px; }
+
+.studioScreen .stage {
+  padding: 0;
+  border-color: var(--line);
+  border-radius: 0 0 16px 16px;
+  background: #10182a;
+  box-shadow: 0 22px 54px rgba(2, 6, 23, 0.28);
+}
+
+.studioScreen .stage::before { display: none; }
+.studioScreen .screenMock,
+.studioScreen .compositorCanvas {
+  border: 0;
+  border-radius: 0 0 15px 15px;
+  box-shadow: none;
+}
+
+.mockSlideHeader {
+  position: absolute;
+  inset: 16px 18px auto;
+  z-index: 1;
+  display: grid;
+  gap: 3px;
+  color: #183a8c;
+}
+
+.mockSlideHeader span { font-size: clamp(7px, .8vw, 11px); font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.mockSlideHeader strong { color: #15233d; font-size: clamp(10px, 1.1vw, 16px); }
+
+.mockLesson {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(150px, .55fr);
+  align-items: center;
+  gap: 9%;
+  padding: 12% 9% 8%;
+  color: #1a2841;
+  background:
+    radial-gradient(circle at 84% 34%, rgba(83, 103, 222, .08), transparent 24%),
+    linear-gradient(145deg, #fff, #f8faff);
+}
+
+.mockLessonCard { display: grid; gap: 7px; }
+.mockLessonCard > strong { color: #173f9d; font-size: clamp(8px, .8vw, 12px); }
+.mockLessonCard p { color: #526078; font-size: clamp(7px, .72vw, 11px); line-height: 1.45; }
+.mockFormula { padding: 8px 12px; border-radius: 6px; color: #173f9d; background: #eef2ff; font-family: Georgia, serif; font-size: clamp(9px, .9vw, 14px); font-weight: 700; text-align: center; }
+.mockLegend { display: flex; flex-wrap: wrap; gap: 12px; color: #344158; font-size: clamp(6px, .65vw, 9px); }
+.mockLegend span { display: inline-flex; align-items: center; gap: 5px; }
+.mockLegend i { width: 8px; height: 8px; border-radius: 50%; background: #3347b9; }
+.mockLegend span:last-child i { background: #0f9488; }
+
+.mockDiagram {
+  position: relative;
+  aspect-ratio: 1.3;
+  border-radius: 14px;
+  background: #f0f4fb;
+}
+
+.diagramAxisX,
+.diagramAxisY,
+.diagramVectorOne,
+.diagramVectorTwo { position: absolute; display: block; transform-origin: left center; }
+.diagramAxisX { left: 17%; right: 12%; bottom: 18%; height: 1px; background: #9bb0dc; }
+.diagramAxisY { left: 22%; top: 13%; bottom: 15%; width: 1px; background: #9bb0dc; }
+.diagramVectorOne { left: 22%; bottom: 18%; width: 58%; height: 2px; background: #3347b9; transform: rotate(-42deg); }
+.diagramVectorTwo { left: 22%; bottom: 18%; width: 46%; height: 2px; background: #0f9488; transform: rotate(-58deg); }
+.mockDiagram small { position: absolute; top: 30%; right: 8%; color: #173f9d; font-size: clamp(6px, .6vw, 9px); font-weight: 800; }
+
+.studioScreen .cameraMock {
+  right: 3%;
+  bottom: 7%;
+  width: clamp(92px, 13%, 132px);
+  aspect-ratio: 1;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 23%, rgba(125, 141, 240, .48), transparent 35%),
+    linear-gradient(145deg, #2a3552, #12192b);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .35), 0 0 0 1px rgba(83, 103, 222, .2);
+}
+
+.studioScreen .avatarShape { background: linear-gradient(145deg, #5367de, #0f9488); }
+.studioScreen .stageCorner { left: auto; right: 12px; color: rgba(255, 255, 255, .5); }
+
+.studioScreen .controlDock {
+  position: static;
+  min-height: 62px;
+  margin-top: 10px;
+  border-color: var(--line);
+  border-radius: 14px;
+  background: var(--panel-solid);
+  box-shadow: 0 12px 30px rgba(2, 6, 23, .18);
+}
+
+.studioScreen .recordButton {
+  height: 46px;
+  min-width: 230px;
+  padding: 0 28px;
+  border-color: rgba(233, 83, 104, .52);
+  border-radius: 11px;
+  background: linear-gradient(135deg, #ec5b6f, #d93d57);
+  box-shadow: 0 9px 22px rgba(217, 61, 87, .28);
+  font-size: 12px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.studioScreen .recordButton:hover { box-shadow: 0 12px 28px rgba(217, 61, 87, .38); }
+.studioScreen .shortcutHint { color: var(--dim); font-size: 9px; }
+
+.studioScreen .leftPanel,
+.studioScreen .rightPanel {
+  position: static;
+  inset: auto;
+  width: auto;
+  max-height: none;
+  align-self: stretch;
+  overflow: visible;
+  border-radius: 14px;
+  background: var(--panel-solid);
+  box-shadow: 0 12px 32px rgba(2, 6, 23, .14);
+}
+
+.studioScreen .leftPanel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.studioScreen .leftPanel .panelSection { border-right: 1px solid var(--line); border-bottom: 0; }
+.studioScreen .leftPanel .panelSection:last-child { border-right: 0; }
+.studioScreen .panelSection,
+.studioScreen .inspectorSection { padding: 14px; }
+.studioScreen .modeList { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.studioScreen .modeButton { grid-template-columns: 26px minmax(0, 1fr); padding: 7px; }
+.studioScreen .modeIcon { width: 26px; height: 26px; border-radius: 7px; }
+.studioScreen .modeIcon .icon { width: 14px; }
+.studioScreen .modeButton .radioMark { display: none; }
+.studioScreen .modeButton small { display: none; }
+.studioScreen .sourceStatus { margin-top: 7px; }
+.studioScreen .fieldLabel { margin-top: 8px; }
+.studioScreen .fieldLabel select { height: 31px; }
+.studioScreen .sourceActions { margin-top: 8px; }
+
+:global(html[data-theme='light']) .studioScreen {
+  --studio-bg: #f2f5fa;
+  --panel: #ffffff;
+  --panel-solid: #ffffff;
+  --panel-raised: #f5f7fb;
+  --line: rgba(30, 52, 88, 0.11);
+  --line-strong: rgba(30, 52, 88, 0.2);
+  --primary: #4055c5;
+  --primary-bright: #3347b9;
+  --cyan: #0f9488;
+  --green: #0f9f83;
+  --red: #df415b;
+  --amber: #b87418;
+  --text: #17233a;
+  --muted: #5c687b;
+  --dim: #8993a4;
+  background: var(--studio-bg);
+}
+
+:global(html[data-theme='light']) .studioScreen .workspace {
+  background:
+    radial-gradient(circle at 50% -30%, rgba(64, 85, 197, 0.11), transparent 42rem),
+    var(--studio-bg);
+}
+
+:global(html[data-theme='light']) .studioScreen .studioTopbar,
+:global(html[data-theme='light']) .studioScreen .studioSessionBar,
+:global(html[data-theme='light']) .studioScreen .stageToolbar,
+:global(html[data-theme='light']) .studioScreen .controlDock,
+:global(html[data-theme='light']) .studioScreen .leftPanel,
+:global(html[data-theme='light']) .studioScreen .rightPanel { background: rgba(255, 255, 255, .94); }
+
+:global(html[data-theme='light']) .studioScreen .studioReady { color: #087766; background: #d7f5ee; }
+:global(html[data-theme='light']) .studioScreen .studioDashboardLink,
+:global(html[data-theme='light']) .studioScreen .themeButton,
+:global(html[data-theme='light']) .studioScreen .secondaryButton { color: #334155; background: #f7f9fc; }
+:global(html[data-theme='light']) .studioScreen .stage { background: #e7edf6; box-shadow: 0 20px 48px rgba(30, 52, 88, .14); }
+:global(html[data-theme='light']) .studioScreen .controlDock { box-shadow: 0 10px 26px rgba(30, 52, 88, .12); }
+
+@media (max-width: 1120px) {
+  .studioScreen .studioGrid,
+  .studioScreen .studioGrid.sourcesClosed,
+  .studioScreen .studioGrid.effectsClosed,
+  .studioScreen .studioGrid.sourcesClosed.effectsClosed {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "stage" "sources" "effects";
+  }
+
+  .studioScreen .studioGrid.sourcesClosed { grid-template-areas: "stage" "effects"; }
+  .studioScreen .studioGrid.effectsClosed { grid-template-areas: "stage" "sources"; }
+  .studioScreen .studioGrid.sourcesClosed.effectsClosed { grid-template-areas: "stage"; }
+  .studioScreen .leftPanel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .studioScreen .studioTopbar { align-items: center; padding-inline: 14px; }
+  .studioBrand small, .studioReady, .studioDashboardLink, .studioScreen .themeButton span { display: none; }
+  .studioScreen .topbarActions { gap: 6px; }
+  .studioScreen .studioSessionBar { align-items: flex-start; flex-direction: column; }
+  .studioSessionActions { width: 100%; justify-content: space-between; }
+  .studioScreen .stageToolbar { height: auto; min-height: 48px; align-items: flex-start; flex-direction: column; justify-content: center; gap: 4px; }
+  .studioScreen .stageTags span:nth-child(2) { display: none; }
+  .mockLesson { grid-template-columns: 1fr; padding: 19% 8% 8%; }
+  .mockDiagram { display: none; }
+  .studioScreen .cameraMock { width: 22%; }
+  .studioScreen .controlDock { width: 100%; overflow-x: auto; justify-content: flex-start; }
+  .studioScreen .recordButton { min-width: 180px; padding-inline: 18px; }
+  .studioScreen .leftPanel { grid-template-columns: 1fr; }
+  .studioScreen .leftPanel .panelSection { border-right: 0; border-bottom: 1px solid var(--line); }
+  .studioScreen .modeList { grid-template-columns: 1fr; }
+  .studioScreen .modeButton { grid-template-columns: 30px minmax(0, 1fr) 12px; }
+  .studioScreen .modeButton .radioMark { display: block; }
+  .studioScreen .modeButton small { display: block; }
+}

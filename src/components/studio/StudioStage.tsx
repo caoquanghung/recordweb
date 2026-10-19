@@ -60,12 +60,24 @@ export function StudioStage({ studio }: { studio: StudioController }) {
           />
         ) : (
           <div className={styles.screenMock}>
-            <div className={styles.mockTop}><i /><i /><i /><span>recordweb.app / presentation</span></div>
-            <div className={styles.mockContent}>
-              <span className={styles.mockKicker}>YOUR SCREEN APPEARS HERE</span>
-              <strong>Ready when you are.</strong>
-              <p>Choose your sources, run the preflight check, then start a UI flow test.</p>
-              <div className={styles.mockLines}><i /><i /><i /></div>
+            <div className={styles.mockSlideHeader}>
+              <span>Học phần: Toán ứng dụng</span>
+              <strong>Chương 4: Ma trận và Không gian Véc-tơ</strong>
+            </div>
+            <div className={styles.mockLesson}>
+              <div className={styles.mockLessonCard}>
+                <strong>1. Định lý Phân rã Trị riêng</strong>
+                <p>Cho ma trận đối xứng thực A, tồn tại ma trận trực giao Q sao cho:</p>
+                <div className={styles.mockFormula}>A = Q Λ Qᵀ = Σ λᵢ uᵢ uᵢᵀ</div>
+                <div className={styles.mockLegend}><span><i />Không gian Cột Col(A)</span><span><i />Không gian Hạt nhân Null(A)</span></div>
+              </div>
+              <div className={styles.mockDiagram} aria-hidden="true">
+                <span className={styles.diagramAxisX} />
+                <span className={styles.diagramAxisY} />
+                <span className={styles.diagramVectorOne} />
+                <span className={styles.diagramVectorTwo} />
+                <small>λ₁ · u₁</small>
+              </div>
             </div>
           </div>
         )}
@@ -79,7 +91,7 @@ export function StudioStage({ studio }: { studio: StudioController }) {
 
         {session === 'countdown' && countdown !== null && <div className={styles.countdownOverlay}><span>{countdown}</span><small>Get ready</small></div>}
 
-        <div className={styles.stageCorner}>Preview · {activeMode.detail}{compositeStream ? ' · composite stream ready' : ''}</div>
+        <div className={styles.stageCorner}>Xem trước · {activeMode.detail}{compositeStream ? ' · luồng tổng hợp đã sẵn sàng' : ''}</div>
       </div>
 
       {session !== 'processing' && (

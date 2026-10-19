@@ -1,3 +1,5 @@
+import { UserButton } from '@clerk/nextjs';
+import Link from 'next/link';
 import type { StudioController } from './useStudioController';
 import { StudioIcon } from './StudioPrimitives';
 import styles from './StudioShell.module.css';
@@ -20,6 +22,41 @@ export function StudioHeader({
     runSystemCheck,
     setDiagnosticsOpen,
   } = studio;
+
+  if (studio.workspace === 'studio') {
+    return (
+      <header className={`${styles.topbar} ${styles.studioTopbar}`}>
+        <Link className={styles.studioBrand} href="/dashboard" aria-label="Mở bảng điều khiển RecordWeb">
+          <span className={styles.studioBrandMark}><StudioIcon name="screen" /></span>
+          <span><strong>RecordWeb Studio</strong><small>Phòng thu bài giảng số</small></span>
+        </Link>
+        <div className={styles.topbarActions}>
+          <span className={styles.studioReady}><i /> Sẵn sàng ghi hình</span>
+          <Link className={styles.studioDashboardLink} href="/dashboard">Bảng điều khiển</Link>
+          <button
+            className={styles.themeButton}
+            type="button"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            <StudioIcon name={theme === 'dark' ? 'sun' : 'moon'} />
+            <span>{theme === 'dark' ? 'Sáng' : 'Tối'}</span>
+          </button>
+          <button
+            className={styles.secondaryButton}
+            onClick={() => {
+              setDiagnosticsOpen(true);
+              if (healthState === 'idle') void runSystemCheck();
+            }}
+          >
+            <StudioIcon name="shield" /> Kiểm tra
+          </button>
+          <UserButton />
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className={styles.topbar}>
@@ -74,6 +111,46 @@ export function StudioToolbar({
     setEffectsOpen,
     sourcesConnected,
   } = studio;
+
+  if (studio.workspace === 'studio') {
+    return (
+      <div className={`${styles.workspaceToolbar} ${styles.studioSessionBar}`}>
+        <div className={styles.studioSessionTitle}>
+          <StudioIcon name="camera" />
+          <span>Phiên ghi hình:</span>
+          <strong>Bài giảng mới</strong>
+        </div>
+        <div className={styles.studioSessionActions}>
+          <div className={styles.liveSummary}>
+            <span className={sourcesConnected ? styles.summaryReady : styles.summaryIdle} />
+            {sourcesConnected ? connectedLabel : idleLabel}
+          </div>
+          <div className={styles.drawerActions} aria-label="Workspace panels">
+            <button
+              className={`${styles.drawerButton} ${sourcesOpen ? styles.drawerButtonActive : ''}`}
+              onClick={() => {
+                setSourcesOpen((value) => !value);
+                if (!sourcesOpen && window.innerWidth < 1120) setEffectsOpen(false);
+              }}
+              aria-pressed={sourcesOpen}
+            >
+              <StudioIcon name="screen" /> Thiết bị
+            </button>
+            <button
+              className={`${styles.drawerButton} ${effectsOpen ? styles.drawerButtonActive : ''}`}
+              onClick={() => {
+                setEffectsOpen((value) => !value);
+                if (!effectsOpen && window.innerWidth < 1120) setSourcesOpen(false);
+              }}
+              aria-pressed={effectsOpen}
+            >
+              <StudioIcon name="spark" /> Cài đặt
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.workspaceToolbar}>

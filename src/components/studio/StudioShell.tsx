@@ -1,6 +1,5 @@
 'use client';
 
-import { AppNavigation } from '@/components/app/AppNavigation';
 import { StudioHeader, StudioSessionNotice, StudioToolbar } from './StudioChrome';
 import { StudioDiagnosticsDrawer } from './StudioDiagnosticsDrawer';
 import { StudioEffectsPanel } from './StudioEffectsPanel';
@@ -14,9 +13,7 @@ export function StudioShell() {
   const studio = useStudioController();
 
   return (
-    <main className={styles.appShell}>
-      <AppNavigation active="studio" />
-
+    <main className={`${styles.appShell} ${styles.studioScreen}`}>
       <section className={styles.workspace}>
         <StudioHeader studio={studio} />
         <StudioToolbar studio={studio} />
