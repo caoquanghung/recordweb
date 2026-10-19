@@ -259,6 +259,7 @@ export function useRecordingSession({
   const recordingActiveRef = useRef(false);
   const timerRef = useRef<number | null>(null);
   const previewUrlRef = useRef<string | null>(null);
+  const sessionCursorCaptureRef = useRef<CursorCaptureController | null>(null);
   const finalizingRef = useRef(false);
   const stoppedAssetsRef = useRef<Set<RecordingAssetKind>>(new Set());
   const draftWriteRef = useRef<Promise<void>>(Promise.resolve());
@@ -406,12 +407,12 @@ export function useRecordingSession({
     const durationMs = Math.min(accumulatedMsRef.current, MAX_ACTIVE_MS);
     setElapsedMs(durationMs);
     setStatus('processing');
-    cursorStopRef.current = cursorCapture?.stop(durationMs) ?? Promise.resolve(null);
+    cursorStopRef.current = sessionCursorCaptureRef.current?.stop(durationMs) ?? Promise.resolve(null);
 
     recorders.forEach((recorder) => {
       if (recorder.state !== 'inactive') recorder.stop();
     });
-  }, [clearTimer, cursorCapture]);
+  }, [clearTimer]);
 
   const startClock = useCallback(() => {
     clearTimer();
@@ -467,15 +468,16 @@ export function useRecordingSession({
     stoppedAssetsRef.current = new Set();
     draftWriteRef.current = Promise.resolve();
     cursorStopRef.current = Promise.resolve(null);
+    sessionCursorCaptureRef.current = cursorCapture ?? null;
     setElapsedMs(0);
     setWarning(null);
     setError(null);
     setRecording(null);
 
     try {
-      if (cursorCapture) {
+      if (sessionCursorCaptureRef.current) {
         try {
-          const cursorResult = await cursorCapture.start(id);
+          const cursorResult = await sessionCursorCaptureRef.current.start(id);
           if (!cursorResult.started && cursorResult.warning) assetErrorsRef.current.push(cursorResult.warning);
         } catch (cause) {
           assetErrorsRef.current.push(`cursor: ${(cause as Error).message}`);
@@ -522,7 +524,7 @@ export function useRecordingSession({
       }
     } catch (cause) {
       recordingActiveRef.current = false;
-      void cursorCapture?.reset();
+      void sessionCursorCaptureRef.current?.reset();
       getRecorders(recordersRef.current).forEach((recorder) => {
         if (recorder.state !== 'inactive') recorder.stop();
       });
@@ -541,12 +543,12 @@ export function useRecordingSession({
       if (recorder.state === 'recording') recorder.pause();
     });
     clearTimer();
-    void cursorCapture?.pause().catch((cause) => {
+    void sessionCursorCaptureRef.current?.pause().catch((cause) => {
       setWarning(`Cursor helper pause failed: ${(cause as Error).message}`);
     });
     setElapsedMs(accumulatedMsRef.current);
     setStatus('paused');
-  }, [clearTimer, cursorCapture]);
+  }, [clearTimer]);
 
   const resume = useCallback(() => {
     const recorders = getRecorders(recordersRef.current);
@@ -557,12 +559,12 @@ export function useRecordingSession({
     });
     activeStartedAtRef.current = performance.now();
     recordingActiveRef.current = true;
-    void cursorCapture?.resume().catch((cause) => {
+    void sessionCursorCaptureRef.current?.resume().catch((cause) => {
       setWarning(`Cursor helper resume failed: ${(cause as Error).message}`);
     });
     setStatus('recording');
     startClock();
-  }, [cursorCapture, startClock]);
+  }, [startClock]);
 
   const reset = useCallback(() => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -575,13 +577,14 @@ export function useRecordingSession({
     finalizingRef.current = false;
     stoppedAssetsRef.current = new Set();
     cursorStopRef.current = Promise.resolve(null);
-    void cursorCapture?.reset();
+    void sessionCursorCaptureRef.current?.reset();
+    sessionCursorCaptureRef.current = null;
     setRecording(null);
     setElapsedMs(0);
     setWarning(null);
     setError(null);
     setStatus('idle');
-  }, [cursorCapture]);
+  }, []);
 
   useEffect(() => () => {
     clearTimer();
@@ -589,9 +592,10 @@ export function useRecordingSession({
     getRecorders(recordersRef.current).forEach((recorder) => {
       if (recorder.state !== 'inactive') recorder.stop();
     });
-    void cursorCapture?.reset();
+    void sessionCursorCaptureRef.current?.reset();
+    sessionCursorCaptureRef.current = null;
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-  }, [clearTimer, cursorCapture]);
+  }, [clearTimer]);
 
   return { status, elapsedMs, warning, error, recording, start, pause, resume, stop, reset };
 }
