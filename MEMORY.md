@@ -169,6 +169,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Reconstructed `/dashboard` from Figma node `9:534`, reused the existing adaptive `AppSidebar`, preserved recovery/quick-start/preset/recent-recording behavior, and stored exact design assets locally; lint and the production build pass, while authenticated browser screenshot QA remains pending because no browser surface was available
   - [x] Rebuilt the `/` Studio presentation layer from Figma node `13:1875` using manual screenshot/metadata inspection: added a Studio-only header/session bar, teaching-slide idle stage, compact setup layout, and a cohesive indigo/teal/coral theme. Canvas refs, pointer handlers, media controller, recording actions, hooks, APIs, and Presentation shell remain unchanged; lint/build pass, while authenticated screenshot QA remains pending at the browser profile gate
   - [x] Reconstructed `/library` from Figma node `30:330` through manual metadata/screenshot analysis, reused `AppSidebar`, and preserved all local/cloud/shared preview, download, sharing, privacy, cursor, deletion, and access-control behavior. Added a light blue/slate library summary, real-data quota display, client-only search/sort/pagination, responsive cards, and updated dialogs; lint/build pass and protected hooks/APIs/libs remain unchanged, while authenticated screenshot QA is still pending
+  - [x] Added the authenticated `/library/[recordingId]` details screen from Figma node `54:2`, reusing `AppSidebar`, `/api/recordings`, native playback, recorded waveforms, archive downloads, and owner share-link activation. Cloud/shared Library review links now open the details route; local-only previews and `/share/[recordingId]` authorization remain unchanged. Lint/build and protected-file audits pass; authenticated screenshot QA remains pending.
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
   - [x] Centralize Blob authentication with read-write-token priority in every environment and OIDC-backed presigned upload fallback, including matching health checks and delete credentials
@@ -248,7 +249,6 @@ This file serves as the persistent memory bank for AI agents working on **Record
 
 ## 6. Immediate Next Steps
 
-1. Runtime-test `/presentation` with representative PDF/PPTX files in authenticated Chrome/Edge: current-tab selection, Element Capture and clean fallback, tab audio, raw webcam, cursor baking, pause/resume, cleanup, and finalized output.
-2. Fix extension cleanup so recording completion releases the captured tab and app-port loss clears stale target state; then runtime-test the unpacked extension lifecycle.
-3. Run an authenticated multi-asset upload/download test including cursor JSON.
-4. Apply migration `0005_recording_projects`, then runtime-test authenticated cross-day segment attachment, ordering, continuous playback, and lossless MP4/WebM merge before adding project UI.
+1. Run authenticated screenshot and interaction QA for `/library/[recordingId]` with owned, shared-viewer, shared-download, missing-waveform, and no-chapter recordings.
+2. Runtime-test `/presentation` with representative PDF/PPTX files in authenticated Chrome/Edge, including capture, audio, webcam, cursor, pause/resume, cleanup, and finalized output.
+3. Fix and runtime-test extension cleanup, then run the authenticated multi-asset Blob upload/download test including cursor JSON.

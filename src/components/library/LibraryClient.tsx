@@ -495,7 +495,7 @@ export function LibraryClient() {
                         <div className={styles.cardMeta}><span>{recording.is_public ? 'Liên kết công khai' : recording.resolution}</span><time>{formatLibraryDate(recording.created_at)}</time></div>
                         <div className={styles.waveform}><CloudRecordingWaveform recording={recording} /></div>
                         <div className={styles.cardActions}>
-                          <Link className={styles.primaryCardButton} href={`/share/${recording.id}`}><LibraryIcon name="play" />Xem lại</Link>
+                          <Link className={styles.primaryCardButton} href={`/library/${recording.id}`}><LibraryIcon name="play" />Xem lại</Link>
                           <button type="button" onClick={() => void openSharing(recording)}><LibraryIcon name="share" />Chia sẻ</button>
                           {(recording.storage_url || recording.assets?.length) && <button type="button" onClick={() => void downloadCloudFiles(recording)}><LibraryIcon name="download" />Tải về</button>}
                           {recording.assets?.filter((asset) => asset.kind === 'cursor').map((asset) => <button type="button" key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}><LibraryIcon name="cursor" />Con trỏ</button>)}
@@ -525,7 +525,7 @@ export function LibraryClient() {
                       <div className={styles.cardMeta}><span>{recording.share_permission === 'viewer_download' ? 'Được xem và tải' : 'Chỉ được xem'}</span><time>{formatLibraryDate(recording.created_at)}</time></div>
                       <div className={styles.waveform}><CloudRecordingWaveform recording={recording} /></div>
                       <div className={styles.cardActions}>
-                        <Link className={styles.primaryCardButton} href={`/share/${recording.id}`}><LibraryIcon name="play" />Xem lại</Link>
+                        <Link className={styles.primaryCardButton} href={`/library/${recording.id}`}><LibraryIcon name="play" />Xem lại</Link>
                         {recording.share_permission === 'viewer_download' && (recording.storage_url || recording.assets?.length) && <button type="button" onClick={() => void downloadCloudFiles(recording)}><LibraryIcon name="download" />Tải về</button>}
                         {recording.share_permission === 'viewer_download' && recording.assets?.filter((asset) => asset.kind === 'cursor').map((asset) => <button type="button" key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}><LibraryIcon name="cursor" />Con trỏ</button>)}
                       </div>
