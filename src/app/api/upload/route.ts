@@ -69,7 +69,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ? await handleUpload({
           body: body as HandleUploadBody,
           request,
-          ...getBlobCommandCredentials(),
+          ...getBlobCommandCredentials(request),
           onBeforeGenerateToken: async () => {
             const userId = await authorizeUpload();
             return {
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             await authorizeUpload();
             return {
               token: await issueSignedToken({
-                ...getBlobCommandCredentials(),
+                ...getBlobCommandCredentials(request),
                 pathname,
                 operations: ['put'],
                 allowedContentTypes: ALLOWED_CONTENT_TYPES,

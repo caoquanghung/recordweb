@@ -274,7 +274,7 @@ export async function DELETE(request: NextRequest) {
     ].filter((pathname): pathname is string => Boolean(pathname));
     const uniquePathnames = [...new Set(pathnames)];
     if (uniquePathnames.length > 0) {
-      await del(uniquePathnames, getBlobCommandCredentials());
+      await del(uniquePathnames, getBlobCommandCredentials(request));
     }
     await sql.transaction([
       sql`
