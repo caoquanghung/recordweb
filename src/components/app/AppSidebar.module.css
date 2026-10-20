@@ -25,7 +25,11 @@
   position: sticky;
   top: 0;
   z-index: 40;
+  align-self: start;
   height: 100dvh;
+  max-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .topSection {

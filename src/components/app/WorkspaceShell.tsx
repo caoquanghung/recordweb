@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { AppNavigation, type AppSection } from './AppNavigation';
+import type { AppSection } from './AppNavigation';
+import { AppSidebar } from './AppSidebar';
 import styles from './WorkspaceShell.module.css';
 
 interface WorkspaceShellProps {
@@ -14,7 +15,7 @@ interface WorkspaceShellProps {
 export function WorkspaceShell({ active, eyebrow, title, description, actions, children }: WorkspaceShellProps) {
   return (
     <main className={styles.shell}>
-      <AppNavigation active={active} />
+      <AppSidebar activeHref={`/${active}`} />
       <section className={styles.workspace}>
         <header className={styles.header}>
           <div>

@@ -15,13 +15,14 @@
   --dim: #5f6879;
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: 288px minmax(0, 1fr);
   color: var(--text);
   background: radial-gradient(circle at 58% -20%, rgba(124, 109, 242, 0.12), transparent 42rem), var(--page-bg);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
 .workspace {
+  min-width: 0;
   width: 100%;
   max-width: 1680px;
   margin: 0 auto;
@@ -81,9 +82,13 @@
   background: radial-gradient(circle at 58% -20%, rgba(101, 83, 218, 0.1), transparent 42rem), var(--page-bg);
 }
 
+@media (max-width: 840px) {
+  .shell { display: block; }
+  .workspace { padding-top: 80px; }
+}
+
 @media (max-width: 680px) {
-  .shell { display: block; padding-bottom: 66px; }
-  .workspace { padding: 24px 16px 34px; }
+  .workspace { padding: 80px 16px 34px; }
   .header { flex-direction: column; }
   .actions { width: 100%; flex-wrap: wrap; }
 }
