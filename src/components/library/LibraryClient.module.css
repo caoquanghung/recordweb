@@ -8,6 +8,13 @@
   --library-line: #dbe4f0;
   --library-canvas: #f7f9fc;
   --library-success: #059669;
+  --line: var(--library-line);
+  --panel: #ffffff;
+  --panel-raised: #f8fafc;
+  --primary-bright: var(--library-blue-bright);
+  --green: var(--library-success);
+  --text: var(--library-ink);
+  --muted: var(--library-muted);
   min-height: 100vh;
   display: grid;
   grid-template-columns: 288px minmax(0, 1fr);
@@ -305,3 +312,45 @@
   .card,
   .searchField { transition: none; }
 }
+
+:global(html[data-theme='dark']) .libraryShell {
+  --library-blue: #8da2ff;
+  --library-blue-bright: #6479e6;
+  --library-blue-soft: #1e2c52;
+  --library-ink: #eef2f8;
+  --library-body: #aeb9ca;
+  --library-muted: #8f9caf;
+  --library-line: #2a3650;
+  --library-canvas: #0d1321;
+  --library-success: #43d3ae;
+  --panel: #151d2d;
+  --panel-raised: #111a2a;
+}
+
+:global(html[data-theme='dark']) .summaryPanel,
+:global(html[data-theme='dark']) .toolbarPanel,
+:global(html[data-theme='dark']) .card,
+:global(html[data-theme='dark']) .empty,
+:global(html[data-theme='dark']) .previewModal,
+:global(html[data-theme='dark']) .shareModal { background: #151d2d; box-shadow: 0 16px 42px rgb(2 6 23 / 22%); }
+:global(html[data-theme='dark']) .storageCard { border-color: #344d87; background: linear-gradient(120deg, #172747, #131d30); }
+:global(html[data-theme='dark']) .countBadge,
+:global(html[data-theme='dark']) .tabs button,
+:global(html[data-theme='dark']) .cardActions button,
+:global(html[data-theme='dark']) .cardActions a { color: #c4cedd; border-color: #2a3650; background: #222d41; }
+:global(html[data-theme='dark']) .eyebrow,
+:global(html[data-theme='dark']) .cardActions .primaryCardButton { color: #b5c2ff; border-color: #40558f; background: #1e2c52; }
+:global(html[data-theme='dark']) .searchField,
+:global(html[data-theme='dark']) .sortField,
+:global(html[data-theme='dark']) .grantForm input,
+:global(html[data-theme='dark']) .grantForm select,
+:global(html[data-theme='dark']) .modalHeader > button,
+:global(html[data-theme='dark']) .pagination button { color: #d5ddea; border-color: #2a3650; background: #111a2a; }
+:global(html[data-theme='dark']) .searchField:focus-within { background: #111a2a; }
+:global(html[data-theme='dark']) .sortField select { color: #d5ddea; }
+:global(html[data-theme='dark']) .cardMeta { border-color: #27334a; }
+:global(html[data-theme='dark']) .cardActions .danger { color: #ff9caa; background: #3a1f2a; }
+:global(html[data-theme='dark']) .tabs button:hover:not(.tabActive),
+:global(html[data-theme='dark']) .cardActions button:hover,
+:global(html[data-theme='dark']) .cardActions a:hover,
+:global(html[data-theme='dark']) .pagination button:hover:not(:disabled):not(.currentPage) { background: #2a3850; }

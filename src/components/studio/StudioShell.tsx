@@ -1,5 +1,6 @@
 'use client';
 
+import { AppSidebar } from '@/components/app/AppSidebar';
 import { StudioHeader, StudioSessionNotice, StudioToolbar } from './StudioChrome';
 import { StudioDiagnosticsDrawer } from './StudioDiagnosticsDrawer';
 import { StudioEffectsPanel } from './StudioEffectsPanel';
@@ -14,6 +15,18 @@ export function StudioShell() {
 
   return (
     <main className={`${styles.appShell} ${styles.studioScreen}`}>
+      <div className={styles.studioNavigation}>
+        <button
+          className={styles.studioNavigationEdge}
+          type="button"
+          aria-label="Mở điều hướng chính"
+          title="Di chuột vào đây để mở điều hướng"
+        >
+          <span aria-hidden="true" />
+        </button>
+        <AppSidebar behavior="adaptive" activeHref="/studio" className={styles.studioSidebar} />
+      </div>
+
       <section className={styles.workspace}>
         <StudioHeader studio={studio} />
         <StudioToolbar studio={studio} />

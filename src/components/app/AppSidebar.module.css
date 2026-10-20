@@ -168,6 +168,36 @@
   background: #f8fafc;
 }
 
+.themeToggle {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 0 12px;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.themeToggle:hover { color: #1d4ed8; background: #eff6ff; }
+.themeToggle:focus-visible { outline: 3px solid rgb(37 99 235 / 30%); outline-offset: 2px; }
+
+.themeToggleIcon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  box-shadow: inset -5px -3px 0 -2px currentColor;
+}
+
 .profileCard {
   display: flex;
   align-items: center;
@@ -251,6 +281,29 @@
 
 .menuButton,
 .backdrop { display: none; }
+
+:global(html[data-theme='dark']) .sidebar {
+  --sidebar-text: #a9b4c8;
+  border-color: #263149;
+  background: #111827;
+  box-shadow: 10px 0 34px rgb(2 6 23 / 24%);
+}
+
+:global(html[data-theme='dark']) .brand { border-color: #263149; }
+:global(html[data-theme='dark']) .brandCopy strong,
+:global(html[data-theme='dark']) .userCopy strong { color: #f3f6fb; }
+:global(html[data-theme='dark']) .brandCopy span { color: #8995aa; }
+:global(html[data-theme='dark']) .navItem:hover:not(:disabled) { color: #b9c8ff; background: #182239; }
+:global(html[data-theme='dark']) .navItemActive { color: #c6d2ff; border-color: #3d52a2; background: #1b2b58; }
+:global(html[data-theme='dark']) .footer { border-color: #263149; background: #0e1524; }
+:global(html[data-theme='dark']) .profileCard,
+:global(html[data-theme='dark']) .themeToggle { color: #b4bfd2; border-color: #2a3650; background: #151f32; }
+:global(html[data-theme='dark']) .themeToggleIcon { border: 0; background: currentColor; box-shadow: 0 0 0 3px rgb(180 191 210 / 14%); }
+:global(html[data-theme='dark']) .themeToggle:hover,
+:global(html[data-theme='dark']) .signOutButton:hover { color: #c7d2fe; background: #1d2b4b; }
+:global(html[data-theme='dark']) .avatar { color: #c7d2fe; border-color: #6077de; background: #25345f; }
+:global(html[data-theme='dark']) .userCopy span { color: #9eb1ff; }
+:global(html[data-theme='dark']) .menuButton { color: #eef2ff; border-color: #33415d; background: #151f32; }
 
 @media (max-width: 840px) {
   .adaptive {

@@ -75,12 +75,12 @@ export function DashboardClient() {
 
   const startQuickRecording = (configuration: typeof quickStarts[number]) => {
     localStorage.setItem('recordweb-quick-start', JSON.stringify(configuration));
-    router.push('/');
+    router.push('/studio');
   };
 
   const openPresetInStudio = (preset: DbStudioPreset) => {
     localStorage.setItem('recordweb-pending-preset', JSON.stringify(preset));
-    router.push('/');
+    router.push('/studio');
   };
 
   const deletePreset = async (id: string) => {
@@ -124,11 +124,11 @@ export function DashboardClient() {
                 </div>
               </div>
               <div className={styles.recoveryActions}>
-                <Link className={styles.secondaryButton} href="/">
+                <Link className={styles.secondaryButton} href="/studio">
                   <Icon src="eye.svg" />
                   Xem lại hoặc huỷ
                 </Link>
-                <Link className={styles.dangerButton} href="/">
+                <Link className={styles.dangerButton} href="/studio">
                   <Icon src="save.svg" />
                   Lưu bài giảng ngay
                 </Link>
@@ -186,7 +186,7 @@ export function DashboardClient() {
                       <Image src={dashboardAsset('recording-draft.png')} alt="Xem trước bản ghi bài giảng chưa hoàn tất" fill sizes="(max-width: 720px) 100vw, 33vw" />
                     </div>
                   </div>
-                  <button className={styles.primaryCardAction} type="button" onClick={() => router.push('/')}>
+                  <button className={styles.primaryCardAction} type="button" onClick={() => router.push('/studio')}>
                     <Icon src="play.svg" />Vào quay tiếp
                   </button>
                 </article>

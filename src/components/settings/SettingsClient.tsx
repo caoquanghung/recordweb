@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { WorkspaceShell } from '@/components/app/WorkspaceShell';
+import { useAppTheme } from '@/components/app/useAppTheme';
 import { getAllLocalRecordings, getRecordingDrafts } from '@/lib/idb';
 import styles from './SettingsClient.module.css';
-
-type Theme = 'light' | 'dark';
 
 interface HealthResponse {
   auth: 'authenticated';
@@ -15,7 +14,7 @@ interface HealthResponse {
 }
 
 export function SettingsClient() {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const { theme, setTheme } = useAppTheme();
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState('');
@@ -23,7 +22,6 @@ export function SettingsClient() {
 
   useEffect(() => {
     const initialize = window.setTimeout(() => {
-      setTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
       void Promise.all([getAllLocalRecordings(), getRecordingDrafts()])
         .then(([recordings, drafts]) => setLocalStats({
           recordings: recordings.length,
@@ -35,9 +33,7 @@ export function SettingsClient() {
     return () => window.clearTimeout(initialize);
   }, []);
 
-  const selectTheme = (nextTheme: Theme) => {
-    document.documentElement.dataset.theme = nextTheme;
-    localStorage.setItem('recordweb-theme', nextTheme);
+  const selectTheme = (nextTheme: 'light' | 'dark') => {
     setTheme(nextTheme);
     setMessage(`${nextTheme === 'light' ? 'Light' : 'Dark'} theme selected.`);
   };

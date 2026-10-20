@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { useAppTheme } from './useAppTheme';
 import styles from './AppSidebar.module.css';
 
 export type AppSidebarBehavior = 'fixed' | 'adaptive';
@@ -27,7 +28,7 @@ interface AppSidebarProps {
 }
 
 const defaultItems: AppSidebarItem[] = [
-  { id: 'studio', label: 'Studio Giảng Bài', icon: 'studio', href: '/' },
+  { id: 'studio', label: 'Studio Giảng Bài', icon: 'studio', href: '/studio' },
   { id: 'library', label: 'Thư viện bài giảng', icon: 'library', href: '/library' },
   { id: 'settings', label: 'Cài đặt thiết bị', icon: 'settings', href: '/settings' },
   { id: 'help', label: 'Trợ giúp & Hướng dẫn', icon: 'help' },
@@ -53,6 +54,7 @@ export function AppSidebar({
   const pathname = usePathname();
   const { signOut } = useClerk();
   const { user } = useUser();
+  const { theme, toggleTheme } = useAppTheme();
   const [isOpen, setIsOpen] = useState(false);
   const resolvedPathname = activeHref ?? pathname;
   const displayName = user?.fullName || user?.firstName || 'Thầy Hoàng Nam';
@@ -143,6 +145,15 @@ export function AppSidebar({
         </div>
 
         <footer className={styles.footer}>
+          <button
+            type="button"
+            className={styles.themeToggle}
+            onClick={toggleTheme}
+            aria-label={`Chuyển sang giao diện ${theme === 'dark' ? 'sáng' : 'tối'}`}
+          >
+            <span className={styles.themeToggleIcon} aria-hidden="true" />
+            <span>{theme === 'dark' ? 'Giao diện sáng' : 'Giao diện tối'}</span>
+          </button>
           <div className={styles.profileCard}>
             <div className={styles.userIdentity}>
               <span className={styles.avatar} aria-hidden="true">{getAvatarLabel(displayName)}</span>

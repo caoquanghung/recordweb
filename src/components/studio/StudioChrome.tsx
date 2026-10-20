@@ -1,5 +1,6 @@
 import { UserButton } from '@clerk/nextjs';
 import Link from 'next/link';
+import { useAppTheme } from '@/components/app/useAppTheme';
 import type { StudioController } from './useStudioController';
 import { StudioIcon } from './StudioPrimitives';
 import styles from './StudioShell.module.css';
@@ -15,9 +16,8 @@ export function StudioHeader({
   eyebrow = 'RecordWeb studio',
   title = 'Recording workspace',
 }: StudioHeaderProps) {
+  const { theme, toggleTheme } = useAppTheme();
   const {
-    theme,
-    toggleTheme,
     healthState,
     runSystemCheck,
     setDiagnosticsOpen,
@@ -121,6 +121,9 @@ export function StudioToolbar({
           <strong>Bài giảng mới</strong>
         </div>
         <div className={styles.studioSessionActions}>
+          <Link className={styles.presentationModeButton} href="/presentation">
+            <StudioIcon name="cloud" /> Tải PDF / PPTX
+          </Link>
           <div className={styles.liveSummary}>
             <span className={sourcesConnected ? styles.summaryReady : styles.summaryIdle} />
             {sourcesConnected ? connectedLabel : idleLabel}

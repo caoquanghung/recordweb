@@ -23,7 +23,7 @@ function NavIcon({ name }: { name: AppSection }) {
 }
 
 const links: Array<{ section: AppSection; href: string; label: string }> = [
-  { section: 'studio', href: '/', label: 'Studio' },
+  { section: 'studio', href: '/studio', label: 'Studio' },
   { section: 'presentation', href: '/presentation', label: 'Presentation' },
   { section: 'dashboard', href: '/dashboard', label: 'Dashboard' },
   { section: 'library', href: '/library', label: 'Library' },

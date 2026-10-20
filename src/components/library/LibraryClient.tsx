@@ -439,7 +439,7 @@ export function LibraryClient() {
             <div className={styles.empty}>
               <strong>Chưa có bài giảng trong mục này</strong>
               <span>{query ? 'Thử một từ khoá khác hoặc xoá bộ lọc tìm kiếm.' : 'Quay bài giảng trong Studio hoặc chọn một bộ lọc khác.'}</span>
-              {!query && <Link href="/">Ghi bài giảng mới</Link>}
+              {!query && <Link href="/studio">Ghi bài giảng mới</Link>}
             </div>
           )}
 

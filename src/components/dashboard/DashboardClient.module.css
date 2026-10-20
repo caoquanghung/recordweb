@@ -153,3 +153,50 @@
 }
 
 @media (prefers-reduced-motion: reduce) { .quickGrid button { transition: none; } }
+
+:global(html[data-theme='dark']) .dashboardShell {
+  color: #eef2f8;
+  background: #0d1321;
+}
+
+:global(html[data-theme='dark']) .hero,
+:global(html[data-theme='dark']) .recordingCard,
+:global(html[data-theme='dark']) .workspaceSection,
+:global(html[data-theme='dark']) .utilityPanel,
+:global(html[data-theme='dark']) .emptyState {
+  border-color: #28344a;
+  background: #151d2d;
+  box-shadow: 0 14px 38px rgb(2 6 23 / 18%);
+}
+
+:global(html[data-theme='dark']) .hero {
+  background: linear-gradient(105deg, #172441, #171e34 52%, #151d2d);
+}
+
+:global(html[data-theme='dark']) .hero p,
+:global(html[data-theme='dark']) .recordingCard p,
+:global(html[data-theme='dark']) .quickGrid small,
+:global(html[data-theme='dark']) .presetRow small,
+:global(html[data-theme='dark']) .emptyCopy,
+:global(html[data-theme='dark']) .emptyState { color: #9ba7ba; }
+
+:global(html[data-theme='dark']) .sectionHeader { border-color: #28344a; }
+:global(html[data-theme='dark']) .sectionTitle > span,
+:global(html[data-theme='dark']) .watchButton,
+:global(html[data-theme='dark']) .disabledAction { color: #c0cad9; background: #222d41; }
+:global(html[data-theme='dark']) .thumbnail { border-color: #2a3650; background: #0a0f19; }
+:global(html[data-theme='dark']) .statsGrid article,
+:global(html[data-theme='dark']) .quickGrid button { color: #edf2f9; border-color: #2a3650; background: #111a2a; }
+:global(html[data-theme='dark']) .statsGrid span,
+:global(html[data-theme='dark']) .utilityHeading span,
+:global(html[data-theme='dark']) .statsGrid small { color: #8997ac; }
+:global(html[data-theme='dark']) .presetRow { border-color: #2a3650; }
+:global(html[data-theme='dark']) .presetRow button,
+:global(html[data-theme='dark']) .secondaryButton { color: #d8e0ec; border-color: #34415a; background: #1b2538; }
+:global(html[data-theme='dark']) .secondaryButton:hover,
+:global(html[data-theme='dark']) .watchButton:hover { background: #29364d; }
+:global(html[data-theme='dark']) .emptyState h3 { color: #f4f7fb; }
+:global(html[data-theme='dark']) .recoveryBanner { border-color: #713846; background: #2a1821; }
+:global(html[data-theme='dark']) .recoveryMeta,
+:global(html[data-theme='dark']) .recoveryCopy p,
+:global(html[data-theme='dark']) .recoveryCopy h2 small { color: #c2aeb5; }

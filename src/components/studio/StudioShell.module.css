@@ -1959,6 +1959,79 @@
   font-family: "Be Vietnam Pro", var(--font-geist-sans), system-ui, sans-serif;
 }
 
+.studioNavigation {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 110;
+  width: 20px;
+  pointer-events: none;
+}
+
+.studioNavigationEdge {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 110;
+  width: 20px;
+  height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: rgba(180, 193, 228, 0.82);
+  background: linear-gradient(90deg, rgba(35, 47, 78, 0.42), transparent);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: width 180ms ease, color 180ms ease, background 180ms ease;
+  backdrop-filter: blur(10px);
+}
+
+.studioNavigationEdge span {
+  width: 4px;
+  height: 42px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 14px rgba(125, 141, 240, 0.42);
+}
+
+.studioNavigationEdge:hover,
+.studioNavigationEdge:focus-visible {
+  width: 25px;
+  color: #dbe3ff;
+  background: linear-gradient(90deg, rgba(83, 103, 222, 0.68), transparent);
+}
+
+.studioNavigationEdge:focus-visible {
+  outline: 3px solid rgba(125, 141, 240, 0.5);
+  outline-offset: 3px;
+}
+
+@media (min-width: 841px) {
+  .studioNavigation .studioSidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 111;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: auto;
+    transform: translateX(calc(-100% - 12px));
+    box-shadow: 18px 0 52px rgba(2, 6, 23, 0.3);
+    transition:
+      transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease,
+      visibility 0s linear 280ms;
+  }
+
+  .studioNavigation:hover .studioSidebar,
+  .studioNavigation:focus-within .studioSidebar {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(0);
+    transition-delay: 0s;
+  }
+}
+
 .studioScreen .workspace {
   max-width: none;
   min-height: 100vh;
@@ -2059,7 +2132,26 @@
 .studioSessionTitle .icon { width: 15px; color: var(--primary-bright); }
 .studioSessionTitle span { color: var(--primary-bright); font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
 .studioSessionTitle strong { min-width: 0; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.studioSessionActions { gap: 12px; }
+.studioSessionActions { flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+.presentationModeButton {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid rgba(125, 141, 240, 0.48);
+  border-radius: 8px;
+  color: #eef1ff;
+  background: linear-gradient(135deg, rgba(83, 103, 222, 0.88), rgba(53, 71, 168, 0.92));
+  box-shadow: 0 5px 14px rgba(34, 49, 127, 0.22);
+  font-size: 10px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.presentationModeButton .icon { width: 14px; }
+.presentationModeButton:hover { border-color: rgba(171, 183, 255, 0.72); box-shadow: 0 7px 18px rgba(34, 49, 127, 0.3); transform: translateY(-1px); }
+.presentationModeButton:focus-visible { outline: 3px solid rgba(125, 141, 240, 0.42); outline-offset: 2px; }
 .studioScreen .drawerButton { height: 30px; padding: 0 10px; border-radius: 8px; font-size: 10px; }
 .studioScreen .drawerButton:hover,
 .studioScreen .drawerButtonActive { border-color: rgba(125, 141, 240, 0.46); background: rgba(83, 103, 222, 0.16); }
@@ -2307,6 +2399,18 @@
   .studioScreen .leftPanel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
+@media (max-width: 840px) {
+  .studioNavigation {
+    position: static;
+    width: 0;
+    pointer-events: auto;
+  }
+
+  .studioNavigationEdge {
+    display: none;
+  }
+}
+
 @media (max-width: 760px) {
   .studioScreen .studioTopbar { align-items: center; padding-inline: 14px; }
   .studioBrand small, .studioReady, .studioDashboardLink, .studioScreen .themeButton span { display: none; }
@@ -2326,4 +2430,12 @@
   .studioScreen .modeButton { grid-template-columns: 30px minmax(0, 1fr) 12px; }
   .studioScreen .modeButton .radioMark { display: block; }
   .studioScreen .modeButton small { display: block; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studioNavigationEdge,
+  .studioNavigation .studioSidebar,
+  .presentationModeButton {
+    transition: none;
+  }
 }

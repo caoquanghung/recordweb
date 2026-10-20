@@ -732,3 +732,76 @@
     transition: none;
   }
 }
+
+:global(html[data-theme='dark']) .shell {
+  --ink: #eef2f8;
+  --muted: #94a1b5;
+  --brand: #9aabff;
+  --brand-dark: #6479e6;
+  --line: #2a3650;
+  --panel: #151d2d;
+  --panel-raised: #111a2a;
+  --primary-bright: #8da2ff;
+  --green: #43d3ae;
+  --text: #eef2f8;
+  background:
+    radial-gradient(circle at 74% 8%, rgba(74, 96, 166, 0.22), transparent 32rem),
+    #0d1321;
+}
+
+:global(html[data-theme='dark']) .topBar {
+  border-color: rgba(57, 70, 94, 0.9);
+  background: rgba(17, 26, 42, 0.88);
+}
+
+:global(html[data-theme='dark']) .backLink,
+:global(html[data-theme='dark']) .titleRow h1,
+:global(html[data-theme='dark']) .cardHeader h2,
+:global(html[data-theme='dark']) .railHeader h2,
+:global(html[data-theme='dark']) .shareCard h2,
+:global(html[data-theme='dark']) .fileInfo dd,
+:global(html[data-theme='dark']) .emptyChapters strong { color: #eef2f8; }
+
+:global(html[data-theme='dark']) .topLabel,
+:global(html[data-theme='dark']) .breadcrumb,
+:global(html[data-theme='dark']) .metadata,
+:global(html[data-theme='dark']) .cardHeader p,
+:global(html[data-theme='dark']) .videoMeta,
+:global(html[data-theme='dark']) .disclosure small,
+:global(html[data-theme='dark']) .sourceItem small,
+:global(html[data-theme='dark']) .shareCard p,
+:global(html[data-theme='dark']) .accessLabel,
+:global(html[data-theme='dark']) .chapterList small,
+:global(html[data-theme='dark']) .emptyChapters,
+:global(html[data-theme='dark']) .fileInfo dt { color: #94a1b5; }
+
+:global(html[data-theme='dark']) .summaryCard,
+:global(html[data-theme='dark']) .card,
+:global(html[data-theme='dark']) .stateCard {
+  border-color: #2a3650;
+  background: #151d2d;
+  box-shadow: 0 16px 42px rgba(2, 6, 23, 0.24);
+}
+
+:global(html[data-theme='dark']) .cardHeader,
+:global(html[data-theme='dark']) .sourceGrid,
+:global(html[data-theme='dark']) .fileInfo > div { border-color: #27334a; }
+:global(html[data-theme='dark']) .cardIcon,
+:global(html[data-theme='dark']) .railIcon,
+:global(html[data-theme='dark']) .stateIcon { background: #1e2c52; }
+:global(html[data-theme='dark']) .secondaryButton { color: #d9e1ed; border-color: #34415a; background: #1b2538; }
+:global(html[data-theme='dark']) .notice { color: #c6d2ff; border-color: #40558f; background: #1e2c52; }
+:global(html[data-theme='dark']) .emptyInline,
+:global(html[data-theme='dark']) .sourceItem,
+:global(html[data-theme='dark']) .chapterList button { color: #dce3ee; border-color: #2a3650; background: #111a2a; }
+:global(html[data-theme='dark']) .disclosure { color: #eef2f8; background: #151d2d; }
+:global(html[data-theme='dark']) .sourceItem > span,
+:global(html[data-theme='dark']) .chapterNumber,
+:global(html[data-theme='dark']) .railHeader > span { color: #b5c2ff; background: #1e2c52; }
+:global(html[data-theme='dark']) .shareCard {
+  background:
+    radial-gradient(circle at 100% 0, rgba(89, 113, 195, 0.18), transparent 13rem),
+    #151d2d;
+}
+:global(html[data-theme='dark']) .shareCard button { color: #c5d0ff; border-color: #40558f; background: #1e2c52; }
+:global(html[data-theme='dark']) .chapterList button:hover { border-color: #526aa9; background: #1b2945; }
