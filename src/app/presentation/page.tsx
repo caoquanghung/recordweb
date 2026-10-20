@@ -1,5 +1,5 @@
-import { PresentationShell } from '@/components/studio/PresentationShell';
+import { StudioShell } from '@/components/studio/StudioShell';
 
 export default function PresentationPage() {
-  return <PresentationShell />;
+  return <StudioShell initialWorkspace="presentation" />;
 }

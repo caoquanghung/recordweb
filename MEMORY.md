@@ -174,7 +174,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Made Dashboard the authenticated entry screen by redirecting `/` to `/dashboard`, moved the existing recording UI to `/studio`, and updated sidebar, quick-start, preset, draft-recovery, and Library new-recording navigation accordingly. Media/session ownership remains unchanged.
   - [x] Added Studio-only edge-reveal navigation: hovering anywhere along the desktop left edge, or focusing the accessible edge control, smoothly overlays the shared `AppSidebar`; viewports at or below 840px retain the sidebar's existing hamburger/drawer interaction. Recording controls and media hooks remain unchanged.
   - [x] Unified application theming through `useAppTheme`: Studio, Settings, and sidebar controls now update one persisted theme, synchronize across mounted controls and browser tabs, and Dashboard, Library, recording details, Studio, Settings, and shared navigation all respond to the same `html[data-theme]` value.
-  - [x] Connected the standard Studio session bar to the existing `/presentation` workspace with a visible PDF/PPTX action. The destination retains ownership of local file selection, validation, rendering, current-tab capture, and presentation recording; no browser `File` is passed across routes.
+  - [x] Integrated PDF/PPTX presentation directly into the new Studio shell: the session-bar action switches in place to a full-width presentation stage with the existing local picker/render/capture/recording flow, and `/presentation` now opens that same integrated Studio mode. Standard and presentation controllers mount as separate child workspaces to preserve hook lifecycles; mode switching is locked outside setup. `PresentationShell.tsx` is intentionally retained as an unbound standalone test harness.
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
   - [x] Centralize Blob authentication with read-write-token priority in every environment and OIDC-backed presigned upload fallback, including matching health checks and delete credentials
@@ -201,7 +201,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Connected the experimental `pptx-browser` player to the visible presentation canvas so Next consumes parsed click groups before changing slides and applies declared slide transitions; PDF navigation remains static
   - [x] Added self-tab capture with current-tab hints, Capture Handle validation, optional Element Capture restriction, tab-audio exposure, and owned-track cleanup
   - [x] Added a direct presentation cursor controller with normalized 24 Hz active-time samples and integrated the dormant presentation source into `useStudioController` / `useRecordingSession`
-  - [x] Added the authenticated `/presentation` workspace and navigation tab by reusing the Studio shell/review/diagnostics UI; its capture root contains only the rendered slide, raw webcam, and custom cursor, with no screen-share or MediaPipe path
+  - [x] Added the authenticated integrated Studio presentation workspace and `/presentation` entry alias; its capture root contains only the rendered slide, raw webcam, and custom cursor, with no screen-share or MediaPipe path
   - [x] Added clean full-tab fallback mode, local PDF/PPTX file controls, slide navigation, presentation-specific device controls, and recording startup from the browser's explicit “This Tab” picker
   - [ ] Runtime-test PDF/PPTX fidelity, current-tab selection, Element Capture fallback, tab audio, raw webcam, cursor baking, pause/resume, and finalized output in Chrome/Edge
 
@@ -255,5 +255,5 @@ This file serves as the persistent memory bank for AI agents working on **Record
 ## 6. Immediate Next Steps
 
 1. Run authenticated screenshot and interaction QA for `/library/[recordingId]` with owned, shared-viewer, shared-download, missing-waveform, and no-chapter recordings.
-2. Runtime-test `/presentation` with representative PDF/PPTX files in authenticated Chrome/Edge, including capture, audio, webcam, cursor, pause/resume, cleanup, and finalized output.
+2. Runtime-test Studio presentation mode (including the `/presentation` entry alias) with representative PDF/PPTX files in authenticated Chrome/Edge: capture, audio, webcam, cursor, pause/resume, cleanup, and finalized output.
 3. Fix and runtime-test extension cleanup, then run the authenticated multi-asset Blob upload/download test including cursor JSON.

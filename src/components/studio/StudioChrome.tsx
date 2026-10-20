@@ -9,12 +9,16 @@ interface StudioHeaderProps {
   studio: StudioController;
   eyebrow?: string;
   title?: string;
+  integratedPresentation?: boolean;
+  onReturnToRecording?: () => void;
 }
 
 export function StudioHeader({
   studio,
   eyebrow = 'RecordWeb studio',
   title = 'Recording workspace',
+  integratedPresentation = false,
+  onReturnToRecording,
 }: StudioHeaderProps) {
   const { theme, toggleTheme } = useAppTheme();
   const {
@@ -23,15 +27,29 @@ export function StudioHeader({
     setDiagnosticsOpen,
   } = studio;
 
-  if (studio.workspace === 'studio') {
+  if (studio.workspace === 'studio' || integratedPresentation) {
     return (
       <header className={`${styles.topbar} ${styles.studioTopbar}`}>
         <Link className={styles.studioBrand} href="/dashboard" aria-label="Mở bảng điều khiển RecordWeb">
           <span className={styles.studioBrandMark}><StudioIcon name="screen" /></span>
-          <span><strong>RecordWeb Studio</strong><small>Phòng thu bài giảng số</small></span>
+          <span>
+            <strong>{integratedPresentation ? 'RecordWeb Trình chiếu' : 'RecordWeb Studio'}</strong>
+            <small>{integratedPresentation ? 'PDF / PPTX trong phòng thu' : 'Phòng thu bài giảng số'}</small>
+          </span>
         </Link>
         <div className={styles.topbarActions}>
           <span className={styles.studioReady}><i /> Sẵn sàng ghi hình</span>
+          {integratedPresentation && (
+            <button
+              className={styles.studioBackButton}
+              type="button"
+              onClick={onReturnToRecording}
+              disabled={studio.session !== 'setup'}
+              title={studio.session === 'setup' ? 'Quay lại chế độ ghi màn hình' : 'Hoàn tất phiên hiện tại trước khi chuyển chế độ'}
+            >
+              ← Ghi màn hình
+            </button>
+          )}
           <Link className={styles.studioDashboardLink} href="/dashboard">Bảng điều khiển</Link>
           <button
             className={styles.themeButton}
@@ -96,6 +114,8 @@ interface StudioToolbarProps {
   sourcesLabel?: string;
   connectedLabel?: string;
   idleLabel?: string;
+  onOpenPresentation?: () => void;
+  integratedPresentation?: boolean;
 }
 
 export function StudioToolbar({
@@ -103,6 +123,8 @@ export function StudioToolbar({
   sourcesLabel = 'Sources',
   connectedLabel = 'Sources connected',
   idleLabel = 'Connect sources to begin',
+  onOpenPresentation,
+  integratedPresentation = false,
 }: StudioToolbarProps) {
   const {
     sourcesOpen,
@@ -112,18 +134,26 @@ export function StudioToolbar({
     sourcesConnected,
   } = studio;
 
-  if (studio.workspace === 'studio') {
+  if (studio.workspace === 'studio' || integratedPresentation) {
     return (
       <div className={`${styles.workspaceToolbar} ${styles.studioSessionBar}`}>
         <div className={styles.studioSessionTitle}>
-          <StudioIcon name="camera" />
-          <span>Phiên ghi hình:</span>
-          <strong>Bài giảng mới</strong>
+          <StudioIcon name={integratedPresentation ? 'cloud' : 'camera'} />
+          <span>{integratedPresentation ? 'Chế độ trình chiếu:' : 'Phiên ghi hình:'}</span>
+          <strong>{integratedPresentation ? 'Tệp PDF / PPTX' : 'Bài giảng mới'}</strong>
         </div>
         <div className={styles.studioSessionActions}>
-          <Link className={styles.presentationModeButton} href="/presentation">
-            <StudioIcon name="cloud" /> Tải PDF / PPTX
-          </Link>
+          {!integratedPresentation && (
+            <button
+              className={styles.presentationModeButton}
+              type="button"
+              onClick={onOpenPresentation}
+              disabled={studio.session !== 'setup'}
+              title={studio.session === 'setup' ? 'Mở chế độ trình chiếu PDF hoặc PPTX' : 'Hoàn tất phiên hiện tại trước khi chuyển chế độ'}
+            >
+              <StudioIcon name="cloud" /> Tải PDF / PPTX
+            </button>
+          )}
           <div className={styles.liveSummary}>
             <span className={sourcesConnected ? styles.summaryReady : styles.summaryIdle} />
             {sourcesConnected ? connectedLabel : idleLabel}

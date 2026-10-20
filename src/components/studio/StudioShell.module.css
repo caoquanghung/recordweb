@@ -2104,6 +2104,25 @@
   text-decoration: none;
 }
 
+.studioBackButton {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid rgba(125, 141, 240, 0.38);
+  border-radius: 9px;
+  color: #dce3ff;
+  background: rgba(83, 103, 222, 0.12);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.studioBackButton:hover:not(:disabled) { background: rgba(83, 103, 222, 0.22); }
+.studioBackButton:disabled { cursor: not-allowed; opacity: 0.48; }
+.studioBackButton:focus-visible { outline: 3px solid rgba(125, 141, 240, 0.42); outline-offset: 2px; }
+
 .studioScreen .themeButton,
 .studioScreen .secondaryButton {
   height: 36px;
@@ -2144,13 +2163,16 @@
   color: #eef1ff;
   background: linear-gradient(135deg, rgba(83, 103, 222, 0.88), rgba(53, 71, 168, 0.92));
   box-shadow: 0 5px 14px rgba(34, 49, 127, 0.22);
+  font: inherit;
   font-size: 10px;
   font-weight: 750;
   text-decoration: none;
+  cursor: pointer;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 .presentationModeButton .icon { width: 14px; }
-.presentationModeButton:hover { border-color: rgba(171, 183, 255, 0.72); box-shadow: 0 7px 18px rgba(34, 49, 127, 0.3); transform: translateY(-1px); }
+.presentationModeButton:hover:not(:disabled) { border-color: rgba(171, 183, 255, 0.72); box-shadow: 0 7px 18px rgba(34, 49, 127, 0.3); transform: translateY(-1px); }
+.presentationModeButton:disabled { cursor: not-allowed; opacity: 0.48; }
 .presentationModeButton:focus-visible { outline: 3px solid rgba(125, 141, 240, 0.42); outline-offset: 2px; }
 .studioScreen .drawerButton { height: 30px; padding: 0 10px; border-radius: 8px; font-size: 10px; }
 .studioScreen .drawerButton:hover,
@@ -2379,6 +2401,7 @@
 
 :global(html[data-theme='light']) .studioScreen .studioReady { color: #087766; background: #d7f5ee; }
 :global(html[data-theme='light']) .studioScreen .studioDashboardLink,
+:global(html[data-theme='light']) .studioScreen .studioBackButton,
 :global(html[data-theme='light']) .studioScreen .themeButton,
 :global(html[data-theme='light']) .studioScreen .secondaryButton { color: #334155; background: #f7f9fc; }
 :global(html[data-theme='light']) .studioScreen .stage { background: #e7edf6; box-shadow: 0 20px 48px rgba(30, 52, 88, .14); }
@@ -2414,6 +2437,8 @@
 @media (max-width: 760px) {
   .studioScreen .studioTopbar { align-items: center; padding-inline: 14px; }
   .studioBrand small, .studioReady, .studioDashboardLink, .studioScreen .themeButton span { display: none; }
+  .studioBackButton { width: 36px; justify-content: center; padding: 0; overflow: hidden; font-size: 0; }
+  .studioBackButton::before { content: '←'; font-size: 14px; }
   .studioScreen .topbarActions { gap: 6px; }
   .studioScreen .studioSessionBar { align-items: flex-start; flex-direction: column; }
   .studioSessionActions { width: 100%; justify-content: space-between; }
