@@ -203,6 +203,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added a direct presentation cursor controller with normalized 24 Hz active-time samples and integrated the dormant presentation source into `useStudioController` / `useRecordingSession`
   - [x] Added the authenticated integrated Studio presentation workspace and `/presentation` entry alias; its capture root contains only the rendered slide, raw webcam, and custom cursor, with no screen-share or MediaPipe path
   - [x] Added clean full-tab fallback mode, local PDF/PPTX file controls, slide navigation, presentation-specific device controls, and recording startup from the browser's explicit “This Tab” picker
+  - [x] Added atomic PDF/PPTX replacement during setup, active recording, and pause: candidate material validates and pre-renders before swapping onto the existing captured canvas, failures retain the current deck, and `Alt+R` opens the picker in clean full-tab mode
   - [ ] Runtime-test PDF/PPTX fidelity, current-tab selection, Element Capture fallback, tab audio, raw webcam, cursor baking, pause/resume, and finalized output in Chrome/Edge
 
 ---
@@ -255,5 +256,5 @@ This file serves as the persistent memory bank for AI agents working on **Record
 ## 6. Immediate Next Steps
 
 1. Run authenticated screenshot and interaction QA for `/library/[recordingId]` with owned, shared-viewer, shared-download, missing-waveform, and no-chapter recordings.
-2. Runtime-test Studio presentation mode (including the `/presentation` entry alias) with representative PDF/PPTX files in authenticated Chrome/Edge: capture, audio, webcam, cursor, pause/resume, cleanup, and finalized output.
+2. Runtime-test Studio presentation mode (including live valid/invalid file replacement and the `/presentation` entry alias) with representative PDF/PPTX files in authenticated Chrome/Edge: capture, audio, webcam, cursor, pause/resume, cleanup, and finalized output.
 3. Fix and runtime-test extension cleanup, then run the authenticated multi-asset Blob upload/download test including cursor JSON.

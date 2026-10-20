@@ -80,6 +80,12 @@ current-tab video + mixed audio -> useRecordingSession composite recorder
   completion or error releases the self-capture source after recorder finalization.
 * Presentation files are limited to 50 MB and 300 pages/slides. They remain local;
   this core phase adds no Blob upload, database row, or sharing contract.
+* A presenter may replace the local PDF/PPTX during setup, active recording, or a
+  paused recording. Replacement is atomic: the active renderer and captured canvas
+  remain unchanged until the candidate file validates, parses, and pre-renders its
+  first page. A successful swap repaints the same captured canvas without replacing
+  the tab-capture track or restarting `MediaRecorder`; failure keeps the current
+  material active.
 * `/presentation` reuses the existing Studio chrome, review flow, diagnostics, audio
   controls, and recording controls without modifying `/`. Its source panel never
   requests screen sharing; the recording gesture starts current-tab capture only

@@ -35,6 +35,7 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
       progress,
       progressMessage,
       isRendering: deckIsRendering,
+      isReplacing: deckIsReplacing,
       canAdvance: canAdvanceDeck,
       error: deckError,
       canvasRef,
@@ -66,12 +67,20 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
   } = studio;
   const cursor = presentationSource.cursor;
   const cleanTabCapture = presentationSource.capture?.scope === 'tab';
-  const recordingLocked = session !== 'setup';
+  const replacementInputRef = useRef<HTMLInputElement>(null);
+  const deckBusy = deckIsReplacing || (!metadata && (deckStatus === 'validating' || deckStatus === 'loading'));
+  const fileSelectionAllowed = ['setup', 'recording', 'paused'].includes(session) && !deckBusy && !deckIsRendering;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.matches('input, textarea, select, [contenteditable="true"]')) return;
+      if (event.altKey && event.key.toLowerCase() === 'r' && metadata && fileSelectionAllowed) {
+        event.preventDefault();
+        replacementInputRef.current?.click();
+        return;
+      }
+      if (deckBusy) return;
       if (event.key === 'ArrowRight' || event.key === 'PageDown') {
         event.preventDefault();
         nextPage();
@@ -83,7 +92,7 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [nextPage, previousPage]);
+  }, [deckBusy, fileSelectionAllowed, metadata, nextPage, previousPage]);
 
   const loadFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -115,7 +124,7 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
               <p>PDF and PPTX files stay in this browser. Maximum 50 MB and 300 slides.</p>
               <label className={styles.presentationUploadButton}>
                 <StudioIcon name="cloud" /> Choose PDF or PPTX
-                <input type="file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" onChange={loadFile} disabled={recordingLocked} />
+                <input type="file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" onChange={loadFile} disabled={!fileSelectionAllowed} />
               </label>
               {(deckStatus === 'validating' || deckStatus === 'loading') && (
                 <div className={styles.presentationProgress} role="status">
@@ -142,19 +151,27 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
       </div>
 
       {metadata && (
-        <div className={styles.presentationControls} aria-label="Slide controls">
-          <label className={styles.presentationReplaceButton}>
-            Replace file
-            <input type="file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" onChange={loadFile} disabled={recordingLocked} />
+        <div className={styles.presentationControls} aria-label="Slide controls" aria-busy={deckIsReplacing}>
+          <label className={`${styles.presentationReplaceButton} ${!fileSelectionAllowed ? styles.presentationFileButtonDisabled : ''}`}>
+            {deckIsReplacing ? 'Preparing file…' : 'Replace file'}
+            <input ref={replacementInputRef} type="file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" onChange={loadFile} disabled={!fileSelectionAllowed} />
           </label>
           <div>
-            <button type="button" onClick={previousPage} disabled={deckIsRendering || currentPageIndex === 0} aria-label="Previous slide">←</button>
+            <button type="button" onClick={previousPage} disabled={deckBusy || deckIsRendering || currentPageIndex === 0} aria-label="Previous slide">←</button>
             <span>{currentPageIndex + 1} / {metadata.pageCount}</span>
-            <button type="button" onClick={nextPage} disabled={deckIsRendering || !canAdvanceDeck} aria-label="Next animation or slide">→</button>
+            <button type="button" onClick={nextPage} disabled={deckBusy || deckIsRendering || !canAdvanceDeck} aria-label="Next animation or slide">→</button>
           </div>
           <span className={styles.presentationFileName} title={metadata.name}>{metadata.name}</span>
         </div>
       )}
+
+      {metadata && deckIsReplacing && (
+        <div className={styles.presentationReplacementStatus} role="status">
+          <progress max="100" value={progress} />
+          <span>{progressMessage || 'Preparing replacement material…'}</span>
+        </div>
+      )}
+      {metadata && deckError && <p className={styles.presentationReplacementError} role="alert">{deckError}</p>}
 
       {session !== 'processing' && (
         <AudioMeterPanel
@@ -191,7 +208,7 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
         <button className={`${styles.roundControl} ${micMuted ? styles.controlOff : ''}`} onClick={() => setMicMuted((value) => !value)} aria-label="Toggle microphone"><StudioIcon name="mic" /></button>
         <button className={`${styles.roundControl} ${!cameraVisible ? styles.controlOff : ''}`} onClick={() => setCameraVisible((value) => !value)} aria-label="Toggle camera"><StudioIcon name="camera" /></button>
       </div>
-      <div className={styles.shortcutHint}>Arrow keys change slides · Space pause/resume · Alt+S finish</div>
+      <div className={styles.shortcutHint}>Arrow keys change slides · Alt+R replace material · Space pause/resume · Alt+S finish</div>
     </section>
   );
 }
