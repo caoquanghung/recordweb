@@ -264,6 +264,7 @@ export function useRecordingSession({
   const stoppedAssetsRef = useRef<Set<RecordingAssetKind>>(new Set());
   const draftWriteRef = useRef<Promise<void>>(Promise.resolve());
   const cursorStopRef = useRef<Promise<CursorTrajectory | null>>(Promise.resolve(null));
+  const cursorStopRequestedRef = useRef(false);
   const [status, setStatus] = useState<RecordingSessionResult['status']>('idle');
   const [elapsedMs, setElapsedMs] = useState(0);
   const [warning, setWarning] = useState<string | null>(null);
@@ -277,6 +278,17 @@ export function useRecordingSession({
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) window.clearInterval(timerRef.current);
     timerRef.current = null;
+  }, []);
+
+  const requestCursorStop = useCallback((durationMs: number) => {
+    if (!cursorStopRequestedRef.current) {
+      cursorStopRequestedRef.current = true;
+      const controller = sessionCursorCaptureRef.current;
+      cursorStopRef.current = controller
+        ? Promise.resolve().then(() => controller.stop(durationMs))
+        : Promise.resolve(null);
+    }
+    return cursorStopRef.current;
   }, []);
 
   const checkpointDraft = useCallback(() => {
@@ -312,9 +324,16 @@ export function useRecordingSession({
     finalizingRef.current = true;
 
     try {
+      if (recordingActiveRef.current) {
+        accumulatedMsRef.current += performance.now() - activeStartedAtRef.current;
+      }
+      recordingActiveRef.current = false;
+      clearTimer();
       const id = recordingIdRef.current;
       const startedAt = startedAtRef.current;
       const durationMs = Math.min(accumulatedMsRef.current, MAX_ACTIVE_MS);
+      setElapsedMs(durationMs);
+      setStatus('processing');
       const assets: Partial<Record<RecordingAssetKind, RecordingAssetMetadata>> = {};
 
       for (const kind of MEDIA_ASSET_ORDER) {
@@ -325,7 +344,7 @@ export function useRecordingSession({
         assets[kind] = await createAssetMetadata(kind, chunks, spec, durationMs);
       }
 
-      const cursorTrajectory = await cursorStopRef.current.catch((cause) => {
+      const cursorTrajectory = await requestCursorStop(durationMs).catch((cause) => {
         assetErrorsRef.current.push(`cursor: ${(cause as Error).message}`);
         return null;
       });
@@ -385,7 +404,7 @@ export function useRecordingSession({
       setError(`Could not finalize recording: ${(cause as Error).message}`);
       setStatus('error');
     }
-  }, [fps, resolution]);
+  }, [clearTimer, fps, requestCursorStop, resolution]);
 
   const markAssetStopped = useCallback((kind: RecordingAssetKind) => {
     stoppedAssetsRef.current.add(kind);
@@ -397,7 +416,7 @@ export function useRecordingSession({
 
   const stop = useCallback(() => {
     const recorders = getRecorders(recordersRef.current);
-    if (recorders.length === 0 || recorders.every((recorder) => recorder.state === 'inactive')) return;
+    if (recorders.length === 0) return;
 
     if (recordingActiveRef.current) {
       accumulatedMsRef.current += performance.now() - activeStartedAtRef.current;
@@ -407,12 +426,16 @@ export function useRecordingSession({
     const durationMs = Math.min(accumulatedMsRef.current, MAX_ACTIVE_MS);
     setElapsedMs(durationMs);
     setStatus('processing');
-    cursorStopRef.current = sessionCursorCaptureRef.current?.stop(durationMs) ?? Promise.resolve(null);
+    void requestCursorStop(durationMs);
+
+    if (recorders.every((recorder) => recorder.state === 'inactive')) {
+      return;
+    }
 
     recorders.forEach((recorder) => {
       if (recorder.state !== 'inactive') recorder.stop();
     });
-  }, [clearTimer]);
+  }, [clearTimer, requestCursorStop]);
 
   const startClock = useCallback(() => {
     clearTimer();
@@ -468,6 +491,7 @@ export function useRecordingSession({
     stoppedAssetsRef.current = new Set();
     draftWriteRef.current = Promise.resolve();
     cursorStopRef.current = Promise.resolve(null);
+    cursorStopRequestedRef.current = false;
     sessionCursorCaptureRef.current = cursorCapture ?? null;
     setElapsedMs(0);
     setWarning(null);
@@ -577,6 +601,7 @@ export function useRecordingSession({
     finalizingRef.current = false;
     stoppedAssetsRef.current = new Set();
     cursorStopRef.current = Promise.resolve(null);
+    cursorStopRequestedRef.current = false;
     void sessionCursorCaptureRef.current?.reset();
     sessionCursorCaptureRef.current = null;
     setRecording(null);

@@ -80,7 +80,7 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
                 onClick={tabCapture.openGoogleSlides}
                 disabled={!tabCapture.available || tabCapture.connected || tabCapture.status === 'opening'}
               >
-                {tabCapture.status === 'opening' ? 'Opening Slides…' : 'Open Slides & prepare cursor'}
+                {tabCapture.status === 'opening' ? 'Finding Slides…' : 'Find or open Slides'}
               </button>
             </div>
             {!tabCapture.available && (

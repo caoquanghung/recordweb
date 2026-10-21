@@ -39,6 +39,28 @@ function parseGoogleSlidesUrl(value) {
   }
 }
 
+function googleSlidesDeckKey(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.hostname !== 'docs.google.com') return null;
+    const match = url.pathname.match(/^\/presentation\/(?:u\/\d+\/)?d\/(e\/)?([^/]+)/);
+    if (!match) return null;
+    return `${match[1] ? 'published' : 'deck'}:${match[2]}`;
+  } catch {
+    return null;
+  }
+}
+
+async function findExistingGoogleSlidesTab(deckKey) {
+  const tabs = await chrome.tabs.query({ url: 'https://docs.google.com/presentation/*' });
+  return tabs
+    .filter((tab) => tab.id && tab.url && googleSlidesDeckKey(tab.url) === deckKey)
+    .sort((left, right) => {
+      if (left.active !== right.active) return left.active ? -1 : 1;
+      return (right.lastAccessed || 0) - (left.lastAccessed || 0);
+    })[0] || null;
+}
+
 function postPortMessage(port, message) {
   try {
     port.postMessage(message);
@@ -95,13 +117,6 @@ function pairRequestedTarget() {
 }
 
 async function openGoogleSlides(urlValue, appTabId, appPort) {
-  if (currentTarget) {
-    postPortMessage(appPort, {
-      type: 'EXTENSION_ERROR',
-      message: 'Disconnect the current presentation before opening another Google Slides presentation.',
-    });
-    return;
-  }
   const url = parseGoogleSlidesUrl(urlValue);
   if (!url) {
     postPortMessage(appPort, { type: 'EXTENSION_ERROR', message: 'RecordWeb received an invalid Google Slides URL.' });
@@ -109,18 +124,58 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
   }
 
   try {
+    const deckKey = googleSlidesDeckKey(url.href);
+    const existingTab = deckKey ? await findExistingGoogleSlidesTab(deckKey) : null;
+    if (currentTarget && existingTab?.id !== currentTarget.tabId) {
+      postPortMessage(appPort, {
+        type: 'EXTENSION_ERROR',
+        message: 'Disconnect the current presentation before preparing a different Google Slides deck.',
+      });
+      return;
+    }
+
+    if (existingTab?.id) {
+      const target = { tabId: existingTab.id, title: existingTab.title || 'Google Slides' };
+      currentAppTabId = appTabId;
+      postPortMessage(appPort, { type: 'TARGET_OPENED', target, reused: true });
+
+      if (trackerPorts.has(existingTab.id)) {
+        currentTarget = target;
+        setBadge(existingTab.id, 'CUR', '#22c58b');
+        postPortMessage(appPort, { type: 'TARGET_READY', target });
+      } else {
+        if (!currentTarget) {
+          requestedTarget = target;
+          requestedAppTabId = appTabId;
+        }
+        await chrome.tabs.reload(existingTab.id);
+      }
+
+      const focused = await focusTab(existingTab.id);
+      if (!focused) throw new Error('The existing Google Slides tab could not be focused.');
+      return;
+    }
+
+    if (currentTarget) {
+      postPortMessage(appPort, {
+        type: 'EXTENSION_ERROR',
+        message: 'Disconnect the current presentation before preparing a different Google Slides deck.',
+      });
+      return;
+    }
+
     const tab = await chrome.tabs.create({ url: url.href, active: false });
     if (!tab.id) throw new Error('Chrome did not return the new tab ID.');
     requestedTarget = { tabId: tab.id, title: tab.title || 'Google Slides' };
     requestedAppTabId = appTabId;
-    postPortMessage(appPort, { type: 'TARGET_OPENED', target: requestedTarget });
+    postPortMessage(appPort, { type: 'TARGET_OPENED', target: requestedTarget, reused: false });
     pairRequestedTarget();
   } catch (error) {
     requestedTarget = null;
     requestedAppTabId = null;
     postPortMessage(appPort, {
       type: 'EXTENSION_ERROR',
-      message: `Could not open Google Slides: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Could not find or open Google Slides: ${error instanceof Error ? error.message : String(error)}`,
     });
   }
 }
@@ -206,7 +261,7 @@ chrome.runtime.onConnect.addListener((port) => {
       if (message.type === 'CURSOR_SAMPLE' && currentTarget?.tabId === tabId) sendAppMessage(message);
       if (message.type === 'PRESENTATION_COMMAND' && currentTarget?.tabId === tabId) {
         sendAppMessage(message);
-        if (message.command === 'stop') {
+        if (message.command === 'stop' || message.command === 'end-session') {
           const appTabId = currentAppTabId ?? appPorts.keys().next().value;
           if (typeof appTabId === 'number') void focusTab(appTabId);
         }

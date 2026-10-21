@@ -9,14 +9,17 @@ This unpacked Chromium Manifest V3 extension automatically prepares 24 Hz cursor
 3. Choose **Load unpacked** and select this `extension/` directory.
 4. Open `https://recordweb-nine.vercel.app/`, or `http://localhost:3000/` during local development.
 5. Reload an already-open RecordWeb tab after installing or reloading the extension so its bridge can connect.
-6. Paste a Google Slides URL into RecordWeb and choose **Open Slides & prepare cursor**.
+6. Paste a Google Slides URL into RecordWeb and choose **Find or open Slides**.
 7. Configure the camera and microphone, then press **Start recording**.
 8. In Chrome's share picker, choose the Google Slides tab opened by RecordWeb and enable tab audio when needed.
 
 The extension's static content script initializes cursor tracking automatically on supported Google Slides URLs. No toolbar click or extension shortcut is needed per recording session. Chrome still requires explicit confirmation in its native share picker for every new screen-share stream.
 Standard Google Slides edit/view URLs are opened in their `/present` form so the authorized tab is the presenter surface; published presentation URLs are preserved.
+Before creating a tab, the extension compares the presentation ID with all open Google Slides tabs. It focuses the most recently used matching tab regardless of `/edit`, `/view`, `/present`, account prefix, or query parameters. A new background tab is created only when no matching deck is already open.
 
-After the countdown, RecordWeb automatically focuses the prepared Slides tab. While presenting, `Alt+P`, `Alt+S`, `Alt+M`, and `Alt+C` are relayed to RecordWeb for pause/resume, stop, microphone mute, and camera visibility. Stopping returns focus to RecordWeb and releases the native screen-share stream after recorder finalization.
+After the countdown, RecordWeb automatically focuses the prepared Slides tab. During an active recording, a compact **Recording** pill appears in the bottom-right corner. Hovering or clicking expands pause/resume, microphone, camera, and **End session** controls; it collapses again after a short period of inactivity. The control is isolated from Google Slides with Shadow DOM and follows the active fullscreen element. Because it is rendered inside the shared tab, it is visible in the captured video while shown.
+
+`Alt+P`, `Alt+S`, `Alt+M`, and `Alt+C` remain available for pause/resume, stop, microphone mute, and camera visibility. **End session** hides the overlay immediately, stops the recording, waits for recorder and cursor finalization, and only then disconnects the prepared tab, display stream, camera, and microphone. A normal Stop keeps camera and microphone connected for another take.
 
 ## Current scope
 
@@ -30,3 +33,5 @@ After the countdown, RecordWeb automatically focuses the prepared Slides tab. Wh
 - When the production domain changes, update `homepage_url`, `host_permissions`, and `content_scripts.matches` together, then release a new extension version.
 - Tab focus, badge updates, and port messages tolerate tabs closing or extension reloads without unhandled Promise rejections. Explicit disconnect resets tracking without requiring another toolbar authorization.
 - Version `0.3.1` re-pairs the tracker after same-tab Slides navigation/fullscreen reloads and resumes an active cursor session from its latest timestamp/index.
+- Version `0.3.2` reuses and focuses an existing tab for the same presentation ID before creating a new tab.
+- Version `0.3.3` adds the auto-collapsing in-tab recording toolbar and a finalization-safe **End session** action.

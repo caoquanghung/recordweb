@@ -93,7 +93,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
       return;
     }
     setStatus('opening');
-    setMessage('Opening Google Slides…');
+    setMessage('Looking for an existing Google Slides tab…');
     postToExtension({ type: 'OPEN_GOOGLE_SLIDES', url: url.href });
   }, [available, googleSlidesUrl]);
 
@@ -158,7 +158,9 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
       if (extensionMessage.type === 'TARGET_OPENED') {
         setAvailable(true);
         setStatus('connecting');
-        setMessage('Google Slides opened. Waiting for its cursor tracker to initialize…');
+        setMessage(extensionMessage.reused
+          ? 'Existing Google Slides tab found. Switching to it and preparing cursor tracking…'
+          : 'Google Slides opened. Waiting for its cursor tracker to initialize…');
         return;
       }
 

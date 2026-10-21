@@ -11,6 +11,7 @@ export interface ExtensionTargetTab {
 export type ExtensionPresentationCommand =
   | 'toggle-pause'
   | 'stop'
+  | 'end-session'
   | 'toggle-microphone'
   | 'toggle-camera';
 
@@ -27,6 +28,7 @@ export type ExtensionToPageMessage =
       direction: 'extension-to-page';
       type: 'TARGET_OPENED';
       target: ExtensionTargetTab;
+      reused: boolean;
     }
   | {
       channel: typeof RECORDWEB_EXTENSION_CHANNEL;

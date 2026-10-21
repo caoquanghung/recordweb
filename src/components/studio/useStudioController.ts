@@ -94,6 +94,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const [uploadMessage, setUploadMessage] = useState('');
   const [cloudRecording, setCloudRecording] = useState<DbRecording | null>(null);
   const recoveredPreviewUrlRef = useRef<string | null>(null);
+  const endSessionRequestedRef = useRef(false);
   const [micGain, setMicGain] = useState(1);
   const [systemVolume, setSystemVolume] = useState(1);
   const [customAudioConfig, setCustomAudioConfig] = useState<AudioFilterConfig>({
@@ -257,10 +258,13 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   useEffect(() => {
     if (recordingStatus !== 'ready' && recordingStatus !== 'error') return;
     const releaseSourceCanvases = window.setTimeout(() => setSourceCaptureEnabled(false), 0);
-    if (presentationCapture) stopPresentationCapture();
+    if (endSessionRequestedRef.current) {
+      endSessionRequestedRef.current = false;
+      stopAllMedia();
+    } else if (presentationCapture) stopPresentationCapture();
     else if (!presentationWorkspace) stopScreen();
     return () => window.clearTimeout(releaseSourceCanvases);
-  }, [presentationCapture, presentationWorkspace, recordingStatus, stopPresentationCapture, stopScreen]);
+  }, [presentationCapture, presentationWorkspace, recordingStatus, stopAllMedia, stopPresentationCapture, stopScreen]);
 
   const loadPresets = useCallback(async () => {
     try {
@@ -419,6 +423,10 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     const handlePresentationCommand = (event: Event) => {
       const command = (event as CustomEvent<ExtensionPresentationCommand>).detail;
       if (command === 'stop' && (session === 'recording' || session === 'paused')) stopRecording();
+      if (command === 'end-session' && (session === 'recording' || session === 'paused')) {
+        endSessionRequestedRef.current = true;
+        stopRecording();
+      }
       if (command === 'toggle-pause') {
         if (session === 'recording') pauseRecording();
         if (session === 'paused') resumeRecording();

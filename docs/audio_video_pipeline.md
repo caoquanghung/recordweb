@@ -197,6 +197,14 @@ Google Slides recording uses native display capture, so the system gain is not
 connected to `AudioContext.destination`; the browser retains normal tab playback
 and RecordWeb avoids accidental system-audio feedback.
 
+The Slides extension mounts an isolated, auto-collapsing Shadow DOM toolbar only
+while cursor capture is active. Its **End session** command first stops the
+coordinated MediaRecorders and cursor sampler. RecordWeb waits until finalization
+reaches `ready` or `error` before invoking global media cleanup, so display,
+camera, and microphone tracks cannot be cut off before their final chunks and
+cursor JSON are collected. The toolbar is inside the shared tab and is therefore
+part of the captured pixels while expanded or collapsed.
+
 ### 3.2 Sound Filter Parameter Specifications
 
 | Filter Component | Filter Type / Node | Key Parameters | Purpose |
@@ -258,6 +266,7 @@ Upon recording completion, the engine:
 * Standalone audio selection prefers MP4/AAC when supported, then WebM/Opus. Mixed, processed-microphone, and gained-system files each contain one audio track and no video track.
 * Always start every recorder with a one-second chunk timeslice so data is checkpointed periodically instead of retained as one monolithic blob until stop.
 * Pause and resume all active recorders together and use one active-time clock for the 30-minute limit and final duration.
+* Cursor finalization is idempotent and runs from both explicit Stop and the coordinated recorder stop barrier. If a shared tab closes first and makes recorders inactive, the already collected cursor trajectory is still emitted as JSON.
 * Repair every finalized WebM asset independently before preview, download, recovery, or upload.
 * Decode and persist 120 normalized waveform peaks independently for every available audio asset.
 * A missing optional source or a source-recorder failure produces a partial session warning without discarding a valid composite or other successful assets.
