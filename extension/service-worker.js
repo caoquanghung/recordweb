@@ -44,22 +44,50 @@ function parseGoogleSlidesUrl(value) {
 }
 
 function sendAppMessage(message) {
-  for (const port of appPorts.values()) {
+  for (const [tabId, port] of appPorts.entries()) {
     try {
       port.postMessage(message);
     } catch {
-      // A disconnected port is removed by its onDisconnect handler.
+      appPorts.delete(tabId);
     }
   }
 }
 
 function setBadge(tabId, text, color) {
-  void chrome.action.setBadgeBackgroundColor({ tabId, color });
-  void chrome.action.setBadgeText({ tabId, text });
+  void Promise.allSettled([
+    chrome.action.setBadgeBackgroundColor({ tabId, color }),
+    chrome.action.setBadgeText({ tabId, text }),
+  ]);
 }
 
-function openRecordWeb() {
-  return chrome.tabs.create({ url: APP_URL });
+function clearBadge(tabId) {
+  void chrome.action.setBadgeText({ tabId, text: '' }).catch(() => undefined);
+}
+
+function postPortMessage(port, message) {
+  try {
+    port.postMessage(message);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function focusTab(tabId) {
+  try {
+    await chrome.tabs.update(tabId, { active: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function openRecordWeb() {
+  try {
+    return await chrome.tabs.create({ url: APP_URL });
+  } catch {
+    return null;
+  }
 }
 
 async function offerCapture(target, appTabId, appPort) {
@@ -68,10 +96,13 @@ async function offerCapture(target, appTabId, appPort) {
       targetTabId: target.tabId,
       consumerTabId: appTabId,
     });
-    appPort.postMessage({ type: 'CAPTURE_OFFER', streamId, target });
+    if (!postPortMessage(appPort, { type: 'CAPTURE_OFFER', streamId, target })) {
+      throw new Error('The RecordWeb tab disconnected before it could receive the capture stream.');
+    }
     if (currentTargetTabId !== null && currentTargetTabId !== target.tabId) {
-      trackerPorts.get(currentTargetTabId)?.postMessage({ type: 'DISCONNECT' });
-      void chrome.action.setBadgeText({ tabId: currentTargetTabId, text: '' });
+      const previousTracker = trackerPorts.get(currentTargetTabId);
+      if (previousTracker) postPortMessage(previousTracker, { type: 'DISCONNECT' });
+      clearBadge(currentTargetTabId);
     }
     currentTargetTabId = target.tabId;
     currentAppTabId = appTabId;
@@ -79,7 +110,7 @@ async function offerCapture(target, appTabId, appPort) {
     requestedAppTabId = null;
     setBadge(target.tabId, 'ON', '#22c58b');
     pendingTarget = null;
-    await chrome.tabs.update(appTabId, { active: true });
+    await focusTab(appTabId);
   } catch (error) {
     setBadge(target.tabId, '!', '#dc5964');
     sendAppMessage({
@@ -119,7 +150,12 @@ async function prepareTarget(tab) {
       type: 'EXTENSION_ERROR',
       message: 'Authorize the Google Slides tab opened by RecordWeb, not a different tab.',
     });
-    await chrome.tabs.update(requestedTarget.tabId, { active: true });
+    const focused = await focusTab(requestedTarget.tabId);
+    if (!focused) {
+      requestedTarget = null;
+      requestedAppTabId = null;
+      sendAppMessage({ type: 'EXTENSION_ERROR', message: 'The Google Slides tab is no longer open.' });
+    }
     return;
   }
   if (requestedTarget && !parseGoogleSlidesUrl(tab.url)) {
@@ -169,7 +205,7 @@ async function prepareTarget(tab) {
 
 async function openGoogleSlides(urlValue, appTabId, appPort) {
   if (currentTargetTabId !== null) {
-    appPort.postMessage({
+    postPortMessage(appPort, {
       type: 'EXTENSION_ERROR',
       message: 'Disconnect the current captured tab before opening another Google Slides presentation.',
     });
@@ -177,7 +213,7 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
   }
   const url = parseGoogleSlidesUrl(urlValue);
   if (!url) {
-    appPort.postMessage({ type: 'EXTENSION_ERROR', message: 'RecordWeb received an invalid Google Slides URL.' });
+    postPortMessage(appPort, { type: 'EXTENSION_ERROR', message: 'RecordWeb received an invalid Google Slides URL.' });
     return;
   }
 
@@ -186,11 +222,14 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
     if (!tab.id) throw new Error('Chrome did not return the new tab ID.');
     requestedTarget = { tabId: tab.id, title: tab.title || 'Google Slides' };
     requestedAppTabId = appTabId;
-    appPort.postMessage({ type: 'TARGET_OPENED', target: requestedTarget });
+    if (!postPortMessage(appPort, { type: 'TARGET_OPENED', target: requestedTarget })) {
+      requestedTarget = null;
+      requestedAppTabId = null;
+    }
   } catch (error) {
     requestedTarget = null;
     requestedAppTabId = null;
-    appPort.postMessage({
+    postPortMessage(appPort, {
       type: 'EXTENSION_ERROR',
       message: `Could not open Google Slides: ${error instanceof Error ? error.message : String(error)}`,
     });
@@ -207,9 +246,11 @@ chrome.commands.onCommand.addListener((command, tab) => {
     void prepareTarget(tab);
     return;
   }
-  void chrome.tabs.query({ active: true, currentWindow: true }).then(([activeTab]) => {
-    if (activeTab) void prepareTarget(activeTab);
-  });
+  void chrome.tabs.query({ active: true, currentWindow: true })
+    .then(([activeTab]) => {
+      if (activeTab) void prepareTarget(activeTab);
+    })
+    .catch(() => undefined);
 });
 
 chrome.runtime.onConnect.addListener((port) => {
@@ -218,10 +259,10 @@ chrome.runtime.onConnect.addListener((port) => {
 
   if (port.name === APP_PORT_NAME) {
     appPorts.set(tabId, port);
-    port.postMessage({ type: 'BRIDGE_READY' });
+    postPortMessage(port, { type: 'BRIDGE_READY' });
     port.onMessage.addListener((message) => {
       if (message.type === 'PAGE_READY') {
-        port.postMessage({ type: 'BRIDGE_READY' });
+        postPortMessage(port, { type: 'BRIDGE_READY' });
         void connectPendingTarget();
       }
       if (message.type === 'OPEN_GOOGLE_SLIDES') {
@@ -229,13 +270,16 @@ chrome.runtime.onConnect.addListener((port) => {
         return;
       }
       if (message.type === 'FOCUS_TARGET' && message.targetTabId === currentTargetTabId) {
-        void chrome.tabs.update(message.targetTabId, { active: true });
+        void focusTab(message.targetTabId).then((focused) => {
+          if (!focused) postPortMessage(port, { type: 'TARGET_ENDED', message: 'The selected tab is no longer open.' });
+        });
         return;
       }
       if (message.type === 'DISCONNECT') {
         if (typeof message.targetTabId === 'number') {
-          trackerPorts.get(message.targetTabId)?.postMessage(message);
-          void chrome.action.setBadgeText({ tabId: message.targetTabId, text: '' });
+          const trackerPort = trackerPorts.get(message.targetTabId);
+          if (trackerPort) postPortMessage(trackerPort, message);
+          clearBadge(message.targetTabId);
         }
         currentTargetTabId = null;
         currentAppTabId = null;
@@ -246,8 +290,8 @@ chrome.runtime.onConnect.addListener((port) => {
       }
       if (message.type?.startsWith('CURSOR_') && typeof message.targetTabId === 'number') {
         const trackerPort = trackerPorts.get(message.targetTabId);
-        if (trackerPort) trackerPort.postMessage(message);
-        else port.postMessage({ type: 'EXTENSION_ERROR', message: 'The cursor tracker is no longer connected to the selected tab.' });
+        if (trackerPort && postPortMessage(trackerPort, message)) return;
+        postPortMessage(port, { type: 'EXTENSION_ERROR', message: 'The cursor tracker is no longer connected to the selected tab.' });
       }
     });
     port.onDisconnect.addListener(() => appPorts.delete(tabId));
@@ -263,18 +307,21 @@ chrome.runtime.onConnect.addListener((port) => {
         sendAppMessage(message);
         if (message.command === 'stop') {
           const appTabId = currentAppTabId ?? appPorts.keys().next().value;
-          if (typeof appTabId === 'number') void chrome.tabs.update(appTabId, { active: true });
+          if (typeof appTabId === 'number') void focusTab(appTabId);
         }
       }
     });
     port.onDisconnect.addListener(() => {
       trackerPorts.delete(tabId);
-      if (currentTargetTabId === tabId) {
+      const wasCurrentTarget = currentTargetTabId === tabId;
+      if (wasCurrentTarget) {
         currentTargetTabId = null;
         currentAppTabId = null;
       }
-      void chrome.action.setBadgeText({ tabId, text: '' });
-      sendAppMessage({ type: 'TARGET_ENDED', message: 'The selected tab navigated, closed, or disconnected from cursor tracking.' });
+      clearBadge(tabId);
+      if (wasCurrentTarget) {
+        sendAppMessage({ type: 'TARGET_ENDED', message: 'The selected tab navigated, closed, or disconnected from cursor tracking.' });
+      }
     });
   }
 });

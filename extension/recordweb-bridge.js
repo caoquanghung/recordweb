@@ -12,6 +12,7 @@
   if (!isAllowedAppOrigin(window.location)) return;
 
   const port = chrome.runtime.connect({ name: 'recordweb-app' });
+  let disconnected = false;
   const emitToPage = (message) => {
     window.postMessage({
       ...message,
@@ -20,17 +21,26 @@
     }, window.location.origin);
   };
 
+  const forwardToExtension = (event) => {
+    if (disconnected || event.source !== window || event.origin !== window.location.origin) return;
+    const message = event.data;
+    if (!message || message.channel !== CHANNEL || message.direction !== 'page-to-extension') return;
+    try {
+      port.postMessage(message);
+    } catch {
+      disconnected = true;
+      window.removeEventListener('message', forwardToExtension);
+    }
+  };
+
   port.onMessage.addListener(emitToPage);
   port.onDisconnect.addListener(() => {
+    disconnected = true;
+    window.removeEventListener('message', forwardToExtension);
     emitToPage({ type: 'EXTENSION_ERROR', message: 'The RecordWeb extension bridge disconnected.' });
   });
 
-  window.addEventListener('message', (event) => {
-    if (event.source !== window || event.origin !== window.location.origin) return;
-    const message = event.data;
-    if (!message || message.channel !== CHANNEL || message.direction !== 'page-to-extension') return;
-    port.postMessage(message);
-  });
+  window.addEventListener('message', forwardToExtension);
 
   emitToPage({ type: 'BRIDGE_READY' });
 })();

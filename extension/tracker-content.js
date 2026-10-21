@@ -4,6 +4,7 @@
 
   const SAMPLE_RATE_HZ = 24;
   const port = chrome.runtime.connect({ name: 'recordweb-tracker' });
+  let disconnected = false;
   let sessionId = null;
   let timer = null;
   let activeStartedAt = 0;
@@ -23,9 +24,9 @@
   }
 
   function publishSample() {
-    if (!sessionId) return;
+    if (!sessionId || disconnected) return;
     const size = viewport();
-    port.postMessage({
+    postToExtension({
       type: 'CURSOR_SAMPLE',
       sessionId,
       viewport: size,
@@ -37,6 +38,17 @@
         visible: cursor.visible,
       },
     });
+  }
+
+  function postToExtension(message) {
+    if (disconnected) return false;
+    try {
+      port.postMessage(message);
+      return true;
+    } catch {
+      teardown(false);
+      return false;
+    }
   }
 
   function clearSampler() {
@@ -75,17 +87,19 @@
     sampleIndex = 0;
   }
 
-  document.addEventListener('pointermove', (event) => {
+  function onPointerMove(event) {
     cursor = { x: event.clientX, y: event.clientY, visible: true };
-  }, { capture: true, passive: true });
-  document.addEventListener('pointerleave', () => {
-    cursor = { x: null, y: null, visible: false };
-  }, { capture: true, passive: true });
-  window.addEventListener('blur', () => {
-    cursor = { x: null, y: null, visible: false };
-  }, { passive: true });
+  }
 
-  document.addEventListener('keydown', (event) => {
+  function onPointerLeave() {
+    cursor = { x: null, y: null, visible: false };
+  }
+
+  function onWindowBlur() {
+    cursor = { x: null, y: null, visible: false };
+  }
+
+  function onKeyDown(event) {
     if (!sessionId || !event.altKey || event.repeat) return;
     const commandByKey = {
       p: 'toggle-pause',
@@ -97,15 +111,38 @@
     if (!command) return;
     event.preventDefault();
     event.stopPropagation();
-    port.postMessage({ type: 'PRESENTATION_COMMAND', command });
-  }, { capture: true });
+    postToExtension({ type: 'PRESENTATION_COMMAND', command });
+  }
+
+  function teardown(disconnectPort) {
+    if (disconnected) return;
+    disconnected = true;
+    resetSampler();
+    document.removeEventListener('pointermove', onPointerMove, true);
+    document.removeEventListener('pointerleave', onPointerLeave, true);
+    window.removeEventListener('blur', onWindowBlur);
+    document.removeEventListener('keydown', onKeyDown, true);
+    globalThis.__recordWebCursorTrackerInstalled = false;
+    if (disconnectPort) {
+      try {
+        port.disconnect();
+      } catch {
+        // The port may already be disconnected by an extension reload.
+      }
+    }
+  }
+
+  document.addEventListener('pointermove', onPointerMove, { capture: true, passive: true });
+  document.addEventListener('pointerleave', onPointerLeave, { capture: true, passive: true });
+  window.addEventListener('blur', onWindowBlur, { passive: true });
+  document.addEventListener('keydown', onKeyDown, { capture: true });
 
   port.onMessage.addListener((message) => {
     if (message.type === 'CURSOR_START' && message.sessionId) startSampler(message.sessionId);
     if (message.type === 'CURSOR_PAUSE' && message.sessionId === sessionId) pauseSampler();
     if (message.type === 'CURSOR_RESUME' && message.sessionId === sessionId) resumeSampler();
     if ((message.type === 'CURSOR_STOP' || message.type === 'CURSOR_RESET') && (!message.sessionId || message.sessionId === sessionId)) resetSampler();
-    if (message.type === 'DISCONNECT') resetSampler();
+    if (message.type === 'DISCONNECT') teardown(true);
   });
-  port.onDisconnect.addListener(resetSampler);
+  port.onDisconnect.addListener(() => teardown(false));
 })();
