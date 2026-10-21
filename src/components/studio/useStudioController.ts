@@ -85,6 +85,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [selectedMicrophoneId, setSelectedMicrophoneId] = useState('');
   const [isConnectingSources, setIsConnectingSources] = useState(false);
+  const [isConnectingSlideSource, setIsConnectingSlideSource] = useState(false);
   const [sourceCaptureEnabled, setSourceCaptureEnabled] = useState(false);
   const [recoveredRecording, setRecoveredRecording] = useState<RecordingMetadata | null>(null);
   const [recoveryDrafts, setRecoveryDrafts] = useState<RecordingDraft[]>([]);
@@ -255,6 +256,8 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     || (workspace === 'presentation' && presentationDeck.status === 'ready'),
   );
   const visualSourcesConnected = Boolean(screenStream || cameraStream);
+  const requiredDevicesConnected = mediaStatuses.microphone === 'ready'
+    && (mode === 'screen-only' || mediaStatuses.camera === 'ready');
 
   useEffect(() => {
     if (recordingStatus !== 'ready' && recordingStatus !== 'error') return;
@@ -351,60 +354,67 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     clearMediaError();
     setRecoveryMessage('');
     try {
-      if (workspace === 'presentation') {
-        stopScreen();
-        await Promise.all([
-          acquireCamera(selectedCameraId || undefined),
-          acquireMicrophone(selectedMicrophoneId || undefined),
-        ]);
-        setSourcesOpen(false);
-        return;
-      }
-
-      if (mode === 'webcam-only') {
-        stopScreen();
-      } else {
-        if (!tabCapture.available) {
-          setRecoveryMessage('Install or enable the RecordWeb extension, then reload this page.');
-          setSourcesOpen(true);
-          return;
-        }
-
-        const target = tabCapture.target ?? await tabCapture.openGoogleSlides();
-        if (!target) {
-          setRecoveryMessage('Google Slides cursor tracking did not connect. Check the URL, then click Connect sources again.');
-          setSourcesOpen(true);
-          return;
-        }
-        if (navigator.userActivation && !navigator.userActivation.isActive) {
-          setRecoveryMessage('Google Slides is ready, but Chrome needs a fresh click to open sharing. Click Connect sources again.');
-          setSourcesOpen(true);
-          return;
-        }
-
-        const capture = await acquireScreen();
-        const videoTrack = capture?.getVideoTracks()[0];
-        if (!capture || !videoTrack) {
-          setRecoveryMessage('Chrome could not open tab sharing. Click Connect sources again and choose the prepared Google Slides tab.');
-          setSourcesOpen(true);
-          return;
-        }
-        const displaySurface = videoTrack.getSettings().displaySurface;
-        if (displaySurface && displaySurface !== 'browser') {
-          stopScreen();
-          setRecoveryMessage('Choose the prepared Google Slides browser tab, not a window or an entire screen.');
-          setSourcesOpen(true);
-          return;
-        }
-      }
+      if (workspace === 'presentation' || mode === 'webcam-only') stopScreen();
 
       if (mode === 'screen-only') stopCamera();
       else await acquireCamera(selectedCameraId || undefined);
 
       await acquireMicrophone(selectedMicrophoneId || undefined);
-      setSourcesOpen(false);
+      if (workspace === 'presentation' || mode === 'webcam-only') setSourcesOpen(false);
     } finally {
       setIsConnectingSources(false);
+    }
+  };
+
+  const connectSlideSource = async () => {
+    if (workspace !== 'studio' || mode === 'webcam-only') return;
+    if (!requiredDevicesConnected) {
+      setRecoveryMessage(mode === 'screen-only'
+        ? 'Connect the microphone before connecting Google Slides.'
+        : 'Connect the camera and microphone before connecting Google Slides.');
+      setSourcesOpen(true);
+      return;
+    }
+
+    setIsConnectingSlideSource(true);
+    clearMediaError();
+    setRecoveryMessage('');
+    try {
+      if (!tabCapture.available) {
+        setRecoveryMessage('Install or enable the RecordWeb extension, then reload this page.');
+        setSourcesOpen(true);
+        return;
+      }
+
+      const target = tabCapture.target ?? await tabCapture.openGoogleSlides();
+      if (!target) {
+        setRecoveryMessage('Google Slides cursor tracking did not connect. Check the URL, then click Connect Google Slides again.');
+        setSourcesOpen(true);
+        return;
+      }
+      if (navigator.userActivation && !navigator.userActivation.isActive) {
+        setRecoveryMessage('Google Slides is ready, but Chrome needs a fresh click to open sharing. Click Connect Google Slides again.');
+        setSourcesOpen(true);
+        return;
+      }
+
+      const capture = await acquireScreen();
+      const videoTrack = capture?.getVideoTracks()[0];
+      if (!capture || !videoTrack) {
+        setRecoveryMessage('Chrome could not open tab sharing. Click Connect Google Slides again and choose the prepared tab.');
+        setSourcesOpen(true);
+        return;
+      }
+      const displaySurface = videoTrack.getSettings().displaySurface;
+      if (displaySurface && displaySurface !== 'browser') {
+        stopScreen();
+        setRecoveryMessage('Choose the prepared Google Slides browser tab, not a window or an entire screen.');
+        setSourcesOpen(true);
+        return;
+      }
+      setSourcesOpen(false);
+    } finally {
+      setIsConnectingSlideSource(false);
     }
   };
 
@@ -515,12 +525,12 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         return;
       }
       if (!tabCapture.connected) {
-        setRecoveryMessage('Connect sources and wait for Google Slides cursor tracking to become ready.');
+        setRecoveryMessage('Connect the required devices, then connect Google Slides and wait for cursor tracking to become ready.');
         setSourcesOpen(true);
         return;
       }
       if (!screenStream?.getVideoTracks().length) {
-        setRecoveryMessage('Connect sources and choose the prepared Google Slides tab before starting the recording.');
+        setRecoveryMessage('Click Connect Google Slides and choose the prepared tab before starting the recording.');
         setSourcesOpen(true);
         return;
       }
@@ -867,6 +877,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     selectedCameraId, setSelectedCameraId,
     selectedMicrophoneId, setSelectedMicrophoneId,
     isConnectingSources,
+    isConnectingSlideSource,
     recoveryDrafts,
     recoveryMessage,
     uploadState,
@@ -924,9 +935,11 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     activeMode,
     sourcesConnected,
     visualSourcesConnected,
+    requiredDevicesConnected,
     sessionLabel,
     toggleTheme,
     connectSources,
+    connectSlideSource,
     startUiTest,
     recoverLatestDraft,
     resetReview,

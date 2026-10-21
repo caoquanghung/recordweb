@@ -9,9 +9,10 @@ This unpacked Chromium Manifest V3 extension automatically prepares 24 Hz cursor
 3. Choose **Load unpacked** and select this `extension/` directory.
 4. Open `https://recordweb-nine.vercel.app/`, or `http://localhost:3000/` during local development.
 5. Reload an already-open RecordWeb tab after installing or reloading the extension so its bridge can connect.
-6. Paste a Google Slides URL into RecordWeb and choose **Connect sources**.
-7. Wait for cursor tracking to connect, then choose the prepared Google Slides tab in Chrome's share picker and enable tab audio when needed.
-8. Confirm the live preview, camera, and microphone, then press **Start recording**.
+6. Configure and connect the camera and microphone in RecordWeb.
+7. Paste a Google Slides URL and choose **Connect Google Slides**.
+8. Wait for cursor tracking to connect, then choose the prepared Google Slides tab in Chrome's share picker and enable tab audio when needed.
+9. Confirm the live preview and press **Start recording**.
 
 The extension's static content script initializes cursor tracking automatically on supported Google Slides URLs. No toolbar click or extension shortcut is needed per recording session. Chrome still requires explicit confirmation in its native share picker for every new screen-share stream.
 Standard Google Slides edit/view URLs are opened in their `/present` form so the authorized tab is the presenter surface; published presentation URLs are preserved.

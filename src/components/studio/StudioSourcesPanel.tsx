@@ -16,8 +16,11 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
     cameras,
     microphones,
     isConnectingSources,
+    isConnectingSlideSource,
     sourcesConnected,
+    requiredDevicesConnected,
     connectSources,
+    connectSlideSource,
     stopAllMedia,
     mediaStatuses,
     screenStream,
@@ -59,27 +62,6 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
         <div className={styles.sectionHeading}>
           <div><span>02</span><h2>Sources</h2></div>
         </div>
-        {mode !== 'webcam-only' && (
-          <>
-            <label className={styles.fieldLabel}>
-              Google Slides URL
-              <input
-                className={styles.textInput}
-                type="url"
-                inputMode="url"
-                placeholder="https://docs.google.com/presentation/d/…"
-                value={tabCapture.googleSlidesUrl}
-                onChange={(event) => tabCapture.setGoogleSlidesUrl(event.target.value)}
-                disabled={tabCapture.connected || isConnectingSources}
-              />
-            </label>
-            {!tabCapture.available && (
-              <p className={styles.sourceWarning}>
-                The RecordWeb extension is required. Install or enable it, then reload this page.
-              </p>
-            )}
-          </>
-        )}
         <label className={styles.fieldLabel}>
           Camera
           <select value={selectedCameraId} onChange={(event) => setSelectedCameraId(event.target.value)}>
@@ -101,44 +83,86 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
         <div className={styles.sourceActions}>
           <button className={styles.sourceButton} type="button" onClick={() => void connectSources()} disabled={isConnectingSources}>
             {isConnectingSources
-              ? tabCapture.status === 'opening' || tabCapture.status === 'connecting'
-                ? 'Preparing Google Slides…'
-                : 'Requesting access…'
-              : sourcesConnected
-                ? 'Update sources'
-                : 'Connect sources'}
+              ? 'Requesting device access…'
+              : mode === 'screen-only'
+                ? requiredDevicesConnected ? 'Update microphone' : 'Connect microphone'
+                : requiredDevicesConnected ? 'Update camera & microphone' : 'Connect camera & microphone'}
           </button>
-          {sourcesConnected && <button className={styles.sourceStopButton} type="button" onClick={stopAllMedia}>Disconnect</button>}
+          {sourcesConnected && <button className={styles.sourceStopButton} type="button" onClick={stopAllMedia}>Disconnect all</button>}
         </div>
         <div className={styles.sourceStatus}>
-          <StatusDot ok={mediaStatuses.camera === 'ready' || mediaStatuses.screen === 'ready'} />
-          <span>Screen {mediaStatuses.screen} · camera {mediaStatuses.camera} · mic {mediaStatuses.microphone}</span>
+          <StatusDot ok={requiredDevicesConnected} />
+          <span>Camera {mediaStatuses.camera} · microphone {mediaStatuses.microphone}</span>
         </div>
-        {screenStream && <div className={styles.sourceStatus}><StatusDot ok /><span>Tab video connected · {hasSystemAudio ? 'system audio shared' : 'no system audio'}</span></div>}
-        {tabCapture.connected && tabCapture.target && (
-          <div className={styles.sourceStatus}>
-            <StatusDot ok />
-            <span>Cursor target: {tabCapture.target.title}</span>
-          </div>
-        )}
-        {!tabCapture.available && legacyCursorTrajectory.available && (
-          <label className={styles.fieldLabel}>
-            Legacy cursor display
-            <select value={legacyCursorTrajectory.selectedDisplayId} onChange={(event) => legacyCursorTrajectory.setSelectedDisplayId(event.target.value)}>
-              {legacyCursorTrajectory.displays.map((display) => (
-                <option key={display.id} value={display.id}>{display.label}{display.primary ? ' (Primary)' : ''}</option>
-              ))}
-            </select>
-          </label>
-        )}
-        <div className={styles.sourceStatus}>
-          <StatusDot ok={tabCapture.connected || (!tabCapture.available && legacyCursorTrajectory.available)} />
-          <span>{tabCapture.available ? tabCapture.message : legacyCursorTrajectory.message}</span>
-        </div>
-        {mode !== 'webcam-only' && !screenStream && (
-          <p className={styles.sourceWarning}>
-            Connect sources will prepare Google Slides, then ask you to select that tab for a live preview.
-          </p>
+        {mode !== 'webcam-only' && (
+          <>
+            <label className={styles.fieldLabel}>
+              Google Slides URL
+              <input
+                className={styles.textInput}
+                type="url"
+                inputMode="url"
+                placeholder="https://docs.google.com/presentation/d/…"
+                value={tabCapture.googleSlidesUrl}
+                onChange={(event) => tabCapture.setGoogleSlidesUrl(event.target.value)}
+                disabled={tabCapture.connected || isConnectingSources || isConnectingSlideSource}
+              />
+            </label>
+            <div className={styles.sourceActions}>
+              <button
+                className={styles.sourceButton}
+                type="button"
+                onClick={() => void connectSlideSource()}
+                disabled={!requiredDevicesConnected || !tabCapture.available || isConnectingSources || isConnectingSlideSource}
+              >
+                {isConnectingSlideSource
+                  ? tabCapture.status === 'opening' || tabCapture.status === 'connecting'
+                    ? 'Preparing Google Slides…'
+                    : 'Opening share picker…'
+                  : screenStream
+                    ? 'Update Google Slides source'
+                    : 'Connect Google Slides'}
+              </button>
+            </div>
+            {!requiredDevicesConnected && (
+              <p className={styles.sourceWarning}>
+                {mode === 'screen-only'
+                  ? 'Connect the microphone before connecting Google Slides.'
+                  : 'Connect the camera and microphone before connecting Google Slides.'}
+              </p>
+            )}
+            {!tabCapture.available && (
+              <p className={styles.sourceWarning}>
+                The RecordWeb extension is required. Install or enable it, then reload this page.
+              </p>
+            )}
+            {screenStream && <div className={styles.sourceStatus}><StatusDot ok /><span>Tab video connected · {hasSystemAudio ? 'system audio shared' : 'no system audio'}</span></div>}
+            {tabCapture.connected && tabCapture.target && (
+              <div className={styles.sourceStatus}>
+                <StatusDot ok />
+                <span>Cursor target: {tabCapture.target.title}</span>
+              </div>
+            )}
+            {!tabCapture.available && legacyCursorTrajectory.available && (
+              <label className={styles.fieldLabel}>
+                Legacy cursor display
+                <select value={legacyCursorTrajectory.selectedDisplayId} onChange={(event) => legacyCursorTrajectory.setSelectedDisplayId(event.target.value)}>
+                  {legacyCursorTrajectory.displays.map((display) => (
+                    <option key={display.id} value={display.id}>{display.label}{display.primary ? ' (Primary)' : ''}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <div className={styles.sourceStatus}>
+              <StatusDot ok={tabCapture.connected || (!tabCapture.available && legacyCursorTrajectory.available)} />
+              <span>{tabCapture.available ? tabCapture.message : legacyCursorTrajectory.message}</span>
+            </div>
+            {!screenStream && requiredDevicesConnected && (
+              <p className={styles.sourceWarning}>
+                Connect Google Slides will prepare the tab, then ask you to select it for a live preview.
+              </p>
+            )}
+          </>
         )}
         {mediaError && <p className={styles.sourceError} role="alert">{mediaError.message}</p>}
       </section>

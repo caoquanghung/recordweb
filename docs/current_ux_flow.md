@@ -117,13 +117,13 @@ The Studio opens in `setup` state and divides configuration into Sources, the ce
    - **Studio** — screen plus camera;
    - **Screen** — display only;
    - **Camera** — webcam only.
-2. Choose the camera and microphone devices.
-3. For a Google Slides workflow, paste a `docs.google.com/presentation` URL and select **Connect sources**. The extension matches by presentation ID across `/edit`, `/view`, `/preview`, `/present`, account prefixes, and query parameters. When an editable matching tab exists, the extension navigates that same tab ID to `/present` in the background; otherwise it opens a new background presentation tab. Published presentation URLs remain unchanged.
-4. Connect waits for the Slides cursor tracker to report `TARGET_READY`, then immediately opens Chrome's native share picker. Select the prepared Google Slides tab; choosing a window or entire screen is rejected. Camera and microphone permission may follow.
+2. Choose the camera and microphone devices, then select **Connect camera & microphone**. Google Slides connection remains disabled until microphone access is ready and, for camera modes, camera access is also ready. Screen-only mode requires only the microphone and does not activate the camera.
+3. Paste a `docs.google.com/presentation` URL and select **Connect Google Slides**. The extension matches by presentation ID across `/edit`, `/view`, `/preview`, `/present`, account prefixes, and query parameters. When an editable matching tab exists, the extension navigates that same tab ID to `/present` in the background; otherwise it opens a new background presentation tab. Published presentation URLs remain unchanged.
+4. The Slides action waits for the cursor tracker to report `TARGET_READY`, then immediately opens Chrome's native share picker. Select the prepared Google Slides tab; choosing a window or entire screen is rejected.
 5. Confirm the live Slides preview plus camera, microphone, tab-video, system-audio, and cursor-target readiness.
 6. Choose either 720p or 1080p output. Both use a 16:9 frame, target 30 FPS, and have a 30-minute maximum active duration.
 
-Setup remains in RecordWeb while the Slides target is prepared in the background. The pre-session **Ready to record** / **Continue in RecordWeb** module is retained behind an extension feature flag but is not rendered in the current flow. The Connect gesture owns the native `getDisplayMedia()` request and the resulting stream drives the Studio live preview before recording.
+Setup remains in RecordWeb while the Slides target is prepared in the background. The pre-session **Ready to record** / **Continue in RecordWeb** module is retained behind an extension feature flag but is not rendered in the current flow. The separate **Connect Google Slides** gesture owns the native `getDisplayMedia()` request and the resulting stream drives the Studio live preview before recording.
 
 If the extension capture path is unavailable and the legacy helper is present, the UI can fall back to native screen selection plus a legacy cursor display selection.
 
