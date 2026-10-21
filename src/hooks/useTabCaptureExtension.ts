@@ -70,7 +70,9 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
   const [message, setMessage] = useState('Install or enable the RecordWeb extension, then reload this page.');
   const [googleSlidesUrl, setGoogleSlidesUrl] = useState('');
   const targetRef = useRef<ExtensionTargetTab | null>(null);
+  const sessionTargetRef = useRef<ExtensionTargetTab | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const sessionPausedRef = useRef(false);
   const samplesRef = useRef<CursorTrajectorySample[]>([]);
   const viewportRef = useRef({ width: 1, height: 1 });
 
@@ -105,8 +107,6 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
     const targetTabId = targetRef.current?.tabId;
     postToExtension({ type: 'DISCONNECT', targetTabId });
     targetRef.current = null;
-    sessionIdRef.current = null;
-    samplesRef.current = [];
     setTarget(null);
     setStatus(available ? 'ready' : 'unavailable');
     setMessage(available
@@ -134,6 +134,24 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
         setTarget(extensionMessage.target);
         setStatus('connected');
         setMessage(`Cursor tracking is ready for “${extensionMessage.target.title}”. Screen sharing will be requested when recording starts.`);
+        const activeSessionId = sessionIdRef.current;
+        if (activeSessionId) {
+          const lastSample = samplesRef.current.at(-1);
+          postToExtension({
+            type: 'CURSOR_START',
+            sessionId: activeSessionId,
+            targetTabId: extensionMessage.target.tabId,
+            offsetMs: lastSample?.timestampMs ?? 0,
+            startIndex: lastSample ? lastSample.index + 1 : 0,
+          });
+          if (sessionPausedRef.current) {
+            postToExtension({
+              type: 'CURSOR_PAUSE',
+              sessionId: activeSessionId,
+              targetTabId: extensionMessage.target.tabId,
+            });
+          }
+        }
         return;
       }
 
@@ -162,7 +180,6 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
       setMessage(extensionMessage.message);
       if (extensionMessage.type === 'TARGET_ENDED') {
         targetRef.current = null;
-        sessionIdRef.current = null;
         setTarget(null);
       }
     };
@@ -181,11 +198,14 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
         return { started: false, warning: 'Cursor path omitted: no extension-selected tab is connected.' };
       }
       sessionIdRef.current = sessionId;
+      sessionTargetRef.current = currentTarget;
+      sessionPausedRef.current = false;
       samplesRef.current = [];
       postToExtension({ type: 'CURSOR_START', sessionId, targetTabId: currentTarget.tabId });
       return { started: true };
     },
     pause: async () => {
+      sessionPausedRef.current = true;
       postToExtension({
         type: 'CURSOR_PAUSE',
         sessionId: sessionIdRef.current ?? undefined,
@@ -193,6 +213,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
       });
     },
     resume: async () => {
+      sessionPausedRef.current = false;
       postToExtension({
         type: 'CURSOR_RESUME',
         sessionId: sessionIdRef.current ?? undefined,
@@ -201,10 +222,12 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
     },
     stop: async (durationMs): Promise<CursorTrajectory | null> => {
       const sessionId = sessionIdRef.current;
-      const currentTarget = targetRef.current;
+      const currentTarget = sessionTargetRef.current;
       if (!sessionId || !currentTarget) return null;
       postToExtension({ type: 'CURSOR_STOP', sessionId, targetTabId: currentTarget.tabId });
       sessionIdRef.current = null;
+      sessionTargetRef.current = null;
+      sessionPausedRef.current = false;
       return {
         schemaVersion: 1,
         sessionId,
@@ -234,6 +257,8 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
         targetTabId: targetRef.current?.tabId,
       });
       sessionIdRef.current = null;
+      sessionTargetRef.current = null;
+      sessionPausedRef.current = false;
       samplesRef.current = [];
     },
   }), []);

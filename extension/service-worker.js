@@ -191,10 +191,16 @@ chrome.runtime.onConnect.addListener((port) => {
 
   if (port.name === TRACKER_PORT_NAME) {
     trackerPorts.set(tabId, port);
-    if (requestedTarget?.tabId === tabId) {
+    const wasRequestedTarget = requestedTarget?.tabId === tabId;
+    if (wasRequestedTarget) {
       requestedTarget = { tabId, title: port.sender?.tab?.title || requestedTarget.title };
     }
     pairRequestedTarget();
+    if (!wasRequestedTarget && currentTarget?.tabId === tabId) {
+      currentTarget = { tabId, title: port.sender?.tab?.title || currentTarget.title };
+      setBadge(tabId, 'CUR', '#22c58b');
+      sendAppMessage({ type: 'TARGET_READY', target: currentTarget });
+    }
 
     port.onMessage.addListener((message) => {
       if (message.type === 'CURSOR_SAMPLE' && currentTarget?.tabId === tabId) sendAppMessage(message);
@@ -209,21 +215,22 @@ chrome.runtime.onConnect.addListener((port) => {
 
     port.onDisconnect.addListener(() => {
       trackerPorts.delete(tabId);
-      const wasCurrentTarget = currentTarget?.tabId === tabId;
-      if (wasCurrentTarget) {
-        currentTarget = null;
-        currentAppTabId = null;
-      }
       if (requestedTarget?.tabId === tabId) {
         requestedTarget = null;
         requestedAppTabId = null;
       }
       clearBadge(tabId);
-      if (wasCurrentTarget) {
-        sendAppMessage({ type: 'TARGET_ENDED', message: 'The presentation tab navigated, closed, or disconnected from cursor tracking.' });
-      }
     });
   }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (currentTarget?.tabId !== tabId || !changeInfo.url) return;
+  if (parseGoogleSlidesUrl(changeInfo.url)) return;
+  currentTarget = null;
+  currentAppTabId = null;
+  clearBadge(tabId);
+  sendAppMessage({ type: 'TARGET_ENDED', message: 'The prepared tab navigated away from Google Slides.' });
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {

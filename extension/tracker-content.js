@@ -56,12 +56,12 @@
     timer = null;
   }
 
-  function startSampler(nextSessionId) {
+  function startSampler(nextSessionId, offsetMs = 0, startIndex = 0) {
     clearSampler();
     sessionId = nextSessionId;
-    accumulatedMs = 0;
+    accumulatedMs = Math.max(0, offsetMs);
     activeStartedAt = performance.now();
-    sampleIndex = 0;
+    sampleIndex = Math.max(0, startIndex);
     publishSample();
     timer = window.setInterval(publishSample, 1000 / SAMPLE_RATE_HZ);
   }
@@ -138,7 +138,9 @@
   document.addEventListener('keydown', onKeyDown, { capture: true });
 
   port.onMessage.addListener((message) => {
-    if (message.type === 'CURSOR_START' && message.sessionId) startSampler(message.sessionId);
+    if (message.type === 'CURSOR_START' && message.sessionId) {
+      startSampler(message.sessionId, message.offsetMs, message.startIndex);
+    }
     if (message.type === 'CURSOR_PAUSE' && message.sessionId === sessionId) pauseSampler();
     if (message.type === 'CURSOR_RESUME' && message.sessionId === sessionId) resumeSampler();
     if ((message.type === 'CURSOR_STOP' || message.type === 'CURSOR_RESET') && (!message.sessionId || message.sessionId === sessionId)) resetSampler();
