@@ -118,10 +118,12 @@ The Studio opens in `setup` state and divides configuration into Sources, the ce
    - **Screen** — display only;
    - **Camera** — webcam only.
 2. Choose the camera and microphone devices.
-3. For a Google Slides workflow, paste a `docs.google.com/presentation` URL and select **Find or open Slides**. The extension matches by presentation ID across `/edit`, `/view`, `/present`, account prefixes, and query parameters. It focuses the most recently used matching tab when one exists; otherwise it opens a presentation-view URL in a new background tab. The Slides-scoped content script registers cursor tracking automatically, and published presentation URLs remain unchanged.
+3. For a Google Slides workflow, paste a `docs.google.com/presentation` URL and select **Find or open Slides**. The extension matches by presentation ID across `/edit`, `/view`, `/preview`, `/present`, account prefixes, and query parameters. When an editable matching tab exists, the extension navigates that same tab ID to `/present`; otherwise it opens a presentation-view URL in a new background tab. This avoids Google Slides spawning a different presenter tab outside the prepared cursor target. The Slides-scoped content script registers cursor tracking automatically, and published presentation URLs remain unchanged.
 4. Select **Connect sources**. The browser may request camera and microphone permission; screen sharing is intentionally deferred until Start.
 5. Confirm camera, microphone, and cursor-target readiness.
 6. Choose either 720p or 1080p output. Both use a 16:9 frame, target 30 FPS, and have a 30-minute maximum active duration.
+
+When the prepared Slides tab is active before recording, its green **Ready to record** pill expands on hover/click to show **Continue in RecordWeb**. Selecting it focuses the associated Studio tab, scrolls to the Start button, gives it keyboard focus, and displays a six-second pulse plus share-picker instruction. The user then clicks Start in RecordWeb so `getDisplayMedia()` receives the browser-required local user gesture.
 
 If the extension capture path is unavailable and the legacy helper is present, the UI can fall back to native screen selection plus a legacy cursor display selection.
 

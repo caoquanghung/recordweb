@@ -106,6 +106,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     micGain: 1,
   });
   const [presentationElement, setPresentationElement] = useState<HTMLElement | null>(null);
+  const [startRecordingAttention, setStartRecordingAttention] = useState(0);
 
   const {
     screenStream,
@@ -422,6 +423,9 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   useEffect(() => {
     const handlePresentationCommand = (event: Event) => {
       const command = (event as CustomEvent<ExtensionPresentationCommand>).detail;
+      if (command === 'return-to-start' && workspace === 'studio' && session === 'setup') {
+        setStartRecordingAttention((value) => value + 1);
+      }
       if (command === 'stop' && (session === 'recording' || session === 'paused')) stopRecording();
       if (command === 'end-session' && (session === 'recording' || session === 'paused')) {
         endSessionRequestedRef.current = true;
@@ -438,7 +442,13 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     return () => {
       window.removeEventListener(RECORDWEB_PRESENTATION_COMMAND_EVENT, handlePresentationCommand);
     };
-  }, [pauseRecording, resumeRecording, session, stopRecording]);
+  }, [pauseRecording, resumeRecording, session, stopRecording, workspace]);
+
+  useEffect(() => {
+    if (!startRecordingAttention) return;
+    const timer = window.setTimeout(() => setStartRecordingAttention(0), 6000);
+    return () => window.clearTimeout(timer);
+  }, [startRecordingAttention]);
 
   const startUiTest = async () => {
     let presentationCaptureStarted = false;
@@ -881,6 +891,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     legacyCursorTrajectory,
     recordingWarning,
     recordingError,
+    startRecordingAttention,
     pauseRecording,
     resumeRecording,
     stopRecording,

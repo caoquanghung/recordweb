@@ -51,6 +51,17 @@ function googleSlidesDeckKey(value) {
   }
 }
 
+function isEditableGoogleSlidesPresentUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:'
+      && url.hostname === 'docs.google.com'
+      && /^\/presentation\/(?:u\/\d+\/)?d\/(?!e(?:\/|$))[^/]+\/present\/?$/.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
 async function findExistingGoogleSlidesTab(deckKey) {
   const tabs = await chrome.tabs.query({ url: 'https://docs.google.com/presentation/*' });
   return tabs
@@ -113,6 +124,7 @@ function pairRequestedTarget() {
   requestedTarget = null;
   requestedAppTabId = null;
   setBadge(currentTarget.tabId, 'CUR', '#22c58b');
+  postPortMessage(trackerPorts.get(currentTarget.tabId), { type: 'PRESENTATION_READY' });
   sendAppMessage({ type: 'TARGET_READY', target: currentTarget });
 }
 
@@ -139,9 +151,28 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
       currentAppTabId = appTabId;
       postPortMessage(appPort, { type: 'TARGET_OPENED', target, reused: true });
 
+      const shouldEnterPresentMode = isEditableGoogleSlidesPresentUrl(url.href)
+        && !isEditableGoogleSlidesPresentUrl(existingTab.url || '');
+      if (shouldEnterPresentMode) {
+        currentTarget = target;
+        setBadge(existingTab.id, 'CUR', '#22c58b');
+        try {
+          await chrome.tabs.update(existingTab.id, { url: url.href, active: true });
+        } catch (error) {
+          if (currentTarget?.tabId === existingTab.id) {
+            currentTarget = null;
+            currentAppTabId = null;
+          }
+          clearBadge(existingTab.id);
+          throw error;
+        }
+        return;
+      }
+
       if (trackerPorts.has(existingTab.id)) {
         currentTarget = target;
         setBadge(existingTab.id, 'CUR', '#22c58b');
+        postPortMessage(trackerPorts.get(existingTab.id), { type: 'PRESENTATION_READY' });
         postPortMessage(appPort, { type: 'TARGET_READY', target });
       } else {
         if (!currentTarget) {
@@ -237,9 +268,11 @@ chrome.runtime.onConnect.addListener((port) => {
     });
 
     port.onDisconnect.addListener(() => {
-      appPorts.delete(tabId);
-      if (currentAppTabId === tabId) currentAppTabId = null;
-      if (requestedAppTabId === tabId) requestedAppTabId = null;
+      if (appPorts.get(tabId) === port) {
+        appPorts.delete(tabId);
+        if (currentAppTabId === tabId) currentAppTabId = null;
+        if (requestedAppTabId === tabId) requestedAppTabId = null;
+      }
     });
     return;
   }
@@ -254,27 +287,38 @@ chrome.runtime.onConnect.addListener((port) => {
     if (!wasRequestedTarget && currentTarget?.tabId === tabId) {
       currentTarget = { tabId, title: port.sender?.tab?.title || currentTarget.title };
       setBadge(tabId, 'CUR', '#22c58b');
+      postPortMessage(port, { type: 'PRESENTATION_READY' });
       sendAppMessage({ type: 'TARGET_READY', target: currentTarget });
     }
 
     port.onMessage.addListener((message) => {
       if (message.type === 'CURSOR_SAMPLE' && currentTarget?.tabId === tabId) sendAppMessage(message);
       if (message.type === 'PRESENTATION_COMMAND' && currentTarget?.tabId === tabId) {
+        const appTabId = currentAppTabId ?? appPorts.keys().next().value;
+        if (message.command === 'return-to-start') {
+          if (typeof appTabId === 'number') {
+            void focusTab(appTabId).then(() => sendAppMessage(message));
+          } else {
+            sendAppMessage(message);
+          }
+          return;
+        }
         sendAppMessage(message);
         if (message.command === 'stop' || message.command === 'end-session') {
-          const appTabId = currentAppTabId ?? appPorts.keys().next().value;
           if (typeof appTabId === 'number') void focusTab(appTabId);
         }
       }
     });
 
     port.onDisconnect.addListener(() => {
-      trackerPorts.delete(tabId);
-      if (requestedTarget?.tabId === tabId) {
-        requestedTarget = null;
-        requestedAppTabId = null;
+      if (trackerPorts.get(tabId) === port) {
+        trackerPorts.delete(tabId);
+        if (requestedTarget?.tabId === tabId) {
+          requestedTarget = null;
+          requestedAppTabId = null;
+        }
+        clearBadge(tabId);
       }
-      clearBadge(tabId);
     });
   }
 });

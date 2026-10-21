@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { AudioMeterPanel } from './AudioMeterPanel';
 import { formatDuration } from './studioConfig';
 import { StatusDot, StudioIcon } from './StudioPrimitives';
@@ -31,6 +32,7 @@ export function StudioStage({ studio }: { studio: StudioController }) {
     systemAudioLevelDb,
     hasSystemAudio,
     elapsed,
+    startRecordingAttention,
     startUiTest,
     resumeRecording,
     pauseRecording,
@@ -39,6 +41,13 @@ export function StudioStage({ studio }: { studio: StudioController }) {
     setMicMuted,
     setCameraVisible,
   } = studio;
+  const startButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!startRecordingAttention) return;
+    startButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    startButtonRef.current?.focus({ preventScroll: true });
+  }, [startRecordingAttention]);
 
   return (
     <section className={styles.stageColumn}>
@@ -113,6 +122,11 @@ export function StudioStage({ studio }: { studio: StudioController }) {
         />
       )}
 
+      {session === 'setup' && startRecordingAttention > 0 && (
+        <div className={styles.startRecordingPrompt} role="status">
+          Almost there — click Start recording to choose this Slides tab in Chrome&apos;s share picker.
+        </div>
+      )}
       <div className={styles.controlDock} aria-label="Recording controls">
         <div className={styles.timerBlock}>
           <span className={session === 'recording' ? styles.recDot : styles.idleDot} />
@@ -120,7 +134,13 @@ export function StudioStage({ studio }: { studio: StudioController }) {
         </div>
         <div className={styles.controlDivider} />
         {session === 'setup' ? (
-          <button className={styles.recordButton} onClick={() => void startUiTest()}><StudioIcon name="record" /> Start recording</button>
+          <button
+            ref={startButtonRef}
+            className={`${styles.recordButton} ${startRecordingAttention > 0 ? styles.recordButtonAttention : ''}`}
+            onClick={() => void startUiTest()}
+          >
+            <StudioIcon name="record" /> Start recording
+          </button>
         ) : (
           <>
             <button

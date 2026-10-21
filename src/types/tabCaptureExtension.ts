@@ -9,6 +9,7 @@ export interface ExtensionTargetTab {
 }
 
 export type ExtensionPresentationCommand =
+  | 'return-to-start'
   | 'toggle-pause'
   | 'stop'
   | 'end-session'

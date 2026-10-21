@@ -15,7 +15,9 @@ This unpacked Chromium Manifest V3 extension automatically prepares 24 Hz cursor
 
 The extension's static content script initializes cursor tracking automatically on supported Google Slides URLs. No toolbar click or extension shortcut is needed per recording session. Chrome still requires explicit confirmation in its native share picker for every new screen-share stream.
 Standard Google Slides edit/view URLs are opened in their `/present` form so the authorized tab is the presenter surface; published presentation URLs are preserved.
-Before creating a tab, the extension compares the presentation ID with all open Google Slides tabs. It focuses the most recently used matching tab regardless of `/edit`, `/view`, `/present`, account prefix, or query parameters. A new background tab is created only when no matching deck is already open.
+Before creating a tab, the extension compares the presentation ID with all open Google Slides tabs. It reuses the most recently used matching tab regardless of `/edit`, `/view`, `/present`, account prefix, or query parameters. An editable `/edit`, `/view`, or `/preview` tab is navigated in place to `/present`, preserving its tab ID so cursor tracking follows the presentation navigation. A new background tab is created only when no matching deck is already open. Published presentation URLs remain unchanged.
+
+Before recording begins, the prepared Slides tab shows a compact green **Ready to record** pill. Hover or click to reveal **Continue in RecordWeb**. This returns to the associated Studio tab, scrolls to and focuses the Start button, and highlights it for six seconds. The user must still click Start inside RecordWeb because Chrome requires that local gesture before opening the native share picker.
 
 After the countdown, RecordWeb automatically focuses the prepared Slides tab. During an active recording, a compact **Recording** pill appears in the bottom-right corner. Hovering or clicking expands pause/resume, microphone, camera, and **End session** controls; it collapses again after a short period of inactivity. The control is isolated from Google Slides with Shadow DOM and follows the active fullscreen element. Because it is rendered inside the shared tab, it is visible in the captured video while shown.
 
@@ -35,3 +37,5 @@ After the countdown, RecordWeb automatically focuses the prepared Slides tab. Du
 - Version `0.3.1` re-pairs the tracker after same-tab Slides navigation/fullscreen reloads and resumes an active cursor session from its latest timestamp/index.
 - Version `0.3.2` reuses and focuses an existing tab for the same presentation ID before creating a new tab.
 - Version `0.3.3` adds the auto-collapsing in-tab recording toolbar and a finalization-safe **End session** action.
+- Version `0.3.4` moves a reused editable Slides tab into `/present` before recording and prevents a stale navigation port from deleting its replacement tracker port.
+- Version `0.3.5` adds the pre-session **Ready to record** handoff and highlights/focuses Start after returning to RecordWeb without bypassing Chrome's required share-picker gesture.

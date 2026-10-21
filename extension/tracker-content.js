@@ -18,8 +18,12 @@
     return document.fullscreenElement || document.body || document.documentElement;
   }
 
-  function createControls() {
-    if (controls?.host.isConnected) return controls;
+  function createControls(mode = 'recording') {
+    if (controls?.host.isConnected) {
+      controls.state.mode = mode;
+      controls.render();
+      return controls;
+    }
     if (controls) destroyControls();
 
     const host = document.createElement('div');
@@ -56,6 +60,11 @@
         .dock[data-expanded="true"] {
           border-color: rgba(120, 141, 255, .42);
           box-shadow: 0 16px 44px rgba(0,0,0,.4), 0 0 0 1px rgba(120,141,255,.08);
+        }
+        .dock[data-mode="ready"] .recording-dot {
+          background: #35d6aa;
+          box-shadow: 0 0 0 4px rgba(53,214,170,.14);
+          animation: none;
         }
         button {
           appearance: none;
@@ -105,6 +114,7 @@
           transform: translateX(0);
           transition-delay: 0s;
         }
+        .dock[data-mode="ready"][data-expanded="true"] .controls { width: 174px; }
         .separator {
           width: 1px;
           height: 22px;
@@ -133,18 +143,37 @@
           background: #d83d50;
         }
         .control.end:hover { background: #ed4a5e; }
+        .ready-action {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          height: 32px;
+          margin: 5px;
+          padding: 0 12px;
+          border-radius: 10px;
+          color: #071712;
+          background: linear-gradient(135deg, #5be0ba, #38cfa7);
+          font-size: 11px;
+          font-weight: 750;
+          white-space: nowrap;
+        }
+        .ready-action:hover { background: linear-gradient(135deg, #72ebc9, #48dab2); }
+        .dock[data-mode="ready"] .ready-action { display: inline-flex; }
+        .dock[data-mode="ready"] .separator,
+        .dock[data-mode="ready"] .control { display: none; }
         .icon { font-size: 14px; line-height: 1; }
         @keyframes pulse { 50% { opacity: .62; transform: scale(.88); } }
         @media (prefers-reduced-motion: reduce) {
           *, *::before, *::after { animation: none !important; transition-duration: 0s !important; }
         }
       </style>
-      <div class="dock" data-expanded="false" role="toolbar" aria-label="RecordWeb recording controls">
+      <div class="dock" data-expanded="false" data-mode="recording" role="toolbar" aria-label="RecordWeb recording controls">
         <button class="launcher" type="button" aria-expanded="false" title="Show RecordWeb controls">
           <span class="recording-dot" aria-hidden="true"></span>
-          <span>Recording</span>
+          <span class="status-label">Recording</span>
         </button>
         <div class="controls">
+          <button class="ready-action" type="button" title="Return to RecordWeb to start recording">Continue in RecordWeb</button>
           <span class="separator" aria-hidden="true"></span>
           <button class="control pause" type="button" title="Pause or resume recording"><span class="icon" aria-hidden="true">Ⅱ</span><span class="label">Pause</span></button>
           <button class="control microphone" type="button" data-active="true" title="Mute or unmute microphone"><span class="icon" aria-hidden="true">●</span><span class="label">Mic</span></button>
@@ -156,16 +185,22 @@
 
     const dock = shadow.querySelector('.dock');
     const launcher = shadow.querySelector('.launcher');
+    const statusLabel = shadow.querySelector('.status-label');
+    const readyButton = shadow.querySelector('.ready-action');
     const pauseButton = shadow.querySelector('.pause');
     const microphoneButton = shadow.querySelector('.microphone');
     const cameraButton = shadow.querySelector('.camera');
     const endButton = shadow.querySelector('.end');
-    const state = { expanded: false, paused: false, microphoneActive: true, cameraActive: true };
+    const state = { mode, expanded: false, paused: false, microphoneActive: true, cameraActive: true };
     let autoHideTimer = null;
 
     const render = () => {
       dock.dataset.expanded = String(state.expanded);
+      dock.dataset.mode = state.mode;
+      dock.setAttribute('aria-label', state.mode === 'ready' ? 'RecordWeb start recording control' : 'RecordWeb recording controls');
       launcher.setAttribute('aria-expanded', String(state.expanded));
+      launcher.title = state.mode === 'ready' ? 'Return to RecordWeb to start recording' : 'Show RecordWeb controls';
+      statusLabel.textContent = state.mode === 'ready' ? 'Ready to record' : 'Recording';
       pauseButton.querySelector('.icon').textContent = state.paused ? '▶' : 'Ⅱ';
       pauseButton.querySelector('.label').textContent = state.paused ? 'Resume' : 'Pause';
       microphoneButton.dataset.active = String(state.microphoneActive);
@@ -202,6 +237,10 @@
     dock.addEventListener('pointermove', () => state.expanded ? scheduleAutoHide() : expand());
     dock.addEventListener('pointerdown', stopSlidesInteraction);
     dock.addEventListener('click', stopSlidesInteraction);
+    readyButton.addEventListener('click', () => {
+      collapse();
+      postToExtension({ type: 'PRESENTATION_COMMAND', command: 'return-to-start' });
+    });
     pauseButton.addEventListener('click', () => {
       state.paused = !state.paused;
       render();
@@ -290,7 +329,7 @@
     accumulatedMs = Math.max(0, offsetMs);
     activeStartedAt = performance.now();
     sampleIndex = Math.max(0, startIndex);
-    createControls();
+    createControls('recording');
     publishSample();
     timer = window.setInterval(publishSample, 1000 / SAMPLE_RATE_HZ);
   }
@@ -316,13 +355,14 @@
     timer = window.setInterval(publishSample, 1000 / SAMPLE_RATE_HZ);
   }
 
-  function resetSampler() {
+  function resetSampler(showReadyControls = false) {
     clearSampler();
     sessionId = null;
     activeStartedAt = 0;
     accumulatedMs = 0;
     sampleIndex = 0;
-    destroyControls();
+    if (showReadyControls) createControls('ready');
+    else destroyControls();
   }
 
   function onPointerMove(event) {
@@ -382,12 +422,14 @@
   document.addEventListener('fullscreenchange', moveControlsToFullscreenSurface);
 
   port.onMessage.addListener((message) => {
+    if (message.type === 'PRESENTATION_READY' && !sessionId) createControls('ready');
     if (message.type === 'CURSOR_START' && message.sessionId) {
       startSampler(message.sessionId, message.offsetMs, message.startIndex);
     }
     if (message.type === 'CURSOR_PAUSE' && message.sessionId === sessionId) pauseSampler();
     if (message.type === 'CURSOR_RESUME' && message.sessionId === sessionId) resumeSampler();
-    if ((message.type === 'CURSOR_STOP' || message.type === 'CURSOR_RESET') && (!message.sessionId || message.sessionId === sessionId)) resetSampler();
+    if (message.type === 'CURSOR_STOP' && (!message.sessionId || message.sessionId === sessionId)) resetSampler(true);
+    if (message.type === 'CURSOR_RESET' && (!message.sessionId || message.sessionId === sessionId)) resetSampler();
     if (message.type === 'DISCONNECT') resetSampler();
   });
   port.onDisconnect.addListener(() => teardown(false));
