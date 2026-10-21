@@ -19,7 +19,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   * **Video Object Storage**: Vercel Blob (`@vercel/blob/client`) for direct client-to-edge uploads.
   * **Lossless Segment Remuxing**: Mediabunny for client-side MP4/WebM parsing and encoded-packet merge without transcoding.
   * **Hosting**: Vercel (Next.js Edge CDN + Serverless Route Handlers in `src/app/api/*`).
-  * **Cursor Capture Target**: The `extension/` Chromium Manifest V3 package selects one tab once and supplies its video, audio, and 24 Hz cursor samples. Static/build checks pass; unpacked-extension runtime verification is pending. The existing Electron helper is deprecated legacy fallback code.
+  * **Cursor Capture Target**: The `extension/` Chromium Manifest V3 package accepts a validated Google Slides URL from Studio, opens the target tab, then uses one required extension invocation to supply its video, audio, and 24 Hz cursor samples. Recording start focuses the connected Slides tab automatically, and presentation shortcuts relay back to RecordWeb. Static/build checks pass; unpacked-extension runtime verification is pending. The existing Electron helper is deprecated legacy fallback code.
   * **Extension App Origin**: `extension/manifest.json` is the single source of truth for the canonical production URL through `homepage_url`; the service worker and bridge derive it at runtime. The obsolete options page and `storage` permission were removed. Local development remains allowed on port 3000.
 
 ---
@@ -149,6 +149,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Checkpointed chunks by asset kind and added independent source-asset recovery and download controls
   - [x] Added the legacy Electron display cursor prototype at 24 Hz, normalized active-time JSON finalization, local IndexedDB persistence, download, and Review/Library path visualization
   - [x] Implemented the one-selection Manifest V3 tab capture and cursor extension, one-use stream bridge, provider-owned tab video/audio, 24 Hz active-time cursor lifecycle, and extension-tab audio monitoring; unpacked-extension runtime verification remains pending
+  - [x] Added the guided Google Slides extension flow: Studio validates and sends the pasted URL, the extension opens and binds the requested tab to the initiating RecordWeb tab, Start focuses Slides automatically, and target-tab shortcuts control pause/stop/mic/camera with Stop returning to RecordWeb
 - [x] **Phase 7: Studio React UI & Dark Glassmorphism Styling**
   - [x] Implemented the preview-first Studio layout: collapsible Sources/Effects panels, tabbed effect controls, sticky recording dock, dedicated review workspace, and on-demand diagnostics drawer
   - [x] Corrected the default Studio grid so the preview remains the primary left column and Sources/Effects align at the top of a single right inspector rail; viewports at or below 1120px use overlay drawers

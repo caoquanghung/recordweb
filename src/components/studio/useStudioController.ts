@@ -33,6 +33,10 @@ import type {
 } from '@/types/media';
 import type { RecordingAssetKind, RecordingAssetMetadata, RecordingMetadata } from '@/types/recording';
 import {
+  RECORDWEB_PRESENTATION_COMMAND_EVENT,
+  type ExtensionPresentationCommand,
+} from '@/types/tabCaptureExtension';
+import {
   audioModes,
   audioPresetByLabel,
   backgrounds,
@@ -120,6 +124,8 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     clearError: clearMediaError,
     tabCapture,
   } = useMediaSession();
+  const tabCaptureConnected = tabCapture.connected;
+  const focusTabCaptureTarget = tabCapture.focusTarget;
 
   const presentationDeck = usePresentationDeck();
   const presentationSource = usePresentationRecordingSource({
@@ -399,13 +405,32 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     const timer = window.setTimeout(() => {
       if (countdown <= 1) {
         setCountdown(null);
-        void startRecording();
+        void startRecording().then(() => {
+          if (!presentationWorkspace && tabCaptureConnected) focusTabCaptureTarget();
+        });
       } else {
         setCountdown((value) => value === null ? null : value - 1);
       }
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [countdown, startRecording]);
+  }, [countdown, focusTabCaptureTarget, presentationWorkspace, startRecording, tabCaptureConnected]);
+
+  useEffect(() => {
+    const handlePresentationCommand = (event: Event) => {
+      const command = (event as CustomEvent<ExtensionPresentationCommand>).detail;
+      if (command === 'stop' && (session === 'recording' || session === 'paused')) stopRecording();
+      if (command === 'toggle-pause') {
+        if (session === 'recording') pauseRecording();
+        if (session === 'paused') resumeRecording();
+      }
+      if (command === 'toggle-microphone') setMicMuted((value) => !value);
+      if (command === 'toggle-camera') setCameraVisible((value) => !value);
+    };
+    window.addEventListener(RECORDWEB_PRESENTATION_COMMAND_EVENT, handlePresentationCommand);
+    return () => {
+      window.removeEventListener(RECORDWEB_PRESENTATION_COMMAND_EVENT, handlePresentationCommand);
+    };
+  }, [pauseRecording, resumeRecording, session, stopRecording]);
 
   const startUiTest = async () => {
     let presentationCaptureStarted = false;

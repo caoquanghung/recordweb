@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RecordWeb Tab Capture",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "minimum_chrome_version": "116",
   "description": "Capture one browser tab with its audio and a synchronized cursor trajectory for RecordWeb.",
   "homepage_url": "https://recordweb-nine.vercel.app/",

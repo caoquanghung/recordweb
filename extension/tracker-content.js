@@ -85,6 +85,21 @@
     cursor = { x: null, y: null, visible: false };
   }, { passive: true });
 
+  document.addEventListener('keydown', (event) => {
+    if (!sessionId || !event.altKey || event.repeat) return;
+    const commandByKey = {
+      p: 'toggle-pause',
+      s: 'stop',
+      m: 'toggle-microphone',
+      c: 'toggle-camera',
+    };
+    const command = commandByKey[event.key.toLowerCase()];
+    if (!command) return;
+    event.preventDefault();
+    event.stopPropagation();
+    port.postMessage({ type: 'PRESENTATION_COMMAND', command });
+  }, { capture: true });
+
   port.onMessage.addListener((message) => {
     if (message.type === 'CURSOR_START' && message.sessionId) startSampler(message.sessionId);
     if (message.type === 'CURSOR_PAUSE' && message.sessionId === sessionId) pauseSampler();

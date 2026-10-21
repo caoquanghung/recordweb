@@ -59,6 +59,37 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
         <div className={styles.sectionHeading}>
           <div><span>02</span><h2>Sources</h2></div>
         </div>
+        {mode !== 'webcam-only' && (
+          <>
+            <label className={styles.fieldLabel}>
+              Google Slides URL
+              <input
+                className={styles.textInput}
+                type="url"
+                inputMode="url"
+                placeholder="https://docs.google.com/presentation/d/…"
+                value={tabCapture.googleSlidesUrl}
+                onChange={(event) => tabCapture.setGoogleSlidesUrl(event.target.value)}
+                disabled={tabCapture.connected}
+              />
+            </label>
+            <div className={styles.sourceActions}>
+              <button
+                className={styles.sourceButton}
+                type="button"
+                onClick={tabCapture.openGoogleSlides}
+                disabled={!tabCapture.available || tabCapture.connected || tabCapture.status === 'opening'}
+              >
+                {tabCapture.status === 'opening' ? 'Opening Slides…' : 'Open & connect Slides'}
+              </button>
+            </div>
+            {!tabCapture.available && (
+              <p className={styles.sourceWarning}>
+                The RecordWeb extension is required. Install or enable it, then reload this page.
+              </p>
+            )}
+          </>
+        )}
         <label className={styles.fieldLabel}>
           Camera
           <select value={selectedCameraId} onChange={(event) => setSelectedCameraId(event.target.value)}>

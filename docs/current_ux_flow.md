@@ -118,10 +118,11 @@ The Studio opens in `setup` state and divides configuration into Sources, the ce
    - **Screen** — display only;
    - **Camera** — webcam only.
 2. Choose the camera and microphone devices.
-3. For a screen-based workflow, open the target browser tab and click the RecordWeb extension once. The selected tab supplies screen video, tab audio when available, and cursor tracking.
-4. Select **Connect sources**. The browser may request camera and microphone permission.
-5. Confirm the source status. The UI reports screen, camera, microphone, system-audio, selected-tab, and cursor-capture readiness.
-6. Choose either 720p or 1080p output. Both use a 16:9 frame, target 30 FPS, and have a 30-minute maximum active duration.
+3. For a Google Slides workflow, paste a `docs.google.com/presentation` URL and select **Open & connect Slides**. The extension opens a presentation-view URL for that deck in a new active tab; published presentation URLs remain unchanged.
+4. Click the RecordWeb extension once in that Slides tab to authorize capture. The extension connects tab video, tab audio when available, and cursor tracking, then returns to RecordWeb.
+5. Select **Connect sources**. The browser may request camera and microphone permission.
+6. Confirm the source status. The UI reports screen, camera, microphone, system-audio, selected-tab, and cursor-capture readiness.
+7. Choose either 720p or 1080p output. Both use a 16:9 frame, target 30 FPS, and have a 30-minute maximum active duration.
 
 If the extension capture path is unavailable and the legacy helper is present, the UI can fall back to native screen selection plus a legacy cursor display selection.
 
@@ -155,10 +156,11 @@ stateDiagram-v2
 1. Select **Start recording**.
 2. If no video source is ready, recording stays in setup and the Sources panel reopens with guidance.
 3. The app resumes browser audio if needed, closes the side panels, and shows a three-second countdown.
-4. During recording, the control dock shows elapsed time and exposes pause/resume, stop, microphone mute, and camera visibility controls.
-5. The session is checkpointed to IndexedDB while recording.
-6. Select Stop, press `Alt+S`, or reach the 30-minute limit to finalize the session.
-7. The UI enters **Finalizing** while it repairs and prepares the recorded assets, then opens Review.
+4. For an extension-connected Slides session, the app starts the recorders and automatically focuses the authorized Slides tab. `Alt+P`, `Alt+S`, `Alt+M`, and `Alt+C` continue to control pause/resume, stop, microphone mute, and camera visibility from the Slides tab; stopping returns to RecordWeb.
+5. During recording, the control dock shows elapsed time and exposes pause/resume, stop, microphone mute, and camera visibility controls.
+6. The session is checkpointed to IndexedDB while recording.
+7. Select Stop, press `Alt+S`, or reach the 30-minute limit to finalize the session.
+8. The UI enters **Finalizing** while it repairs and prepares the recorded assets, then opens Review.
 
 Keyboard controls outside form fields:
 
@@ -333,7 +335,7 @@ Settings contains four user-facing areas:
 
 ## 13. Current constraints users should know
 
-- Screen recording works best through the RecordWeb Chromium extension, which must be clicked on the exact target tab.
+- Google Slides capture requires one explicit extension click on the tab opened by RecordWeb. Chrome does not allow `tabCapture` to be authorized silently; the connected tab can then be reused across recording starts until it closes, reloads, or disconnects.
 - Presentation capture still requires the browser's explicit **This Tab** selection.
 - A recording has a maximum active duration of 30 minutes.
 - Browser-local recordings and recovery drafts belong to the current browser profile and can be removed by clearing site data.

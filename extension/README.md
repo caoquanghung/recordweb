@@ -9,9 +9,13 @@ This unpacked Chromium Manifest V3 extension lets one user action select the exa
 3. Choose **Load unpacked** and select this `extension/` directory.
 4. Open `https://recordweb-nine.vercel.app/`, or `http://localhost:3000/` during local development.
 5. Reload an already-open RecordWeb tab after installing or reloading the extension so its bridge can connect.
-6. Open the target web tab in the same browser and click **RecordWeb Tab Capture** once.
+6. Paste a Google Slides URL into RecordWeb and choose **Open & connect Slides**.
+7. In the Slides tab opened by RecordWeb, click **RecordWeb Tab Capture** once.
 
 The extension injects the cursor tracker into that tab, opens or focuses RecordWeb, and sends a one-use tab capture stream ID to the RecordWeb page. Do not open the browser's screen-sharing picker for this flow.
+Standard Google Slides edit/view URLs are opened in their `/present` form so the authorized tab is the presenter surface; published presentation URLs are preserved.
+
+After the one-time authorization, **Start recording** automatically focuses the connected Slides tab. While presenting, `Alt+P`, `Alt+S`, `Alt+M`, and `Alt+C` are relayed to RecordWeb for pause/resume, stop, microphone mute, and camera visibility. Stopping returns focus to RecordWeb.
 
 ## Current scope
 

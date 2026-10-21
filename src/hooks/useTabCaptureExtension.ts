@@ -4,12 +4,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CursorCaptureController, CursorTrajectory, CursorTrajectorySample } from '@/types/recording';
 import {
   RECORDWEB_EXTENSION_CHANNEL,
+  RECORDWEB_PRESENTATION_COMMAND_EVENT,
   type ExtensionTargetTab,
   type ExtensionToPageMessage,
   type PageToExtensionMessage,
 } from '@/types/tabCaptureExtension';
 
-export type TabCaptureExtensionStatus = 'unavailable' | 'ready' | 'connecting' | 'connected' | 'error';
+export type TabCaptureExtensionStatus =
+  | 'unavailable'
+  | 'ready'
+  | 'opening'
+  | 'awaiting-authorization'
+  | 'connecting'
+  | 'connected'
+  | 'error';
 
 interface UseTabCaptureExtensionOptions {
   onCapture: (stream: MediaStream) => void;
@@ -22,7 +30,11 @@ export interface TabCaptureExtensionResult {
   status: TabCaptureExtensionStatus;
   target: ExtensionTargetTab | null;
   message: string;
+  googleSlidesUrl: string;
   cursorController: CursorCaptureController;
+  setGoogleSlidesUrl: (url: string) => void;
+  openGoogleSlides: () => void;
+  focusTarget: () => void;
   disconnect: () => void;
 }
 
@@ -47,6 +59,23 @@ function isExtensionMessage(value: unknown): value is ExtensionToPageMessage {
   return candidate.channel === RECORDWEB_EXTENSION_CHANNEL && candidate.direction === 'extension-to-page';
 }
 
+function parseGoogleSlidesUrl(value: string): URL | null {
+  try {
+    const url = new URL(value.trim());
+    const slidePath = /^\/presentation\/(?:u\/\d+\/)?d\/[^/]+(?:\/|$)/;
+    if (url.protocol !== 'https:' || url.hostname !== 'docs.google.com' || !slidePath.test(url.pathname)) {
+      return null;
+    }
+    const editableDeckPath = url.pathname.match(
+      /^(\/presentation\/(?:u\/\d+\/)?d\/(?!e(?:\/|$))[^/]+)(?:\/(?:edit|view|preview|present))?\/?$/,
+    );
+    if (editableDeckPath) url.pathname = `${editableDeckPath[1]}/present`;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
 async function consumeTabStream(streamId: string): Promise<MediaStream> {
   const mandatory: ChromiumTabConstraints['mandatory'] = {
     chromeMediaSource: 'tab',
@@ -66,11 +95,39 @@ export function useTabCaptureExtension({
   const [status, setStatus] = useState<TabCaptureExtensionStatus>('unavailable');
   const [target, setTarget] = useState<ExtensionTargetTab | null>(null);
   const [message, setMessage] = useState('Install or enable the RecordWeb extension, then click it on the tab to record.');
+  const [googleSlidesUrl, setGoogleSlidesUrl] = useState('');
   const mountedRef = useRef(true);
   const targetRef = useRef<ExtensionTargetTab | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const samplesRef = useRef<CursorTrajectorySample[]>([]);
   const viewportRef = useRef({ width: 1, height: 1 });
+
+  const openGoogleSlides = useCallback(() => {
+    if (!available) {
+      setStatus('unavailable');
+      setMessage('Install or enable the RecordWeb extension before opening Google Slides.');
+      return;
+    }
+    if (targetRef.current) {
+      setMessage('Disconnect the current captured tab before opening another Google Slides presentation.');
+      return;
+    }
+    const url = parseGoogleSlidesUrl(googleSlidesUrl);
+    if (!url) {
+      setStatus('error');
+      setMessage('Enter a valid Google Slides URL from docs.google.com/presentation.');
+      return;
+    }
+    setStatus('opening');
+    setMessage('Opening Google Slides…');
+    postToExtension({ type: 'OPEN_GOOGLE_SLIDES', url: url.href });
+  }, [available, googleSlidesUrl]);
+
+  const focusTarget = useCallback(() => {
+    const targetTabId = targetRef.current?.tabId;
+    if (typeof targetTabId !== 'number') return;
+    postToExtension({ type: 'FOCUS_TARGET', targetTabId });
+  }, []);
 
   const disconnect = useCallback(() => {
     const targetTabId = targetRef.current?.tabId;
@@ -93,11 +150,10 @@ export function useTabCaptureExtension({
 
       if (extensionMessage.type === 'BRIDGE_READY') {
         setAvailable(true);
-        setStatus((current) => current === 'connected' || current === 'connecting' ? current : 'ready');
-        setMessage((current) => current.includes('capturing')
-          ? current
-          : 'Extension ready. Open the target tab and click the RecordWeb extension.');
-        postToExtension({ type: 'PAGE_READY' });
+        setStatus((current) => current === 'unavailable' ? 'ready' : current);
+        setMessage((current) => current.startsWith('Install or enable')
+          ? 'Extension ready. Paste a Google Slides URL to open the presentation tab.'
+          : current);
         return;
       }
 
@@ -132,10 +188,25 @@ export function useTabCaptureExtension({
         return;
       }
 
+      if (extensionMessage.type === 'TARGET_OPENED') {
+        setAvailable(true);
+        setStatus('awaiting-authorization');
+        setMessage('Google Slides opened. In that tab, click the RecordWeb extension once to authorize capture.');
+        return;
+      }
+
       if (extensionMessage.type === 'CURSOR_SAMPLE') {
         if (extensionMessage.sessionId !== sessionIdRef.current) return;
         samplesRef.current.push(extensionMessage.sample);
         viewportRef.current = extensionMessage.viewport;
+        return;
+      }
+
+
+      if (extensionMessage.type === 'PRESENTATION_COMMAND') {
+        window.dispatchEvent(new CustomEvent(RECORDWEB_PRESENTATION_COMMAND_EVENT, {
+          detail: extensionMessage.command,
+        }));
         return;
       }
 
@@ -227,7 +298,11 @@ export function useTabCaptureExtension({
     status,
     target,
     message,
+    googleSlidesUrl,
     cursorController,
+    setGoogleSlidesUrl,
+    openGoogleSlides,
+    focusTarget,
     disconnect,
   };
 }
