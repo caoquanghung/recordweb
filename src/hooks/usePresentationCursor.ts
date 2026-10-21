@@ -20,6 +20,8 @@ interface UsePresentationCursorOptions {
 interface PointerSnapshot extends PresentationCursorVisualState {
   sourceWidth: number;
   sourceHeight: number;
+  clientX: number;
+  clientY: number;
 }
 
 const EMPTY_POINTER: PointerSnapshot = {
@@ -29,6 +31,8 @@ const EMPTY_POINTER: PointerSnapshot = {
   pressed: false,
   sourceWidth: 1,
   sourceHeight: 1,
+  clientX: 0,
+  clientY: 0,
 };
 
 export function usePresentationCursor({
@@ -55,20 +59,51 @@ export function usePresentationCursor({
   useEffect(() => {
     if (!target) return;
 
-    const updatePointer = (event: PointerEvent, visible: boolean) => {
+    const pointerFromClientPosition = (
+      clientX: number,
+      clientY: number,
+      visible: boolean,
+      pressed: boolean,
+    ): PointerSnapshot => {
       const bounds = target.getBoundingClientRect();
       const width = Math.max(1, bounds.width);
       const height = Math.max(1, bounds.height);
-      const next = {
-        x: Math.min(1, Math.max(0, (event.clientX - bounds.left) / width)),
-        y: Math.min(1, Math.max(0, (event.clientY - bounds.top) / height)),
+      return {
+        x: Math.min(1, Math.max(0, (clientX - bounds.left) / width)),
+        y: Math.min(1, Math.max(0, (clientY - bounds.top) / height)),
         visible,
-        pressed: pointerRef.current.pressed,
+        pressed,
         sourceWidth: Math.round(width),
         sourceHeight: Math.round(height),
+        clientX,
+        clientY,
       };
+    };
+    const updatePointer = (event: PointerEvent, visible: boolean) => {
+      const next = pointerFromClientPosition(
+        event.clientX,
+        event.clientY,
+        visible,
+        pointerRef.current.pressed,
+      );
       pointerRef.current = next;
       setCursor(next);
+    };
+    let boundsFrame: number | null = null;
+    const syncPointerToBounds = () => {
+      if (boundsFrame !== null) window.cancelAnimationFrame(boundsFrame);
+      boundsFrame = window.requestAnimationFrame(() => {
+        boundsFrame = null;
+        const pointer = pointerRef.current;
+        const next = pointerFromClientPosition(
+          pointer.clientX,
+          pointer.clientY,
+          pointer.visible,
+          pointer.pressed,
+        );
+        pointerRef.current = next;
+        setCursor(next);
+      });
     };
     const onPointerMove = (event: PointerEvent) => updatePointer(event, true);
     const onPointerEnter = (event: PointerEvent) => updatePointer(event, true);
@@ -91,6 +126,13 @@ export function usePresentationCursor({
     target.addEventListener('pointerdown', onPointerDown);
     target.addEventListener('pointerup', onPointerUp);
     target.addEventListener('pointercancel', onPointerLeave);
+    window.addEventListener('resize', syncPointerToBounds);
+    document.addEventListener('fullscreenchange', syncPointerToBounds);
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(syncPointerToBounds);
+    resizeObserver?.observe(target);
+    syncPointerToBounds();
     return () => {
       target.removeEventListener('pointermove', onPointerMove);
       target.removeEventListener('pointerenter', onPointerEnter);
@@ -98,6 +140,10 @@ export function usePresentationCursor({
       target.removeEventListener('pointerdown', onPointerDown);
       target.removeEventListener('pointerup', onPointerUp);
       target.removeEventListener('pointercancel', onPointerLeave);
+      window.removeEventListener('resize', syncPointerToBounds);
+      document.removeEventListener('fullscreenchange', syncPointerToBounds);
+      resizeObserver?.disconnect();
+      if (boundsFrame !== null) window.cancelAnimationFrame(boundsFrame);
       pointerRef.current = EMPTY_POINTER;
       setCursor(EMPTY_POINTER);
     };

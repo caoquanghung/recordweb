@@ -192,6 +192,7 @@ The slide file remains local in the browser. While still in setup, it can be rep
 4. When supported, capture is restricted to the presentation area. Otherwise the app uses a clean full-tab fallback and shows a warning.
 5. After capture begins, the same countdown, recording, pause/resume, stop, finalization, and Review states used by Studio apply.
 6. The rendered slide, raw webcam, and custom cursor are the visible presentation content. MediaPipe background removal is not part of this mode.
+7. After a deck is loaded, **Full screen presentation** (or `Shift+F`) places the presentation capture area itself in browser fullscreen. The same slide, webcam, and custom-cursor DOM root remains mounted, so capture and normalized cursor tracking continue without changing sources. Press `Escape` or `Shift+F` to leave fullscreen.
 
 Choosing **Record another** after review also clears the previous presentation deck, returning the presentation workspace to its empty state.
 

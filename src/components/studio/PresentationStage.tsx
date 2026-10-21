@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { AudioMeterPanel } from './AudioMeterPanel';
 import { formatDuration } from './studioConfig';
 import { StatusDot, StudioIcon } from './StudioPrimitives';
@@ -67,9 +67,61 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
   } = studio;
   const cursor = presentationSource.cursor;
   const cleanTabCapture = presentationSource.capture?.scope === 'tab';
+  const presentationElementRef = useRef<HTMLDivElement | null>(null);
   const replacementInputRef = useRef<HTMLInputElement>(null);
+  const [fullscreenSupported, setFullscreenSupported] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState<string | null>(null);
   const deckBusy = deckIsReplacing || (!metadata && (deckStatus === 'validating' || deckStatus === 'loading'));
   const fileSelectionAllowed = ['setup', 'recording', 'paused'].includes(session) && !deckBusy && !deckIsRendering;
+
+  const handlePresentationElement = useCallback((element: HTMLDivElement | null) => {
+    presentationElementRef.current = element;
+    setPresentationElement(element);
+  }, [setPresentationElement]);
+
+  const toggleFullscreen = useCallback(async () => {
+    const presentationElement = presentationElementRef.current;
+    if (!presentationElement || !document.fullscreenEnabled || !presentationElement.requestFullscreen) {
+      setFullscreenError('Fullscreen presentation is not supported by this browser.');
+      return;
+    }
+
+    try {
+      setFullscreenError(null);
+      if (document.fullscreenElement === presentationElement) {
+        await document.exitFullscreen();
+        return;
+      }
+      if (document.fullscreenElement) {
+        setFullscreenError('Exit the current fullscreen view before opening the presentation.');
+        return;
+      }
+      await presentationElement.requestFullscreen({ navigationUI: 'hide' });
+    } catch {
+      setFullscreenError('Fullscreen could not start. Try the button again or check browser permissions.');
+    }
+  }, []);
+
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      setIsFullscreen(document.fullscreenElement === presentationElementRef.current);
+    };
+    const handleFullscreenError = () => {
+      setFullscreenError('Fullscreen could not start. Try the button again or check browser permissions.');
+    };
+
+    setFullscreenSupported(Boolean(
+      document.fullscreenEnabled && presentationElementRef.current?.requestFullscreen,
+    ));
+    syncFullscreenState();
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+    document.addEventListener('fullscreenerror', handleFullscreenError);
+    return () => {
+      document.removeEventListener('fullscreenchange', syncFullscreenState);
+      document.removeEventListener('fullscreenerror', handleFullscreenError);
+    };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -78,6 +130,11 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
       if (event.altKey && event.key.toLowerCase() === 'r' && metadata && fileSelectionAllowed) {
         event.preventDefault();
         replacementInputRef.current?.click();
+        return;
+      }
+      if (event.shiftKey && event.key.toLowerCase() === 'f' && metadata) {
+        event.preventDefault();
+        void toggleFullscreen();
         return;
       }
       if (deckBusy) return;
@@ -92,7 +149,7 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [deckBusy, fileSelectionAllowed, metadata, nextPage, previousPage]);
+  }, [deckBusy, fileSelectionAllowed, metadata, nextPage, previousPage, toggleFullscreen]);
 
   const loadFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -111,7 +168,7 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
 
       <div className={`${styles.stage} ${session === 'recording' ? styles.stageRecording : ''}`}>
         <div
-          ref={setPresentationElement}
+          ref={handlePresentationElement}
           className={`${styles.presentationSurface} ${cleanTabCapture ? styles.presentationSurfaceClean : ''}`}
           aria-label="Presentation capture area"
         >
@@ -152,10 +209,22 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
 
       {metadata && (
         <div className={styles.presentationControls} aria-label="Slide controls" aria-busy={deckIsReplacing}>
-          <label className={`${styles.presentationReplaceButton} ${!fileSelectionAllowed ? styles.presentationFileButtonDisabled : ''}`}>
-            {deckIsReplacing ? 'Preparing file…' : 'Replace file'}
-            <input ref={replacementInputRef} type="file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" onChange={loadFile} disabled={!fileSelectionAllowed} />
-          </label>
+          <div className={styles.presentationControlActions}>
+            <label className={`${styles.presentationReplaceButton} ${!fileSelectionAllowed ? styles.presentationFileButtonDisabled : ''}`}>
+              {deckIsReplacing ? 'Preparing file…' : 'Replace file'}
+              <input ref={replacementInputRef} type="file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" onChange={loadFile} disabled={!fileSelectionAllowed} />
+            </label>
+            <button
+              type="button"
+              className={styles.presentationFullscreenButton}
+              onClick={() => void toggleFullscreen()}
+              disabled={!fullscreenSupported}
+              aria-pressed={isFullscreen}
+              title={fullscreenSupported ? 'Press Escape to exit fullscreen' : 'Fullscreen is unavailable in this browser'}
+            >
+              <StudioIcon name="screen" /> Full screen presentation
+            </button>
+          </div>
           <div>
             <button type="button" onClick={previousPage} disabled={deckBusy || deckIsRendering || currentPageIndex === 0} aria-label="Previous slide">←</button>
             <span>{currentPageIndex + 1} / {metadata.pageCount}</span>
@@ -164,6 +233,7 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
           <span className={styles.presentationFileName} title={metadata.name}>{metadata.name}</span>
         </div>
       )}
+      {metadata && fullscreenError && <p className={styles.presentationFullscreenError} role="alert">{fullscreenError}</p>}
 
       {metadata && deckIsReplacing && (
         <div className={styles.presentationReplacementStatus} role="status">
@@ -208,7 +278,7 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
         <button className={`${styles.roundControl} ${micMuted ? styles.controlOff : ''}`} onClick={() => setMicMuted((value) => !value)} aria-label="Toggle microphone"><StudioIcon name="mic" /></button>
         <button className={`${styles.roundControl} ${!cameraVisible ? styles.controlOff : ''}`} onClick={() => setCameraVisible((value) => !value)} aria-label="Toggle camera"><StudioIcon name="camera" /></button>
       </div>
-      <div className={styles.shortcutHint}>Arrow keys change slides · Alt+R replace material · Space pause/resume · Alt+S finish</div>
+      <div className={styles.shortcutHint}>Arrow keys change slides · Shift+F full screen · Alt+R replace material · Space pause/resume · Alt+S finish</div>
     </section>
   );
 }

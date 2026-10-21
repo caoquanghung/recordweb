@@ -94,6 +94,11 @@ current-tab video + mixed audio -> useRecordingSession composite recorder
   countdown, and custom cursor. When Element Capture is unavailable, that root is
   promoted to a fixed full-viewport clean presenter surface so full-tab capture
   does not include navigation, side panels, or recording controls.
+* Browser fullscreen targets that same capturable DOM root and never replaces it.
+  Cursor input remains normalized to the root bounds; resize and fullscreen changes
+  re-normalize the last pointer position so the custom cursor stays aligned while
+  the viewport changes. Fullscreen remains an explicit presenter gesture in the MVP
+  and can be exited with `Escape` or `Shift+F`.
 * Presentation workspace initialization passes `null` to MediaPipe and the canvas
   compositor even before capture starts. A screen stream retained by the global
   media provider is never used as presentation video or tab audio.

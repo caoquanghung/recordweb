@@ -206,6 +206,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added the authenticated integrated Studio presentation workspace and `/presentation` entry alias; its capture root contains only the rendered slide, raw webcam, and custom cursor, with no screen-share or MediaPipe path
   - [x] Added clean full-tab fallback mode, local PDF/PPTX file controls, slide navigation, presentation-specific device controls, and recording startup from the browser's explicit “This Tab” picker
   - [x] Added atomic PDF/PPTX replacement during setup, active recording, and pause: candidate material validates and pre-renders before swapping onto the existing captured canvas, failures retain the current deck, and `Alt+R` opens the picker in clean full-tab mode
+  - [x] Added an MVP browser-fullscreen control for the presentation capture root with a `Shift+F` shortcut, explicit exit/error state, and cursor re-normalization across fullscreen and resize transitions; fullscreen remains optional pending runtime feasibility testing
   - [ ] Runtime-test PDF/PPTX fidelity, current-tab selection, Element Capture fallback, tab audio, raw webcam, cursor baking, pause/resume, and finalized output in Chrome/Edge
 
 ---
