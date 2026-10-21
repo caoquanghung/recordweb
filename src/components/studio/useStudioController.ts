@@ -160,7 +160,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     muted: micMuted,
     micGain,
     systemGain: systemVolume,
-    monitorSystemAudio: tabCapture.connected && !presentationCapture,
+    monitorSystemAudio: false,
     customConfig: customAudioConfig,
   });
 
@@ -207,7 +207,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const legacyCursorTrajectory = useCursorTrajectory(presentationWorkspace ? null : screenStream);
   const cursorCapture = presentationCapture
     ? presentationCursorController
-    : tabCapture.connected
+    : mode !== 'webcam-only' && tabCapture.connected
       ? tabCapture.cursorController
       : legacyCursorTrajectory.controller;
   const recordingVideoStream = presentationVideoStream ?? compositeStream;
@@ -258,8 +258,9 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     if (recordingStatus !== 'ready' && recordingStatus !== 'error') return;
     const releaseSourceCanvases = window.setTimeout(() => setSourceCaptureEnabled(false), 0);
     if (presentationCapture) stopPresentationCapture();
+    else if (!presentationWorkspace) stopScreen();
     return () => window.clearTimeout(releaseSourceCanvases);
-  }, [presentationCapture, recordingStatus, stopPresentationCapture]);
+  }, [presentationCapture, presentationWorkspace, recordingStatus, stopPresentationCapture, stopScreen]);
 
   const loadPresets = useCallback(async () => {
     try {
@@ -355,13 +356,12 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       }
 
       if (mode === 'webcam-only') stopScreen();
-      else if (!tabCapture.available && legacyCursorTrajectory.available) await acquireScreen();
 
       if (mode === 'screen-only') stopCamera();
       else await acquireCamera(selectedCameraId || undefined);
 
       await acquireMicrophone(selectedMicrophoneId || undefined);
-      if (mode === 'webcam-only' || screenStream) setSourcesOpen(false);
+      setSourcesOpen(false);
     } finally {
       setIsConnectingSources(false);
     }
@@ -434,6 +434,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
 
   const startUiTest = async () => {
     let presentationCaptureStarted = false;
+    let screenCaptureStarted = false;
     if (workspace === 'presentation') {
       if (presentationDeck.status !== 'ready' || !presentationDeck.metadata) {
         setRecoveryMessage('Upload a PDF or PPTX presentation before recording.');
@@ -454,7 +455,37 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       });
     }
 
-    if (!recordingVideoStream?.getVideoTracks().length && !presentationCaptureStarted) {
+    if (workspace !== 'presentation' && mode !== 'webcam-only') {
+      if (!tabCapture.available) {
+        setRecoveryMessage('Install or enable the RecordWeb extension, then reload this page.');
+        setSourcesOpen(true);
+        return;
+      }
+      if (!tabCapture.connected) {
+        setRecoveryMessage('Paste a Google Slides URL and wait for cursor tracking to become ready.');
+        setSourcesOpen(true);
+        return;
+      }
+      clearMediaError();
+      const capture = await acquireScreen();
+      const videoTrack = capture?.getVideoTracks()[0];
+      if (!capture || !videoTrack) {
+        setRecoveryMessage('Tab sharing did not start. Choose the Google Slides tab in the browser picker.');
+        return;
+      }
+      const displaySurface = videoTrack.getSettings().displaySurface;
+      if (displaySurface && displaySurface !== 'browser') {
+        stopScreen();
+        setRecoveryMessage('Choose the Google Slides browser tab, not a window or an entire screen.');
+        return;
+      }
+      screenCaptureStarted = true;
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => window.setTimeout(resolve, 0));
+      });
+    }
+
+    if (!recordingVideoStream?.getVideoTracks().length && !presentationCaptureStarted && !screenCaptureStarted) {
       if (workspace !== 'presentation') {
         setRecoveryMessage('Connect a screen, camera, or presentation source before recording.');
         setSourcesOpen(true);

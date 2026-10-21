@@ -80,7 +80,7 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
                 onClick={tabCapture.openGoogleSlides}
                 disabled={!tabCapture.available || tabCapture.connected || tabCapture.status === 'opening'}
               >
-                {tabCapture.status === 'opening' ? 'Opening Slides…' : 'Open & connect Slides'}
+                {tabCapture.status === 'opening' ? 'Opening Slides…' : 'Open Slides & prepare cursor'}
               </button>
             </div>
             {!tabCapture.available && (
@@ -122,7 +122,7 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
         {tabCapture.connected && tabCapture.target && (
           <div className={styles.sourceStatus}>
             <StatusDot ok />
-            <span>Tab: {tabCapture.target.title}</span>
+            <span>Cursor target: {tabCapture.target.title}</span>
           </div>
         )}
         {!tabCapture.available && legacyCursorTrajectory.available && (
@@ -140,8 +140,8 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
           <span>{tabCapture.available ? tabCapture.message : legacyCursorTrajectory.message}</span>
         </div>
         {mode !== 'webcam-only' && !screenStream && (
-          <p className={styles.sourceError}>
-            Open the tab you want to record and click the RecordWeb extension once. That tab will provide screen video, system audio, and cursor tracking.
+          <p className={styles.sourceWarning}>
+            The browser will ask you to choose the prepared Google Slides tab when you press Start recording.
           </p>
         )}
         {mediaError && <p className={styles.sourceError} role="alert">{mediaError.message}</p>}

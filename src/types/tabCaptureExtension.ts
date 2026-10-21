@@ -19,8 +19,7 @@ export type ExtensionToPageMessage =
   | {
       channel: typeof RECORDWEB_EXTENSION_CHANNEL;
       direction: 'extension-to-page';
-      type: 'CAPTURE_OFFER';
-      streamId: string;
+      type: 'TARGET_READY';
       target: ExtensionTargetTab;
     }
   | {

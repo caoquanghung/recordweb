@@ -21,35 +21,19 @@ interface MediaSessionProviderProps {
 export function MediaSessionProvider({ children }: MediaSessionProviderProps) {
   const mediaSession = useMediaDevices();
   const {
-    adoptScreenStream,
-    stopScreen: stopOwnedScreen,
     stopAll: stopAllOwned,
   } = mediaSession;
-  const handleCapture = useCallback((stream: MediaStream) => {
-    adoptScreenStream(stream);
-  }, [adoptScreenStream]);
-  const handleCaptureEnded = useCallback(() => {
-    stopOwnedScreen();
-  }, [stopOwnedScreen]);
-  const tabCapture = useTabCaptureExtension({
-    onCapture: handleCapture,
-    onCaptureEnded: handleCaptureEnded,
-  });
+  const tabCapture = useTabCaptureExtension();
   const disconnectTabCapture = tabCapture.disconnect;
-  const stopScreen = useCallback(() => {
-    disconnectTabCapture();
-    stopOwnedScreen();
-  }, [disconnectTabCapture, stopOwnedScreen]);
   const stopAll = useCallback(() => {
     disconnectTabCapture();
     stopAllOwned();
   }, [disconnectTabCapture, stopAllOwned]);
   const value = useMemo<MediaSessionContextValue>(() => ({
     ...mediaSession,
-    stopScreen,
     stopAll,
     tabCapture,
-  }), [mediaSession, stopAll, stopScreen, tabCapture]);
+  }), [mediaSession, stopAll, tabCapture]);
 
   return (
     <MediaSessionContext.Provider value={value}>

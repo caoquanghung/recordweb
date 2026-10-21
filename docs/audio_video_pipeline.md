@@ -193,10 +193,9 @@ meters without interrupting the recorder paths. The dedicated source destination
 allow optional microphone-only and system-audio-only recordings while preserving
 the existing mixed master stream.
 
-Extension-tab capture adds one more output from the system gain to
-`AudioContext.destination` so the selected tab remains audible while Chromium
-captures it. Native display capture does not use this monitor branch, preventing
-accidental system-audio feedback.
+Google Slides recording uses native display capture, so the system gain is not
+connected to `AudioContext.destination`; the browser retains normal tab playback
+and RecordWeb avoids accidental system-audio feedback.
 
 ### 3.2 Sound Filter Parameter Specifications
 

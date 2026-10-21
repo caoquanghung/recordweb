@@ -142,7 +142,7 @@
     if (message.type === 'CURSOR_PAUSE' && message.sessionId === sessionId) pauseSampler();
     if (message.type === 'CURSOR_RESUME' && message.sessionId === sessionId) resumeSampler();
     if ((message.type === 'CURSOR_STOP' || message.type === 'CURSOR_RESET') && (!message.sessionId || message.sessionId === sessionId)) resetSampler();
-    if (message.type === 'DISCONNECT') teardown(true);
+    if (message.type === 'DISCONNECT') resetSampler();
   });
   port.onDisconnect.addListener(() => teardown(false));
 })();

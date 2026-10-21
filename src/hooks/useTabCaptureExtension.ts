@@ -14,15 +14,9 @@ export type TabCaptureExtensionStatus =
   | 'unavailable'
   | 'ready'
   | 'opening'
-  | 'awaiting-authorization'
   | 'connecting'
   | 'connected'
   | 'error';
-
-interface UseTabCaptureExtensionOptions {
-  onCapture: (stream: MediaStream) => void;
-  onCaptureEnded: () => void;
-}
 
 export interface TabCaptureExtensionResult {
   available: boolean;
@@ -36,13 +30,6 @@ export interface TabCaptureExtensionResult {
   openGoogleSlides: () => void;
   focusTarget: () => void;
   disconnect: () => void;
-}
-
-interface ChromiumTabConstraints extends MediaTrackConstraints {
-  mandatory: {
-    chromeMediaSource: 'tab';
-    chromeMediaSourceId: string;
-  };
 }
 
 function postToExtension(message: Omit<PageToExtensionMessage, 'channel' | 'direction'>) {
@@ -76,27 +63,12 @@ function parseGoogleSlidesUrl(value: string): URL | null {
   }
 }
 
-async function consumeTabStream(streamId: string): Promise<MediaStream> {
-  const mandatory: ChromiumTabConstraints['mandatory'] = {
-    chromeMediaSource: 'tab',
-    chromeMediaSourceId: streamId,
-  };
-  return navigator.mediaDevices.getUserMedia({
-    video: { mandatory } as ChromiumTabConstraints,
-    audio: { mandatory } as ChromiumTabConstraints,
-  });
-}
-
-export function useTabCaptureExtension({
-  onCapture,
-  onCaptureEnded,
-}: UseTabCaptureExtensionOptions): TabCaptureExtensionResult {
+export function useTabCaptureExtension(): TabCaptureExtensionResult {
   const [available, setAvailable] = useState(false);
   const [status, setStatus] = useState<TabCaptureExtensionStatus>('unavailable');
   const [target, setTarget] = useState<ExtensionTargetTab | null>(null);
-  const [message, setMessage] = useState('Install or enable the RecordWeb extension, then click it on the tab to record.');
+  const [message, setMessage] = useState('Install or enable the RecordWeb extension, then reload this page.');
   const [googleSlidesUrl, setGoogleSlidesUrl] = useState('');
-  const mountedRef = useRef(true);
   const targetRef = useRef<ExtensionTargetTab | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const samplesRef = useRef<CursorTrajectorySample[]>([]);
@@ -109,7 +81,7 @@ export function useTabCaptureExtension({
       return;
     }
     if (targetRef.current) {
-      setMessage('Disconnect the current captured tab before opening another Google Slides presentation.');
+      setMessage('Disconnect the current presentation before opening another Google Slides presentation.');
       return;
     }
     const url = parseGoogleSlidesUrl(googleSlidesUrl);
@@ -138,12 +110,11 @@ export function useTabCaptureExtension({
     setTarget(null);
     setStatus(available ? 'ready' : 'unavailable');
     setMessage(available
-      ? 'Extension ready. Open the target tab and click the RecordWeb extension.'
-      : 'Install or enable the RecordWeb extension, then click it on the tab to record.');
+      ? 'Extension ready. Paste a Google Slides URL to prepare cursor tracking.'
+      : 'Install or enable the RecordWeb extension, then reload this page.');
   }, [available]);
 
   useEffect(() => {
-    mountedRef.current = true;
     const handleMessage = (event: MessageEvent<unknown>) => {
       if (event.source !== window || event.origin !== window.location.origin || !isExtensionMessage(event.data)) return;
       const extensionMessage = event.data;
@@ -157,41 +128,19 @@ export function useTabCaptureExtension({
         return;
       }
 
-      if (extensionMessage.type === 'CAPTURE_OFFER') {
+      if (extensionMessage.type === 'TARGET_READY') {
         setAvailable(true);
-        setStatus('connecting');
-        setMessage(`Connecting “${extensionMessage.target.title}”…`);
-        void consumeTabStream(extensionMessage.streamId).then((stream) => {
-          if (!mountedRef.current) {
-            stream.getTracks().forEach((track) => track.stop());
-            return;
-          }
-          targetRef.current = extensionMessage.target;
-          setTarget(extensionMessage.target);
-          stream.getTracks().forEach((track) => {
-            track.addEventListener('ended', () => {
-              if (targetRef.current?.tabId !== extensionMessage.target.tabId) return;
-              targetRef.current = null;
-              setTarget(null);
-              setStatus('ready');
-              setMessage('Tab capture ended. Click the extension on a target tab to reconnect.');
-              onCaptureEnded();
-            }, { once: true });
-          });
-          onCapture(stream);
-          setStatus('connected');
-          setMessage(`Capturing “${extensionMessage.target.title}” with tab audio and 24 Hz cursor tracking.`);
-        }).catch((cause: unknown) => {
-          setStatus('error');
-          setMessage(`Could not consume the extension tab stream: ${cause instanceof Error ? cause.message : 'unknown error'}`);
-        });
+        targetRef.current = extensionMessage.target;
+        setTarget(extensionMessage.target);
+        setStatus('connected');
+        setMessage(`Cursor tracking is ready for “${extensionMessage.target.title}”. Screen sharing will be requested when recording starts.`);
         return;
       }
 
       if (extensionMessage.type === 'TARGET_OPENED') {
         setAvailable(true);
-        setStatus('awaiting-authorization');
-        setMessage('Google Slides opened. In that tab, press Alt+Shift+R or click the RecordWeb extension once to authorize capture.');
+        setStatus('connecting');
+        setMessage('Google Slides opened. Waiting for its cursor tracker to initialize…');
         return;
       }
 
@@ -201,7 +150,6 @@ export function useTabCaptureExtension({
         viewportRef.current = extensionMessage.viewport;
         return;
       }
-
 
       if (extensionMessage.type === 'PRESENTATION_COMMAND') {
         window.dispatchEvent(new CustomEvent(RECORDWEB_PRESENTATION_COMMAND_EVENT, {
@@ -216,17 +164,15 @@ export function useTabCaptureExtension({
         targetRef.current = null;
         sessionIdRef.current = null;
         setTarget(null);
-        onCaptureEnded();
       }
     };
 
     window.addEventListener('message', handleMessage);
     postToExtension({ type: 'PAGE_READY' });
     return () => {
-      mountedRef.current = false;
       window.removeEventListener('message', handleMessage);
     };
-  }, [onCapture, onCaptureEnded]);
+  }, []);
 
   const cursorController = useMemo<CursorCaptureController>(() => ({
     start: async (sessionId) => {
