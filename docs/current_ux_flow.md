@@ -119,7 +119,7 @@ The Studio opens in `setup` state and divides configuration into Sources, the ce
    - **Camera** — webcam only.
 2. Choose the camera and microphone devices.
 3. For a Google Slides workflow, paste a `docs.google.com/presentation` URL and select **Open & connect Slides**. The extension opens a presentation-view URL for that deck in a new active tab; published presentation URLs remain unchanged.
-4. Click the RecordWeb extension once in that Slides tab to authorize capture. The extension connects tab video, tab audio when available, and cursor tracking, then returns to RecordWeb.
+4. Press `Alt+Shift+R` or click the RecordWeb extension once in that Slides tab to authorize capture. The extension connects tab video, tab audio when available, and cursor tracking, then returns to RecordWeb.
 5. Select **Connect sources**. The browser may request camera and microphone permission.
 6. Confirm the source status. The UI reports screen, camera, microphone, system-audio, selected-tab, and cursor-capture readiness.
 7. Choose either 720p or 1080p output. Both use a 16:9 frame, target 30 FPS, and have a 30-minute maximum active duration.

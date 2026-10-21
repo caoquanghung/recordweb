@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RecordWeb Tab Capture",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "minimum_chrome_version": "116",
   "description": "Capture one browser tab with its audio and a synchronized cursor trajectory for RecordWeb.",
   "homepage_url": "https://recordweb-nine.vercel.app/",
@@ -9,10 +9,19 @@
   "host_permissions": [
     "http://localhost/*",
     "http://127.0.0.1/*",
-    "https://recordweb-nine.vercel.app/*"
+    "https://recordweb-nine.vercel.app/*",
+    "https://*.vercel.app/*"
   ],
   "action": {
     "default_title": "Record this tab with RecordWeb"
+  },
+  "commands": {
+    "connect-current-tab": {
+      "suggested_key": {
+        "default": "Alt+Shift+R"
+      },
+      "description": "Connect the current Google Slides tab to RecordWeb"
+    }
   },
   "background": {
     "service_worker": "service-worker.js"
@@ -22,7 +31,8 @@
       "matches": [
         "http://localhost/*",
         "http://127.0.0.1/*",
-        "https://recordweb-nine.vercel.app/*"
+        "https://recordweb-nine.vercel.app/*",
+        "https://*.vercel.app/*"
       ],
       "js": ["recordweb-bridge.js"],
       "run_at": "document_start"

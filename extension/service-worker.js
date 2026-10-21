@@ -7,6 +7,16 @@ const APP_ORIGINS = new Set([
   'http://127.0.0.1:3000',
 ]);
 
+function isRecordWebAppUrl(urlValue) {
+  try {
+    const url = new URL(urlValue);
+    return APP_ORIGINS.has(url.origin)
+      || (url.hostname.startsWith('recordweb-') && url.hostname.endsWith('-coannoacs-projects.vercel.app'));
+  } catch {
+    return false;
+  }
+}
+
 const appPorts = new Map();
 const trackerPorts = new Map();
 let pendingTarget = null;
@@ -124,7 +134,7 @@ async function prepareTarget(tab) {
     setBadge(tab.id, '!', '#dc5964');
     return;
   }
-  if (APP_ORIGINS.has(new URL(tab.url).origin)) {
+  if (isRecordWebAppUrl(tab.url)) {
     setBadge(tab.id, '!', '#dc5964');
     sendAppMessage({
       type: 'EXTENSION_ERROR',
@@ -189,6 +199,17 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
 
 chrome.action.onClicked.addListener((tab) => {
   void prepareTarget(tab);
+});
+
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command !== 'connect-current-tab') return;
+  if (tab?.id) {
+    void prepareTarget(tab);
+    return;
+  }
+  void chrome.tabs.query({ active: true, currentWindow: true }).then(([activeTab]) => {
+    if (activeTab) void prepareTarget(activeTab);
+  });
 });
 
 chrome.runtime.onConnect.addListener((port) => {

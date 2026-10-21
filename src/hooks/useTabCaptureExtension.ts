@@ -191,7 +191,7 @@ export function useTabCaptureExtension({
       if (extensionMessage.type === 'TARGET_OPENED') {
         setAvailable(true);
         setStatus('awaiting-authorization');
-        setMessage('Google Slides opened. In that tab, click the RecordWeb extension once to authorize capture.');
+        setMessage('Google Slides opened. In that tab, press Alt+Shift+R or click the RecordWeb extension once to authorize capture.');
         return;
       }
 

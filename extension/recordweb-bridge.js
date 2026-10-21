@@ -3,12 +3,13 @@
   globalThis.__recordWebExtensionBridgeInstalled = true;
 
   const CHANNEL = 'recordweb-extension-v1';
-  const appOrigins = new Set([
-    new URL(chrome.runtime.getManifest().homepage_url).origin,
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-  ]);
-  if (!appOrigins.has(window.location.origin)) return;
+  const canonicalAppOrigin = new URL(chrome.runtime.getManifest().homepage_url).origin;
+  const isAllowedAppOrigin = ({ origin, hostname, port, protocol }) => (
+    origin === canonicalAppOrigin
+    || ((hostname === 'localhost' || hostname === '127.0.0.1') && port === '3000' && protocol === 'http:')
+    || (hostname.startsWith('recordweb-') && hostname.endsWith('-coannoacs-projects.vercel.app'))
+  );
+  if (!isAllowedAppOrigin(window.location)) return;
 
   const port = chrome.runtime.connect({ name: 'recordweb-app' });
   const emitToPage = (message) => {
