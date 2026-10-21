@@ -27,10 +27,18 @@ export interface TabCaptureExtensionResult {
   googleSlidesUrl: string;
   cursorController: CursorCaptureController;
   setGoogleSlidesUrl: (url: string) => void;
-  openGoogleSlides: () => void;
+  openGoogleSlides: () => Promise<ExtensionTargetTab | null>;
   focusTarget: () => void;
   disconnect: () => void;
 }
+
+interface PendingTargetConnection {
+  promise: Promise<ExtensionTargetTab | null>;
+  resolve: (target: ExtensionTargetTab | null) => void;
+  timeoutId: number;
+}
+
+const TARGET_CONNECTION_TIMEOUT_MS = 10_000;
 
 function postToExtension(message: Omit<PageToExtensionMessage, 'channel' | 'direction'>) {
   window.postMessage({
@@ -75,26 +83,54 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
   const sessionPausedRef = useRef(false);
   const samplesRef = useRef<CursorTrajectorySample[]>([]);
   const viewportRef = useRef({ width: 1, height: 1 });
+  const pendingTargetConnectionRef = useRef<PendingTargetConnection | null>(null);
+
+  const settlePendingTargetConnection = useCallback((target: ExtensionTargetTab | null) => {
+    const pendingConnection = pendingTargetConnectionRef.current;
+    if (!pendingConnection) return;
+    pendingTargetConnectionRef.current = null;
+    window.clearTimeout(pendingConnection.timeoutId);
+    pendingConnection.resolve(target);
+  }, []);
 
   const openGoogleSlides = useCallback(() => {
     if (!available) {
       setStatus('unavailable');
       setMessage('Install or enable the RecordWeb extension before opening Google Slides.');
-      return;
+      return Promise.resolve(null);
     }
     if (targetRef.current) {
-      setMessage('Disconnect the current presentation before opening another Google Slides presentation.');
-      return;
+      return Promise.resolve(targetRef.current);
+    }
+    if (pendingTargetConnectionRef.current) {
+      return pendingTargetConnectionRef.current.promise;
     }
     const url = parseGoogleSlidesUrl(googleSlidesUrl);
     if (!url) {
       setStatus('error');
       setMessage('Enter a valid Google Slides URL from docs.google.com/presentation.');
-      return;
+      return Promise.resolve(null);
     }
     setStatus('opening');
     setMessage('Looking for an existing Google Slides tab…');
+    let resolveConnection!: (target: ExtensionTargetTab | null) => void;
+    const promise = new Promise<ExtensionTargetTab | null>((resolve) => {
+      resolveConnection = resolve;
+    });
+    const timeoutId = window.setTimeout(() => {
+      if (pendingTargetConnectionRef.current?.promise !== promise) return;
+      pendingTargetConnectionRef.current = null;
+      setStatus('error');
+      setMessage('Google Slides opened, but its cursor tracker did not connect in time. Click Connect sources to try again.');
+      resolveConnection(null);
+    }, TARGET_CONNECTION_TIMEOUT_MS);
+    pendingTargetConnectionRef.current = {
+      promise,
+      resolve: resolveConnection,
+      timeoutId,
+    };
     postToExtension({ type: 'OPEN_GOOGLE_SLIDES', url: url.href });
+    return promise;
   }, [available, googleSlidesUrl]);
 
   const focusTarget = useCallback(() => {
@@ -106,13 +142,14 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
   const disconnect = useCallback(() => {
     const targetTabId = targetRef.current?.tabId;
     postToExtension({ type: 'DISCONNECT', targetTabId });
+    settlePendingTargetConnection(null);
     targetRef.current = null;
     setTarget(null);
     setStatus(available ? 'ready' : 'unavailable');
     setMessage(available
       ? 'Extension ready. Paste a Google Slides URL to prepare cursor tracking.'
       : 'Install or enable the RecordWeb extension, then reload this page.');
-  }, [available]);
+  }, [available, settlePendingTargetConnection]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent<unknown>) => {
@@ -133,7 +170,8 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
         targetRef.current = extensionMessage.target;
         setTarget(extensionMessage.target);
         setStatus('connected');
-        setMessage(`Cursor tracking is ready for “${extensionMessage.target.title}”. Screen sharing will be requested when recording starts.`);
+        setMessage(`Cursor tracking is ready for “${extensionMessage.target.title}”.`);
+        settlePendingTargetConnection(extensionMessage.target);
         const activeSessionId = sessionIdRef.current;
         if (activeSessionId) {
           const lastSample = samplesRef.current.at(-1);
@@ -180,6 +218,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
 
       setStatus('error');
       setMessage(extensionMessage.message);
+      settlePendingTargetConnection(null);
       if (extensionMessage.type === 'TARGET_ENDED') {
         targetRef.current = null;
         setTarget(null);
@@ -190,8 +229,9 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
     postToExtension({ type: 'PAGE_READY' });
     return () => {
       window.removeEventListener('message', handleMessage);
+      settlePendingTargetConnection(null);
     };
-  }, []);
+  }, [settlePendingTargetConnection]);
 
   const cursorController = useMemo<CursorCaptureController>(() => ({
     start: async (sessionId) => {

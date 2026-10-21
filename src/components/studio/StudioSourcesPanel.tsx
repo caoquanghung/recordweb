@@ -70,19 +70,9 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
                 placeholder="https://docs.google.com/presentation/d/…"
                 value={tabCapture.googleSlidesUrl}
                 onChange={(event) => tabCapture.setGoogleSlidesUrl(event.target.value)}
-                disabled={tabCapture.connected}
+                disabled={tabCapture.connected || isConnectingSources}
               />
             </label>
-            <div className={styles.sourceActions}>
-              <button
-                className={styles.sourceButton}
-                type="button"
-                onClick={tabCapture.openGoogleSlides}
-                disabled={!tabCapture.available || tabCapture.connected || tabCapture.status === 'opening'}
-              >
-                {tabCapture.status === 'opening' ? 'Finding Slides…' : 'Find or open Slides'}
-              </button>
-            </div>
             {!tabCapture.available && (
               <p className={styles.sourceWarning}>
                 The RecordWeb extension is required. Install or enable it, then reload this page.
@@ -110,7 +100,13 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
         </label>
         <div className={styles.sourceActions}>
           <button className={styles.sourceButton} type="button" onClick={() => void connectSources()} disabled={isConnectingSources}>
-            {isConnectingSources ? 'Requesting access…' : sourcesConnected ? 'Update sources' : 'Connect sources'}
+            {isConnectingSources
+              ? tabCapture.status === 'opening' || tabCapture.status === 'connecting'
+                ? 'Preparing Google Slides…'
+                : 'Requesting access…'
+              : sourcesConnected
+                ? 'Update sources'
+                : 'Connect sources'}
           </button>
           {sourcesConnected && <button className={styles.sourceStopButton} type="button" onClick={stopAllMedia}>Disconnect</button>}
         </div>
@@ -118,7 +114,7 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
           <StatusDot ok={mediaStatuses.camera === 'ready' || mediaStatuses.screen === 'ready'} />
           <span>Screen {mediaStatuses.screen} · camera {mediaStatuses.camera} · mic {mediaStatuses.microphone}</span>
         </div>
-        {screenStream && <div className={styles.sourceStatus}><StatusDot ok={hasSystemAudio} /><span>{hasSystemAudio ? 'System audio shared' : 'No system audio in this share'}</span></div>}
+        {screenStream && <div className={styles.sourceStatus}><StatusDot ok /><span>Tab video connected · {hasSystemAudio ? 'system audio shared' : 'no system audio'}</span></div>}
         {tabCapture.connected && tabCapture.target && (
           <div className={styles.sourceStatus}>
             <StatusDot ok />
@@ -141,7 +137,7 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
         </div>
         {mode !== 'webcam-only' && !screenStream && (
           <p className={styles.sourceWarning}>
-            The browser will ask you to choose the prepared Google Slides tab when you press Start recording.
+            Connect sources will prepare Google Slides, then ask you to select that tab for a live preview.
           </p>
         )}
         {mediaError && <p className={styles.sourceError} role="alert">{mediaError.message}</p>}

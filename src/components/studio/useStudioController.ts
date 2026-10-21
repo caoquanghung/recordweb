@@ -349,6 +349,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const connectSources = async () => {
     setIsConnectingSources(true);
     clearMediaError();
+    setRecoveryMessage('');
     try {
       if (workspace === 'presentation') {
         stopScreen();
@@ -360,7 +361,42 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         return;
       }
 
-      if (mode === 'webcam-only') stopScreen();
+      if (mode === 'webcam-only') {
+        stopScreen();
+      } else {
+        if (!tabCapture.available) {
+          setRecoveryMessage('Install or enable the RecordWeb extension, then reload this page.');
+          setSourcesOpen(true);
+          return;
+        }
+
+        const target = tabCapture.target ?? await tabCapture.openGoogleSlides();
+        if (!target) {
+          setRecoveryMessage('Google Slides cursor tracking did not connect. Check the URL, then click Connect sources again.');
+          setSourcesOpen(true);
+          return;
+        }
+        if (navigator.userActivation && !navigator.userActivation.isActive) {
+          setRecoveryMessage('Google Slides is ready, but Chrome needs a fresh click to open sharing. Click Connect sources again.');
+          setSourcesOpen(true);
+          return;
+        }
+
+        const capture = await acquireScreen();
+        const videoTrack = capture?.getVideoTracks()[0];
+        if (!capture || !videoTrack) {
+          setRecoveryMessage('Chrome could not open tab sharing. Click Connect sources again and choose the prepared Google Slides tab.');
+          setSourcesOpen(true);
+          return;
+        }
+        const displaySurface = videoTrack.getSettings().displaySurface;
+        if (displaySurface && displaySurface !== 'browser') {
+          stopScreen();
+          setRecoveryMessage('Choose the prepared Google Slides browser tab, not a window or an entire screen.');
+          setSourcesOpen(true);
+          return;
+        }
+      }
 
       if (mode === 'screen-only') stopCamera();
       else await acquireCamera(selectedCameraId || undefined);
@@ -452,7 +488,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
 
   const startUiTest = async () => {
     let presentationCaptureStarted = false;
-    let screenCaptureStarted = false;
     if (workspace === 'presentation') {
       if (presentationDeck.status !== 'ready' || !presentationDeck.metadata) {
         setRecoveryMessage('Upload a PDF or PPTX presentation before recording.');
@@ -480,30 +515,18 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         return;
       }
       if (!tabCapture.connected) {
-        setRecoveryMessage('Paste a Google Slides URL and wait for cursor tracking to become ready.');
+        setRecoveryMessage('Connect sources and wait for Google Slides cursor tracking to become ready.');
         setSourcesOpen(true);
         return;
       }
-      clearMediaError();
-      const capture = await acquireScreen();
-      const videoTrack = capture?.getVideoTracks()[0];
-      if (!capture || !videoTrack) {
-        setRecoveryMessage('Tab sharing did not start. Choose the Google Slides tab in the browser picker.');
+      if (!screenStream?.getVideoTracks().length) {
+        setRecoveryMessage('Connect sources and choose the prepared Google Slides tab before starting the recording.');
+        setSourcesOpen(true);
         return;
       }
-      const displaySurface = videoTrack.getSettings().displaySurface;
-      if (displaySurface && displaySurface !== 'browser') {
-        stopScreen();
-        setRecoveryMessage('Choose the Google Slides browser tab, not a window or an entire screen.');
-        return;
-      }
-      screenCaptureStarted = true;
-      await new Promise<void>((resolve) => {
-        window.requestAnimationFrame(() => window.setTimeout(resolve, 0));
-      });
     }
 
-    if (!recordingVideoStream?.getVideoTracks().length && !presentationCaptureStarted && !screenCaptureStarted) {
+    if (!recordingVideoStream?.getVideoTracks().length && !presentationCaptureStarted) {
       if (workspace !== 'presentation') {
         setRecoveryMessage('Connect a screen, camera, or presentation source before recording.');
         setSourcesOpen(true);

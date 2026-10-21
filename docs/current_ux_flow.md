@@ -118,12 +118,12 @@ The Studio opens in `setup` state and divides configuration into Sources, the ce
    - **Screen** — display only;
    - **Camera** — webcam only.
 2. Choose the camera and microphone devices.
-3. For a Google Slides workflow, paste a `docs.google.com/presentation` URL and select **Find or open Slides**. The extension matches by presentation ID across `/edit`, `/view`, `/preview`, `/present`, account prefixes, and query parameters. When an editable matching tab exists, the extension navigates that same tab ID to `/present` in the background; otherwise it opens a new background presentation tab. RecordWeb remains active in both cases until recording starts. This avoids Google Slides spawning a different presenter tab outside the prepared cursor target. The Slides-scoped content script registers cursor tracking automatically, and published presentation URLs remain unchanged.
-4. Select **Connect sources**. The browser may request camera and microphone permission; screen sharing is intentionally deferred until Start.
-5. Confirm camera, microphone, and cursor-target readiness.
+3. For a Google Slides workflow, paste a `docs.google.com/presentation` URL and select **Connect sources**. The extension matches by presentation ID across `/edit`, `/view`, `/preview`, `/present`, account prefixes, and query parameters. When an editable matching tab exists, the extension navigates that same tab ID to `/present` in the background; otherwise it opens a new background presentation tab. Published presentation URLs remain unchanged.
+4. Connect waits for the Slides cursor tracker to report `TARGET_READY`, then immediately opens Chrome's native share picker. Select the prepared Google Slides tab; choosing a window or entire screen is rejected. Camera and microphone permission may follow.
+5. Confirm the live Slides preview plus camera, microphone, tab-video, system-audio, and cursor-target readiness.
 6. Choose either 720p or 1080p output. Both use a 16:9 frame, target 30 FPS, and have a 30-minute maximum active duration.
 
-Setup remains in RecordWeb while the Slides target is prepared in the background. The pre-session **Ready to record** / **Continue in RecordWeb** module is retained behind an extension feature flag but is not rendered in the current flow. The presentation overlay appears only after recording starts; the user still clicks Start in RecordWeb so `getDisplayMedia()` receives the browser-required local user gesture.
+Setup remains in RecordWeb while the Slides target is prepared in the background. The pre-session **Ready to record** / **Continue in RecordWeb** module is retained behind an extension feature flag but is not rendered in the current flow. The Connect gesture owns the native `getDisplayMedia()` request and the resulting stream drives the Studio live preview before recording.
 
 If the extension capture path is unavailable and the legacy helper is present, the UI can fall back to native screen selection plus a legacy cursor display selection.
 
@@ -154,16 +154,15 @@ stateDiagram-v2
     Review --> Setup: Record another
 ```
 
-1. Select **Start recording**.
-2. For a Slides screen mode, Chrome opens its native share picker. Select the prepared Google Slides tab; choosing a window or full screen is rejected.
-3. If no usable video source or cursor target is ready, recording stays in setup and the Sources panel reopens with guidance.
-4. The app resumes browser audio if needed, closes the side panels, and shows a three-second countdown.
-5. The app starts the recorders and automatically focuses the prepared Slides tab. A compact **Recording** pill appears in the bottom-right corner only while recording. Hovering or clicking expands pause/resume, microphone, camera, and **End session** controls; it auto-collapses after inactivity and follows Slides into browser fullscreen. The overlay is part of the shared tab, so it appears in captured video while visible.
-6. **End session** hides the overlay immediately, stops and finalizes all recording assets (including cursor JSON), then disconnects the prepared Slides target and every owned media source. A normal Stop returns to RecordWeb but keeps camera and microphone available for another take. `Alt+P`, `Alt+S`, `Alt+M`, and `Alt+C` remain available as low-visual-impact controls.
-7. During recording, the control dock shows elapsed time and exposes pause/resume, stop, microphone mute, and camera visibility controls.
-8. The session is checkpointed to IndexedDB while recording.
-9. Select Stop, press `Alt+S`, or reach the 30-minute limit to finalize the session.
-10. The UI enters **Finalizing** while it repairs and prepares the recorded assets, stops the native display stream, then opens Review.
+1. Select **Start recording** after the live preview is ready. Start reuses the tab stream acquired by Connect and does not open the share picker again.
+2. If no usable video source or cursor target is ready, recording stays in setup and the Sources panel reopens with guidance.
+3. The app resumes browser audio if needed, closes the side panels, and shows a three-second countdown.
+4. The app starts the recorders and automatically focuses the prepared Slides tab. A compact **Recording** pill appears in the bottom-right corner only while recording. Hovering or clicking expands pause/resume, microphone, camera, and **End session** controls; it auto-collapses after inactivity and follows Slides into browser fullscreen. The overlay is part of the shared tab, so it appears in captured video while visible.
+5. **End session** hides the overlay immediately, stops and finalizes all recording assets (including cursor JSON), then disconnects the prepared Slides target and every owned media source. A normal Stop returns to RecordWeb but keeps camera and microphone available for another take. `Alt+P`, `Alt+S`, `Alt+M`, and `Alt+C` remain available as low-visual-impact controls.
+6. During recording, the control dock shows elapsed time and exposes pause/resume, stop, microphone mute, and camera visibility controls.
+7. The session is checkpointed to IndexedDB while recording.
+8. Select Stop, press `Alt+S`, or reach the 30-minute limit to finalize the session.
+9. The UI enters **Finalizing** while it repairs and prepares the recorded assets, stops the native display stream, then opens Review.
 
 Keyboard controls outside form fields:
 
