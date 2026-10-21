@@ -47,6 +47,7 @@ The worker clock prevents the common short/medium background-tab freeze. Browser
 * Normalization runs only while a recording is being prepared or active to avoid permanent extra rendering work.
 * Both normalization canvases use the visibility-aware frame scheduler so their encoded source files continue receiving frames when the RecordWeb tab is hidden.
 * Standard Studio separates device acquisition from Slides capture. **Connect camera & microphone** acquires the required device streams first; **Connect Google Slides** remains unavailable until the microphone and any mode-required camera are ready, then asks the extension to find or create the presentation tab and waits for its `TARGET_READY` callback before invoking `getDisplayMedia()` from that Slides action. The selected tab stream is owned by `MediaSessionProvider`, drives the setup preview immediately, and is reused by Start rather than reacquired.
+* After the picker returns a valid browser-tab stream, Standard Studio sends `FOCUS_APP` through the extension bridge to keep setup on RecordWeb even if Chromium activated the selected tab. The target receives `FOCUS_TARGET` only after Start completes its countdown and the recorders begin.
 * If the extension callback takes long enough for Chromium to expire transient user activation, display capture can be rejected. The setup remains open with retry guidance; a connected target makes the next Connect attempt invoke the picker directly.
 
 ### 1.4 Presentation Self-Tab Capture (Non-Compositor Path)

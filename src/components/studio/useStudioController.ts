@@ -128,6 +128,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     tabCapture,
   } = useMediaSession();
   const tabCaptureConnected = tabCapture.connected;
+  const focusRecordWebApp = tabCapture.focusApp;
   const focusTabCaptureTarget = tabCapture.focusTarget;
 
   const presentationDeck = usePresentationDeck();
@@ -412,6 +413,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         setSourcesOpen(true);
         return;
       }
+      focusRecordWebApp();
       setSourcesOpen(false);
     } finally {
       setIsConnectingSlideSource(false);

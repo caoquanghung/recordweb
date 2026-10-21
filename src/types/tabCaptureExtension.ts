@@ -55,7 +55,7 @@ export type ExtensionToPageMessage =
 export type PageToExtensionMessage = {
   channel: typeof RECORDWEB_EXTENSION_CHANNEL;
   direction: 'page-to-extension';
-  type: 'PAGE_READY' | 'OPEN_GOOGLE_SLIDES' | 'FOCUS_TARGET' | 'CURSOR_START' | 'CURSOR_PAUSE' | 'CURSOR_RESUME' | 'CURSOR_STOP' | 'CURSOR_RESET' | 'DISCONNECT';
+  type: 'PAGE_READY' | 'OPEN_GOOGLE_SLIDES' | 'FOCUS_APP' | 'FOCUS_TARGET' | 'CURSOR_START' | 'CURSOR_PAUSE' | 'CURSOR_RESUME' | 'CURSOR_STOP' | 'CURSOR_RESET' | 'DISCONNECT';
   sessionId?: string;
   targetTabId?: number;
   offsetMs?: number;

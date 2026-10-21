@@ -248,6 +248,10 @@ chrome.runtime.onConnect.addListener((port) => {
         void openGoogleSlides(message.url, tabId, port);
         return;
       }
+      if (message.type === 'FOCUS_APP') {
+        void focusTab(tabId);
+        return;
+      }
       if (message.type === 'FOCUS_TARGET' && message.targetTabId === currentTarget?.tabId) {
         void focusTab(message.targetTabId).then((focused) => {
           if (!focused) postPortMessage(port, { type: 'TARGET_ENDED', message: 'The prepared presentation tab is no longer open.' });

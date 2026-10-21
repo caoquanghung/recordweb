@@ -28,6 +28,7 @@ export interface TabCaptureExtensionResult {
   cursorController: CursorCaptureController;
   setGoogleSlidesUrl: (url: string) => void;
   openGoogleSlides: () => Promise<ExtensionTargetTab | null>;
+  focusApp: () => void;
   focusTarget: () => void;
   disconnect: () => void;
 }
@@ -137,6 +138,10 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
     const targetTabId = targetRef.current?.tabId;
     if (typeof targetTabId !== 'number') return;
     postToExtension({ type: 'FOCUS_TARGET', targetTabId });
+  }, []);
+
+  const focusApp = useCallback(() => {
+    postToExtension({ type: 'FOCUS_APP' });
   }, []);
 
   const disconnect = useCallback(() => {
@@ -315,6 +320,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
     cursorController,
     setGoogleSlidesUrl,
     openGoogleSlides,
+    focusApp,
     focusTarget,
     disconnect,
   };
