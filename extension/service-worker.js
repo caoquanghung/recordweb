@@ -157,7 +157,7 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
         currentTarget = target;
         setBadge(existingTab.id, 'CUR', '#22c58b');
         try {
-          await chrome.tabs.update(existingTab.id, { url: url.href, active: true });
+          await chrome.tabs.update(existingTab.id, { url: url.href });
         } catch (error) {
           if (currentTarget?.tabId === existingTab.id) {
             currentTarget = null;
@@ -182,8 +182,6 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
         await chrome.tabs.reload(existingTab.id);
       }
 
-      const focused = await focusTab(existingTab.id);
-      if (!focused) throw new Error('The existing Google Slides tab could not be focused.');
       return;
     }
 

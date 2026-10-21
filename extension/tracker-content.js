@@ -4,6 +4,9 @@
 
   const SAMPLE_RATE_HZ = 24;
   const CONTROLS_AUTO_HIDE_MS = 3200;
+  // Retain the pre-session handoff module for future experiments without
+  // showing a redundant Ready pill while target tabs prepare in background.
+  const ENABLE_PRESESSION_READY_CONTROLS = false;
   const port = chrome.runtime.connect({ name: 'recordweb-tracker' });
   let disconnected = false;
   let sessionId = null;
@@ -422,13 +425,17 @@
   document.addEventListener('fullscreenchange', moveControlsToFullscreenSurface);
 
   port.onMessage.addListener((message) => {
-    if (message.type === 'PRESENTATION_READY' && !sessionId) createControls('ready');
+    if (ENABLE_PRESESSION_READY_CONTROLS && message.type === 'PRESENTATION_READY' && !sessionId) {
+      createControls('ready');
+    }
     if (message.type === 'CURSOR_START' && message.sessionId) {
       startSampler(message.sessionId, message.offsetMs, message.startIndex);
     }
     if (message.type === 'CURSOR_PAUSE' && message.sessionId === sessionId) pauseSampler();
     if (message.type === 'CURSOR_RESUME' && message.sessionId === sessionId) resumeSampler();
-    if (message.type === 'CURSOR_STOP' && (!message.sessionId || message.sessionId === sessionId)) resetSampler(true);
+    if (message.type === 'CURSOR_STOP' && (!message.sessionId || message.sessionId === sessionId)) {
+      resetSampler(ENABLE_PRESESSION_READY_CONTROLS);
+    }
     if (message.type === 'CURSOR_RESET' && (!message.sessionId || message.sessionId === sessionId)) resetSampler();
     if (message.type === 'DISCONNECT') resetSampler();
   });
