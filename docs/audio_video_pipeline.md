@@ -91,7 +91,10 @@ current-tab video + mixed audio -> useRecordingSession composite recorder
   requests screen sharing; the recording gesture starts current-tab capture only
   after a deck is ready.
 * The capturable DOM root contains only the slide canvas, raw webcam element,
-  countdown, and custom cursor. When Element Capture is unavailable, that root is
+  PDF text/link interaction layer when applicable, countdown, and custom cursor.
+  PDF.js text runs remain transparent above the painted page so selection and
+  embedded links align with the canvas without duplicating visible glyphs. When
+  Element Capture is unavailable, that root is
   promoted to a fixed full-viewport clean presenter surface so full-tab capture
   does not include navigation, side panels, or recording controls.
 * Browser fullscreen targets that same capturable DOM root and never replaces it.

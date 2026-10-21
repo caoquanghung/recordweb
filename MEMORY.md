@@ -209,6 +209,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added clean full-tab fallback mode, local PDF/PPTX file controls, slide navigation, presentation-specific device controls, and recording startup from the browser's explicit “This Tab” picker
   - [x] Added atomic PDF/PPTX replacement during setup, active recording, and pause: candidate material validates and pre-renders before swapping onto the existing captured canvas, failures retain the current deck, and `Alt+R` opens the picker in clean full-tab mode
   - [x] Added an MVP browser-fullscreen control for the presentation capture root with a `Shift+F` shortcut, explicit exit/error state, and cursor re-normalization across fullscreen and resize transitions; fullscreen remains optional pending runtime feasibility testing
+  - [x] Added a PDF.js interaction overlay above in-app PDF slides: selectable text with temporary browser highlighting, safe external links, and internal destination navigation. The overlay scales with the canvas/fullscreen root and remains inside cursor-tracked capture content; persistent highlight annotations are intentionally out of scope
   - [ ] Runtime-test PDF/PPTX fidelity, current-tab selection, Element Capture fallback, tab audio, raw webcam, cursor baking, pause/resume, and finalized output in Chrome/Edge
 
 ---

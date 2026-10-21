@@ -126,6 +126,7 @@ export function usePresentationCursor({
     target.addEventListener('pointerdown', onPointerDown);
     target.addEventListener('pointerup', onPointerUp);
     target.addEventListener('pointercancel', onPointerLeave);
+    window.addEventListener('blur', onPointerLeave);
     window.addEventListener('resize', syncPointerToBounds);
     document.addEventListener('fullscreenchange', syncPointerToBounds);
     const resizeObserver = typeof ResizeObserver === 'undefined'
@@ -140,6 +141,7 @@ export function usePresentationCursor({
       target.removeEventListener('pointerdown', onPointerDown);
       target.removeEventListener('pointerup', onPointerUp);
       target.removeEventListener('pointercancel', onPointerLeave);
+      window.removeEventListener('blur', onPointerLeave);
       window.removeEventListener('resize', syncPointerToBounds);
       document.removeEventListener('fullscreenchange', syncPointerToBounds);
       resizeObserver?.disconnect();

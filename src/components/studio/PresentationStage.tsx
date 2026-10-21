@@ -39,6 +39,7 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
       canAdvance: canAdvanceDeck,
       error: deckError,
       canvasRef,
+      interactionLayerRef,
       load: loadPresentation,
       nextPage,
       previousPage,
@@ -173,7 +174,16 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
           aria-label="Presentation capture area"
         >
           {metadata ? (
-            <canvas ref={canvasRef} className={styles.presentationCanvas} aria-label={`Slide ${currentPageIndex + 1} of ${metadata.pageCount}`} />
+            <>
+              <canvas ref={canvasRef} className={styles.presentationCanvas} aria-label={`Slide ${currentPageIndex + 1} of ${metadata.pageCount}`} />
+              {metadata.kind === 'pdf' && (
+                <div
+                  ref={interactionLayerRef}
+                  className={styles.presentationPdfInteractionLayer}
+                  aria-label="Selectable PDF text and links"
+                />
+              )}
+            </>
           ) : (
             <div className={styles.presentationEmpty}>
               <span className={styles.mockKicker}>PRESENT FROM RECORDWEB</span>

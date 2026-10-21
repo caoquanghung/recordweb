@@ -183,6 +183,7 @@ The Presentation workspace is designed for local PDF and PPTX files and uses a d
 4. Optionally connect a camera and microphone. The raw webcam appears over the rendered slide when enabled.
 5. Choose 720p or 1080p output and configure audio or presets from the Effects panel.
 6. Move between slides with the on-screen controls, `Left`/`Right`, or `Page Up`/`Page Down`.
+7. PDF pages expose embedded links and selectable text above the rendered canvas. External links open in a new tab, internal destinations move to the referenced PDF page, and dragged text uses the browser's temporary selection highlight. Scanned/image-only PDFs have no selectable text, and selections are not saved as PDF annotations.
 
 The slide file remains local in the browser. While still in setup, it can be replaced with **Replace file**.
 

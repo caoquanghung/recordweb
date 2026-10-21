@@ -33,6 +33,7 @@ export interface UsePresentationDeckResult {
   canAdvance: boolean;
   error: string | null;
   canvasRef: RefCallback<HTMLCanvasElement>;
+  interactionLayerRef: RefCallback<HTMLDivElement>;
   load: (file: File) => Promise<boolean>;
   clear: () => void;
   goToPage: (pageIndex: number) => void;
@@ -55,7 +56,9 @@ export function usePresentationDeck({
   const renderRequestIdRef = useRef(0);
   const playbackAdvancePendingRef = useRef(false);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
+  const interactionLayerElementRef = useRef<HTMLDivElement | null>(null);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [interactionLayer, setInteractionLayer] = useState<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<PresentationDeckStatus>('idle');
   const [metadata, setMetadata] = useState<PresentationFileMetadata | null>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -69,6 +72,11 @@ export function usePresentationDeck({
   const setCanvasElement = useCallback((element: HTMLCanvasElement | null) => {
     canvasElementRef.current = element;
     setCanvas(element);
+  }, []);
+
+  const setInteractionLayerElement = useCallback((element: HTMLDivElement | null) => {
+    interactionLayerElementRef.current = element;
+    setInteractionLayer(element);
   }, []);
 
   const disposeCurrentRenderer = useCallback(() => {
@@ -95,6 +103,7 @@ export function usePresentationDeck({
       const context = activeCanvas.getContext('2d');
       context?.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
     }
+    interactionLayerElementRef.current?.replaceChildren();
   }, [disposeCurrentRenderer]);
 
   const load = useCallback(async (file: File) => {
@@ -253,6 +262,25 @@ export function usePresentationDeck({
     setCurrentPageIndex(nextPageIndex);
   }, [currentPageIndex]);
 
+  useEffect(() => {
+    if (status !== 'ready' || !interactionLayer) return;
+    const renderer = rendererRef.current;
+    interactionLayer.replaceChildren();
+    if (!renderer?.renderInteractionLayer) return;
+    let cancelled = false;
+    void renderer.renderInteractionLayer(
+      currentPageIndex,
+      interactionLayer,
+      renderWidth,
+      (pageIndex) => {
+        if (!cancelled && rendererRef.current === renderer) goToPage(pageIndex);
+      },
+    ).catch((cause) => {
+      if (!cancelled) setError(toErrorMessage(cause));
+    });
+    return () => { cancelled = true; };
+  }, [currentPageIndex, goToPage, interactionLayer, metadata, renderWidth, status]);
+
   const nextPage = useCallback(() => {
     const renderer = rendererRef.current;
     const pageCount = renderer?.pageCount ?? 0;
@@ -316,6 +344,7 @@ export function usePresentationDeck({
       || currentPageIndex < Math.max(0, (metadata?.pageCount ?? 0) - 1),
     error,
     canvasRef: setCanvasElement,
+    interactionLayerRef: setInteractionLayerElement,
     load,
     clear,
     goToPage,
