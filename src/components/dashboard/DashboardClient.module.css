@@ -7,7 +7,10 @@
   font-family: "Be Vietnam Pro", var(--font-geist-sans), sans-serif;
 }
 
-.dashboardMain { min-width: 0; }
+.dashboardMain {
+  grid-column: 2;
+  min-width: 0;
+}
 
 .dashboardContent {
   width: 100%;

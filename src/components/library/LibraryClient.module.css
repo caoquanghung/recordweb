@@ -23,7 +23,10 @@
   font-family: "Be Vietnam Pro", var(--font-geist-sans), sans-serif;
 }
 
-.libraryMain { min-width: 0; }
+.libraryMain {
+  grid-column: 2;
+  min-width: 0;
+}
 
 .libraryContent {
   width: 100%;
