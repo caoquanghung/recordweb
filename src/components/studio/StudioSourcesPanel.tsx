@@ -96,18 +96,6 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
         </div>
         {mode !== 'webcam-only' && (
           <>
-            <label className={styles.fieldLabel}>
-              Google Slides URL
-              <input
-                className={styles.textInput}
-                type="url"
-                inputMode="url"
-                placeholder="https://docs.google.com/presentation/d/…"
-                value={tabCapture.googleSlidesUrl}
-                onChange={(event) => tabCapture.setGoogleSlidesUrl(event.target.value)}
-                disabled={tabCapture.connected || isConnectingSources || isConnectingSlideSource}
-              />
-            </label>
             <div className={styles.sourceActions}>
               <button
                 className={styles.sourceButton}
@@ -116,8 +104,8 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
                 disabled={!requiredDevicesConnected || !tabCapture.available || isConnectingSources || isConnectingSlideSource}
               >
                 {isConnectingSlideSource
-                  ? tabCapture.status === 'opening' || tabCapture.status === 'connecting'
-                    ? 'Preparing Google Slides…'
+                  ? tabCapture.status === 'connecting'
+                    ? 'Verifying shared tab…'
                     : 'Opening share picker…'
                   : screenStream
                     ? 'Update Google Slides source'
@@ -159,7 +147,7 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
             </div>
             {!screenStream && requiredDevicesConnected && (
               <p className={styles.sourceWarning}>
-                Connect Google Slides will prepare the tab, then ask you to select it for a live preview.
+                Open your presentation in a Google Slides tab, then connect it here for live preview.
               </p>
             )}
           </>

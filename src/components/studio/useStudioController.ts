@@ -387,29 +387,17 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         return;
       }
 
-      const target = tabCapture.target ?? await tabCapture.openGoogleSlides();
-      if (!target) {
-        setRecoveryMessage('Google Slides cursor tracking did not connect. Check the URL, then click Connect Google Slides again.');
-        setSourcesOpen(true);
-        return;
-      }
-      if (navigator.userActivation && !navigator.userActivation.isActive) {
-        setRecoveryMessage('Google Slides is ready, but Chrome needs a fresh click to open sharing. Click Connect Google Slides again.');
-        setSourcesOpen(true);
-        return;
-      }
-
       const capture = await acquireScreen();
       const videoTrack = capture?.getVideoTracks()[0];
       if (!capture || !videoTrack) {
-        setRecoveryMessage('Chrome could not open tab sharing. Click Connect Google Slides again and choose the prepared tab.');
+        setRecoveryMessage('Chrome could not open tab sharing. Open your presentation, then click Connect Google Slides and choose its tab.');
         setSourcesOpen(true);
         return;
       }
       const displaySurface = videoTrack.getSettings().displaySurface;
       if (displaySurface && displaySurface !== 'browser') {
         stopScreen();
-        setRecoveryMessage('Choose the prepared Google Slides browser tab, not a window or an entire screen.');
+        setRecoveryMessage('Choose a Google Slides browser tab, not a window or an entire screen.');
         setSourcesOpen(true);
         return;
       }
@@ -419,14 +407,14 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       }).getCaptureHandle?.()?.handle;
       if (!captureHandle) {
         stopScreen();
-        setRecoveryMessage('RecordWeb could not verify the shared tab. Choose the prepared Google Slides tab in Chrome and click Share.');
+        setRecoveryMessage('RecordWeb could not verify the shared tab. Choose an open Google Slides tab in Chrome and click Share.');
         setSourcesOpen(true);
         return;
       }
       const selectedTarget = await tabCapture.resolveCaptureTarget(captureHandle);
       if (!selectedTarget) {
         stopScreen();
-        setRecoveryMessage('The selected source is not the connected Google Slides tab. Click Connect Google Slides and choose that tab in Chrome.');
+        setRecoveryMessage('The selected source is not a trackable Google Slides tab. Reload that Slides tab, then connect it again.');
         setSourcesOpen(true);
         return;
       }
@@ -547,7 +535,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         return;
       }
       if (!screenStream?.getVideoTracks().length) {
-        setRecoveryMessage('Click Connect Google Slides and choose the prepared tab before starting the recording.');
+        setRecoveryMessage('Click Connect Google Slides and choose your open presentation tab before starting the recording.');
         setSourcesOpen(true);
         return;
       }

@@ -169,7 +169,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
         if (pendingCaptureResolutionRef.current?.requestId !== requestId) return;
         pendingCaptureResolutionRef.current = null;
         setStatus('error');
-        setMessage('The shared tab did not confirm cursor tracking in time. Choose the prepared Google Slides tab and try again.');
+        setMessage('The shared tab did not confirm cursor tracking in time. Reload the Google Slides tab and try again.');
         resolve(null);
       }, CAPTURE_RESOLUTION_TIMEOUT_MS);
       pendingCaptureResolutionRef.current = { requestId, resolve, timeoutId };
@@ -203,7 +203,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
     setTarget(null);
     setStatus(available ? 'ready' : 'unavailable');
     setMessage(available
-      ? 'Extension ready. Paste a Google Slides URL to prepare cursor tracking.'
+      ? 'Extension ready. Open your presentation, then select its tab from Connect Google Slides.'
       : 'Install or enable the RecordWeb extension, then reload this page.');
   }, [available, settlePendingTargetConnection]);
 
@@ -216,7 +216,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
         setAvailable(true);
         setStatus((current) => current === 'unavailable' ? 'ready' : current);
         setMessage((current) => current.startsWith('Install or enable')
-          ? 'Extension ready. Paste a Google Slides URL to open the presentation tab.'
+          ? 'Extension ready. Open your presentation, then select its tab from Connect Google Slides.'
           : current);
         return;
       }

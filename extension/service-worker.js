@@ -145,7 +145,7 @@ async function resolveCaptureTarget(handle, requestId, appTabId, appPort) {
     postPortMessage(appPort, {
       type: 'CAPTURE_TARGET_REJECTED',
       requestId,
-      message: 'The shared source is not a connected Google Slides tab. Choose the Slides tab prepared by RecordWeb.',
+      message: 'The shared source is not a trackable Google Slides tab. Open or reload the presentation tab, then choose it again.',
     });
     return;
   }
@@ -392,7 +392,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   currentTarget = null;
   currentAppTabId = null;
   clearBadge(tabId);
-  sendAppMessage({ type: 'TARGET_ENDED', message: 'The prepared tab navigated away from Google Slides.' });
+  sendAppMessage({ type: 'TARGET_ENDED', message: 'The selected tab navigated away from Google Slides.' });
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
@@ -407,7 +407,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   if (currentTarget?.tabId === tabId) {
     currentTarget = null;
     currentAppTabId = null;
-    sendAppMessage({ type: 'TARGET_ENDED', message: 'The prepared Google Slides tab was closed.' });
+    sendAppMessage({ type: 'TARGET_ENDED', message: 'The selected Google Slides tab was closed.' });
   }
   if (currentAppTabId === tabId) currentAppTabId = null;
   if (requestedAppTabId === tabId) requestedAppTabId = null;
