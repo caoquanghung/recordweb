@@ -387,6 +387,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         return;
       }
 
+      void resumeAudio();
       const capture = await acquireScreen();
       const videoTrack = capture?.getVideoTracks()[0];
       if (!capture || !videoTrack) {
@@ -472,36 +473,12 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   }, [countdown, startRecording]);
 
   useEffect(() => {
-    const handlePresentationCommand = (event: Event) => {
-      const command = (event as CustomEvent<ExtensionPresentationCommand>).detail;
-      if (command === 'return-to-start' && workspace === 'studio' && session === 'setup') {
-        setStartRecordingAttention((value) => value + 1);
-      }
-      if (command === 'stop' && (session === 'recording' || session === 'paused')) stopRecording();
-      if (command === 'end-session' && (session === 'recording' || session === 'paused')) {
-        endSessionRequestedRef.current = true;
-        stopRecording();
-      }
-      if (command === 'toggle-pause') {
-        if (session === 'recording') pauseRecording();
-        if (session === 'paused') resumeRecording();
-      }
-      if (command === 'toggle-microphone') setMicMuted((value) => !value);
-      if (command === 'toggle-camera') setCameraVisible((value) => !value);
-    };
-    window.addEventListener(RECORDWEB_PRESENTATION_COMMAND_EVENT, handlePresentationCommand);
-    return () => {
-      window.removeEventListener(RECORDWEB_PRESENTATION_COMMAND_EVENT, handlePresentationCommand);
-    };
-  }, [pauseRecording, resumeRecording, session, stopRecording, workspace]);
-
-  useEffect(() => {
     if (!startRecordingAttention) return;
     const timer = window.setTimeout(() => setStartRecordingAttention(0), 6000);
     return () => window.clearTimeout(timer);
   }, [startRecordingAttention]);
 
-  const startUiTest = async () => {
+  const startUiTest = useCallback(async () => {
     let presentationCaptureStarted = false;
     if (workspace === 'presentation') {
       if (presentationDeck.status !== 'ready' || !presentationDeck.metadata) {
@@ -564,7 +541,50 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     setSourcesOpen(false);
     setEffectsOpen(false);
     if (!presentationWorkspace && tabCaptureConnected) focusTabCaptureTarget();
-  };
+  }, [
+    focusTabCaptureTarget,
+    mode,
+    presentationDeck.metadata,
+    presentationDeck.status,
+    presentationElement,
+    presentationSource,
+    presentationWorkspace,
+    recordingVideoStream,
+    resetRecording,
+    resumeAudio,
+    screenStream,
+    tabCapture.available,
+    tabCapture.connected,
+    tabCaptureConnected,
+    workspace,
+  ]);
+
+  useEffect(() => {
+    const handlePresentationCommand = (event: Event) => {
+      const command = (event as CustomEvent<ExtensionPresentationCommand>).detail;
+      if (command === 'start' && workspace === 'studio' && session === 'setup') {
+        void startUiTest();
+      }
+      if (command === 'return-to-start' && workspace === 'studio' && session === 'setup') {
+        setStartRecordingAttention((value) => value + 1);
+      }
+      if (command === 'stop' && (session === 'recording' || session === 'paused')) stopRecording();
+      if (command === 'end-session' && (session === 'recording' || session === 'paused')) {
+        endSessionRequestedRef.current = true;
+        stopRecording();
+      }
+      if (command === 'toggle-pause') {
+        if (session === 'recording') pauseRecording();
+        if (session === 'paused') resumeRecording();
+      }
+      if (command === 'toggle-microphone') setMicMuted((value) => !value);
+      if (command === 'toggle-camera') setCameraVisible((value) => !value);
+    };
+    window.addEventListener(RECORDWEB_PRESENTATION_COMMAND_EVENT, handlePresentationCommand);
+    return () => {
+      window.removeEventListener(RECORDWEB_PRESENTATION_COMMAND_EVENT, handlePresentationCommand);
+    };
+  }, [pauseRecording, resumeRecording, session, startUiTest, stopRecording, workspace]);
 
   const recoverLatestDraft = async () => {
     const draft = recoveryDrafts[0];

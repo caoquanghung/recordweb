@@ -67,9 +67,18 @@ type StreamSetter = Dispatch<SetStateAction<MediaStream | null>>;
 type CaptureStream = () => Promise<MediaStream>;
 
 interface RecordWebDisplayMediaOptions extends DisplayMediaStreamOptions {
+  controller?: RecordWebCaptureController;
   monitorTypeSurfaces?: 'include' | 'exclude';
   selfBrowserSurface?: 'include' | 'exclude';
   surfaceSwitching?: 'include' | 'exclude';
+}
+
+interface RecordWebCaptureController {
+  setFocusBehavior: (behavior: 'focus-capturing-application' | 'no-focus-change') => void;
+}
+
+interface RecordWebCaptureControllerConstructor {
+  new(): RecordWebCaptureController;
 }
 
 const INITIAL_STATUSES: MediaSourceState = {
@@ -86,7 +95,28 @@ function createStandardVideoConstraints(): MediaTrackConstraints {
   };
 }
 
-function createScreenCaptureOptions(): RecordWebDisplayMediaOptions {
+function createCaptureController(): RecordWebCaptureController | null {
+  const CaptureControllerConstructor = (globalThis as typeof globalThis & {
+    CaptureController?: RecordWebCaptureControllerConstructor;
+  }).CaptureController;
+  if (!CaptureControllerConstructor) return null;
+
+  try {
+    const controller = new CaptureControllerConstructor();
+    try {
+      controller.setFocusBehavior('focus-capturing-application');
+    } catch {
+      controller.setFocusBehavior('no-focus-change');
+    }
+    return controller;
+  } catch {
+    return null;
+  }
+}
+
+function createScreenCaptureOptions(
+  controller: RecordWebCaptureController | null,
+): RecordWebDisplayMediaOptions {
   return {
     video: {
       ...createStandardVideoConstraints(),
@@ -96,6 +126,7 @@ function createScreenCaptureOptions(): RecordWebDisplayMediaOptions {
     monitorTypeSurfaces: 'exclude',
     selfBrowserSurface: 'exclude',
     surfaceSwitching: 'exclude',
+    ...(controller ? { controller } : {}),
   };
 }
 
@@ -318,7 +349,7 @@ export function useMediaDevices(): UseMediaDevicesResult {
   const acquireScreen = useCallback(async () => {
     const mediaDevices = getMediaDevices();
     const capture = mediaDevices?.getDisplayMedia
-      ? () => mediaDevices.getDisplayMedia(createScreenCaptureOptions())
+      ? () => mediaDevices.getDisplayMedia(createScreenCaptureOptions(createCaptureController()))
       : null;
 
     return acquireStream('screen', capture, screenRef, setScreenStream);

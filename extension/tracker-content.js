@@ -7,7 +7,7 @@
   const CAPTURE_HANDLE_ATTRIBUTE = 'data-recordweb-capture-handle';
   // Retain the pre-session handoff module for future experiments without
   // showing a redundant Ready pill while target tabs prepare in background.
-  const ENABLE_PRESESSION_READY_CONTROLS = false;
+  const ENABLE_PRESESSION_READY_CONTROLS = true;
   const port = chrome.runtime.connect({ name: 'recordweb-tracker' });
   let disconnected = false;
   let sessionId = null;
@@ -186,7 +186,7 @@
           <span class="status-label">Recording</span>
         </button>
         <div class="controls">
-          <button class="ready-action" type="button" title="Return to RecordWeb to start recording">Continue in RecordWeb</button>
+          <button class="ready-action" type="button" title="Start recording with the connected RecordWeb Studio">Start recording</button>
           <span class="separator" aria-hidden="true"></span>
           <button class="control pause" type="button" title="Pause or resume recording"><span class="icon" aria-hidden="true">Ⅱ</span><span class="label">Pause</span></button>
           <button class="control microphone" type="button" data-active="true" title="Mute or unmute microphone"><span class="icon" aria-hidden="true">●</span><span class="label">Mic</span></button>
@@ -212,7 +212,7 @@
       dock.dataset.mode = state.mode;
       dock.setAttribute('aria-label', state.mode === 'ready' ? 'RecordWeb start recording control' : 'RecordWeb recording controls');
       launcher.setAttribute('aria-expanded', String(state.expanded));
-      launcher.title = state.mode === 'ready' ? 'Return to RecordWeb to start recording' : 'Show RecordWeb controls';
+      launcher.title = state.mode === 'ready' ? 'Start recording from this presentation tab' : 'Show RecordWeb controls';
       statusLabel.textContent = state.mode === 'ready' ? 'Ready to record' : 'Recording';
       pauseButton.querySelector('.icon').textContent = state.paused ? '▶' : 'Ⅱ';
       pauseButton.querySelector('.label').textContent = state.paused ? 'Resume' : 'Pause';
@@ -252,7 +252,7 @@
     dock.addEventListener('click', stopSlidesInteraction);
     readyButton.addEventListener('click', () => {
       collapse();
-      postToExtension({ type: 'PRESENTATION_COMMAND', command: 'return-to-start' });
+      postToExtension({ type: 'PRESENTATION_COMMAND', command: 'start' });
     });
     pauseButton.addEventListener('click', () => {
       state.paused = !state.paused;

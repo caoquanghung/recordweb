@@ -19,7 +19,7 @@ The default Studio UI does not request or store a Slides URL. Its Connect action
 
 After the user selects a tab in Chrome's share picker, version `0.3.9` reads the tab's opaque Capture Handle and asks the extension to resolve it to the matching tracker port. This makes the picker-selected tab the cursor target without requiring a URL field. A window, full screen, non-Slides tab, or unregistered Slides tab is rejected and its stream is stopped. Once verified, RecordWeb is focused again and shows the retained stream in Studio preview. Pressing **Start recording** immediately focuses that verified Slides tab while RecordWeb runs the countdown and starts its recorders.
 
-The pre-session **Ready to record** handoff module remains implemented, including **Continue in RecordWeb** and the Start-button attention state, but its in-tab UI is disabled in version `0.3.7`. Setup returns to RecordWeb after picker verification, and the first presentation overlay appears only after recording starts.
+After picker verification, the selected Slides tab exposes the compact, auto-collapsing **Ready to record** control. If the teacher visits the Slides tab to make last-minute edits, expanding the control and choosing **Start recording** sends the same guarded Start command to the connected Studio without reopening the picker. The existing RecordWeb Start button remains available in Studio.
 
 After Start, RecordWeb automatically focuses the verified picker-selected Slides tab. During an active recording, a compact **Recording** pill appears in the bottom-right corner. Hovering or clicking expands pause/resume, microphone, camera, and **End session** controls; it collapses again after a short period of inactivity. The control is isolated from Google Slides with Shadow DOM and follows the active fullscreen element. Because it is rendered inside the shared tab, it is visible in the captured video while shown.
 
@@ -42,6 +42,7 @@ After Start, RecordWeb automatically focuses the verified picker-selected Slides
 - Version `0.3.4` moves a reused editable Slides tab into `/present` before recording and prevents a stale navigation port from deleting its replacement tracker port.
 - Version `0.3.5` adds the pre-session **Ready to record** handoff and highlights/focuses Start after returning to RecordWeb without bypassing Chrome's required share-picker gesture.
 - Version `0.3.6` keeps RecordWeb active while preparing either a reused or newly created Slides tab; the target is focused only after recording starts.
-- Version `0.3.7` disconnects the redundant pre-session Ready overlay from the UI while retaining its implementation behind a feature flag; the active-recording toolbar is unchanged.
+- Version `0.3.7` initially disconnected the pre-session Ready overlay while retaining its implementation; it is enabled again in the current flow so a verified target tab can start the connected Studio session.
 - Version `0.3.8` adds an explicit post-picker return to RecordWeb; the prepared Slides tab is activated when the user presses Start recording.
 - Version `0.3.9` adds an opaque Capture Handle handshake so the exact picker-selected Google Slides tab becomes both the live-preview source and cursor target; mismatched sources are rejected before recording.
+- Version `0.4.0` re-enables the pre-session target-tab bar after picker verification and lets its **Start recording** action invoke the same guarded Studio start flow without reacquiring the shared tab.

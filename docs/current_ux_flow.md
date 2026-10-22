@@ -119,11 +119,11 @@ The Studio opens in `setup` state and divides configuration into Sources, the ce
    - **Camera** — webcam only.
 2. Choose the camera and microphone devices, then select **Connect camera & microphone**. Google Slides connection remains disabled until microphone access is ready and, for camera modes, camera access is also ready. Screen-only mode requires only the microphone and does not activate the camera.
 3. Open the presentation in a Google Slides tab, then select **Connect Google Slides**. The Studio UI does not ask for the Slides URL; the URL validation/find-or-create module remains available internally but is not connected to this flow.
-4. The Slides action immediately opens Chrome's native share picker. Select the open Google Slides tab and press **Share**. RecordWeb reads its opaque Capture Handle, and the extension resolves that handle to the exact Slides `tabId`; a window, entire screen, non-Slides tab, or unregistered Slides tab is rejected and stopped. After verification, the extension focuses RecordWeb again so the selected tab appears only as the Studio live preview during setup.
+4. The Slides action immediately opens Chrome's native share picker. Select the open Google Slides tab and press **Share**. RecordWeb requests that Chrome keep the capturing Studio tab focused, reads the selected tab's opaque Capture Handle, and resolves it to the exact Slides `tabId`; a window, entire screen, non-Slides tab, or unregistered Slides tab is rejected and stopped. The selected tab appears only as the Studio live preview during setup, with extension-based Studio refocus retained as a compatibility fallback.
 5. Confirm the live Slides preview plus camera, microphone, tab-video, system-audio, and cursor-target readiness.
 6. Choose either 720p or 1080p output. Both use a 16:9 frame, target 30 FPS, and have a 30-minute maximum active duration.
 
-Setup remains in RecordWeb until Chrome displays its native picker. The pre-session **Ready to record** / **Continue in RecordWeb** module is retained behind an extension feature flag but is not rendered in the current flow. The separate **Connect Google Slides** gesture directly owns the `getDisplayMedia()` request; only a stream whose Capture Handle maps to a live extension tracker drives the Studio preview and becomes the Start target.
+Setup remains in RecordWeb until Chrome displays its native picker. After verification, the selected Slides tab shows a compact, auto-collapsing **Ready to record** control. A teacher who visits that tab for last-minute edits can start the already-connected Studio session from the control without reopening the picker; the normal Studio Start button remains available. The separate **Connect Google Slides** gesture directly owns the `getDisplayMedia()` request, and only a stream whose Capture Handle maps to a live extension tracker drives the Studio preview and becomes the Start target.
 
 If the extension capture path is unavailable and the legacy helper is present, the UI can fall back to native screen selection plus a legacy cursor display selection.
 
@@ -154,7 +154,7 @@ stateDiagram-v2
     Review --> Setup: Record another
 ```
 
-1. Select **Start recording** after the live preview is ready. Start reuses the tab stream acquired by Connect, begins the countdown, and immediately focuses the verified picker-selected Google Slides tab without opening the share picker again.
+1. Select **Start recording** in Studio, or use the target tab's **Ready to record → Start recording** control after the live preview is ready. Both actions run the same source validation, reuse the tab stream acquired by Connect, begin the countdown, and keep/focus the verified picker-selected Google Slides tab without opening the share picker again.
 2. If no usable video source or cursor target is ready, recording stays in setup and the Sources panel reopens with guidance.
 3. The app resumes browser audio if needed, closes the side panels, and shows a three-second countdown.
 4. When the countdown completes, the app starts the recorders in the already-focused Slides tab. A compact **Recording** pill appears in the bottom-right corner only while recording. Hovering or clicking expands pause/resume, microphone, camera, and **End session** controls; it auto-collapses after inactivity and follows Slides into browser fullscreen. The overlay is part of the shared tab, so it appears in captured video while visible.
