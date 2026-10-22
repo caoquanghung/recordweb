@@ -365,7 +365,10 @@ chrome.runtime.onConnect.addListener((port) => {
         captureHandles.set(tabId, message.handle);
         pairRequestedTarget();
       }
-      if (message.type === 'CURSOR_SAMPLE' && currentTarget?.tabId === tabId) sendAppMessage(message);
+      if ((message.type === 'CURSOR_SAMPLE'
+        || message.type === 'CURSOR_STARTED'
+        || message.type === 'CURSOR_STOPPED')
+        && currentTarget?.tabId === tabId) sendAppMessage(message);
       if (message.type === 'PRESENTATION_COMMAND' && currentTarget?.tabId === tabId) {
         const appTabId = currentAppTabId ?? appPorts.keys().next().value;
         if (message.command === 'return-to-start') {
@@ -392,6 +395,14 @@ chrome.runtime.onConnect.addListener((port) => {
           requestedAppTabId = null;
         }
         clearBadge(tabId);
+        if (currentTarget?.tabId === tabId) {
+          currentTarget = null;
+          currentAppTabId = null;
+          sendAppMessage({
+            type: 'TARGET_ENDED',
+            message: 'Cursor tracking disconnected from the selected Google Slides tab. RecordWeb will stop any active recording to protect cursor data.',
+          });
+        }
       }
     });
   }

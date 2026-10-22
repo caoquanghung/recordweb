@@ -65,6 +65,7 @@ export interface CursorTrajectory {
 }
 
 export interface CursorCaptureController {
+  requiredForRecording?: boolean;
   start: (sessionId: string) => Promise<{ started: boolean; warning?: string }>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;

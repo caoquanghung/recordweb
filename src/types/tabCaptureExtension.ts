@@ -49,6 +49,21 @@ export type ExtensionToPageMessage =
   | {
       channel: typeof RECORDWEB_EXTENSION_CHANNEL;
       direction: 'extension-to-page';
+      type: 'CURSOR_STARTED';
+      requestId: string;
+      sessionId: string;
+    }
+  | {
+      channel: typeof RECORDWEB_EXTENSION_CHANNEL;
+      direction: 'extension-to-page';
+      type: 'CURSOR_STOPPED';
+      requestId: string;
+      sessionId: string;
+      lastSampleIndex: number;
+    }
+  | {
+      channel: typeof RECORDWEB_EXTENSION_CHANNEL;
+      direction: 'extension-to-page';
       type: 'CURSOR_SAMPLE';
       sessionId: string;
       sample: CursorTrajectorySample;

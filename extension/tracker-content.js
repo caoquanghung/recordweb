@@ -441,11 +441,29 @@
     }
     if (message.type === 'CURSOR_START' && message.sessionId) {
       startSampler(message.sessionId, message.offsetMs, message.startIndex);
+      if (message.requestId) {
+        postToExtension({
+          type: 'CURSOR_STARTED',
+          requestId: message.requestId,
+          sessionId: message.sessionId,
+        });
+      }
     }
     if (message.type === 'CURSOR_PAUSE' && message.sessionId === sessionId) pauseSampler();
     if (message.type === 'CURSOR_RESUME' && message.sessionId === sessionId) resumeSampler();
     if (message.type === 'CURSOR_STOP' && (!message.sessionId || message.sessionId === sessionId)) {
+      const stoppedSessionId = sessionId;
+      if (stoppedSessionId) publishSample();
+      const lastSampleIndex = sampleIndex - 1;
       resetSampler(ENABLE_PRESESSION_READY_CONTROLS);
+      if (message.requestId && stoppedSessionId) {
+        postToExtension({
+          type: 'CURSOR_STOPPED',
+          requestId: message.requestId,
+          sessionId: stoppedSessionId,
+          lastSampleIndex,
+        });
+      }
     }
     if (message.type === 'CURSOR_RESET' && (!message.sessionId || message.sessionId === sessionId)) resetSampler();
     if (message.type === 'DISCONNECT') resetSampler();

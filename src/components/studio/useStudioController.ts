@@ -12,6 +12,7 @@ import { usePresentationRecordingSource } from '@/hooks/usePresentationRecording
 import { useRecordingSession } from '@/hooks/useRecordingSession';
 import { useVisionSegmentation } from '@/hooks/useVisionSegmentation';
 import { decodeRecordedWaveform } from '@/lib/audioWaveform';
+import { waitForCaptureHandle } from '@/lib/captureHandle';
 import { repairWebmDuration } from '@/lib/ebmlPatcher';
 import {
   deleteRecordingDraft,
@@ -58,43 +59,6 @@ export type StudioWorkspaceKind = 'studio' | 'presentation';
 
 interface UseStudioControllerOptions {
   workspace?: StudioWorkspaceKind;
-}
-
-interface CaptureHandleCapableTrack extends MediaStreamTrack {
-  getCaptureHandle?: () => { handle?: string } | null;
-}
-
-const CAPTURE_HANDLE_WAIT_MS = 2_500;
-
-function captureHandleFromTrack(track: CaptureHandleCapableTrack) {
-  return track.getCaptureHandle?.()?.handle || null;
-}
-
-function waitForCaptureHandle(track: CaptureHandleCapableTrack): Promise<string | null> {
-  const initialHandle = captureHandleFromTrack(track);
-  if (initialHandle || !track.getCaptureHandle) return Promise.resolve(initialHandle);
-
-  return new Promise((resolve) => {
-    let intervalId = 0;
-    let timeoutId = 0;
-    const finish = (handle: string | null) => {
-      window.clearInterval(intervalId);
-      window.clearTimeout(timeoutId);
-      track.removeEventListener('capturehandlechange', checkHandle);
-      track.removeEventListener('ended', handleTrackEnded);
-      resolve(handle);
-    };
-    const checkHandle = () => {
-      const handle = captureHandleFromTrack(track);
-      if (handle) finish(handle);
-    };
-    const handleTrackEnded = () => finish(null);
-
-    track.addEventListener('capturehandlechange', checkHandle);
-    track.addEventListener('ended', handleTrackEnded, { once: true });
-    intervalId = window.setInterval(checkHandle, 50);
-    timeoutId = window.setTimeout(() => finish(null), CAPTURE_HANDLE_WAIT_MS);
-  });
 }
 
 export function useStudioController({ workspace = 'studio' }: UseStudioControllerOptions = {}) {
@@ -440,7 +404,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         return;
       }
 
-      const captureHandle = await waitForCaptureHandle(videoTrack as CaptureHandleCapableTrack);
+      const captureHandle = await waitForCaptureHandle(videoTrack);
       if (!captureHandle) {
         stopScreen();
         setRecoveryMessage('RecordWeb could not verify the shared tab. Choose an open Google Slides tab in Chrome and click Share.');

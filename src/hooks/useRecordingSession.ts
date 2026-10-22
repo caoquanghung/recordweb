@@ -502,8 +502,13 @@ export function useRecordingSession({
       if (sessionCursorCaptureRef.current) {
         try {
           const cursorResult = await sessionCursorCaptureRef.current.start(id);
-          if (!cursorResult.started && cursorResult.warning) assetErrorsRef.current.push(cursorResult.warning);
+          if (!cursorResult.started) {
+            const message = cursorResult.warning ?? 'Cursor tracking did not start.';
+            if (sessionCursorCaptureRef.current.requiredForRecording) throw new Error(message);
+            assetErrorsRef.current.push(message);
+          }
         } catch (cause) {
+          if (sessionCursorCaptureRef.current.requiredForRecording) throw cause;
           assetErrorsRef.current.push(`cursor: ${(cause as Error).message}`);
         }
       }

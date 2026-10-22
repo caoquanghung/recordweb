@@ -46,8 +46,24 @@ interface PendingCaptureResolution {
   timeoutId: number;
 }
 
+interface PendingCursorStart {
+  requestId: string;
+  sessionId: string;
+  resolve: (started: boolean) => void;
+  timeoutId: number;
+}
+
+interface PendingCursorStop {
+  requestId: string;
+  sessionId: string;
+  lastSampleIndex: number | null;
+  resolve: (complete: boolean) => void;
+  timeoutId: number;
+}
+
 const TARGET_CONNECTION_TIMEOUT_MS = 10_000;
 const CAPTURE_RESOLUTION_TIMEOUT_MS = 5_000;
+const CURSOR_COMMAND_ACK_TIMEOUT_MS = 5_000;
 
 function postToExtension(message: Omit<PageToExtensionMessage, 'channel' | 'direction'>) {
   window.postMessage({
@@ -94,6 +110,35 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
   const viewportRef = useRef({ width: 1, height: 1 });
   const pendingTargetConnectionRef = useRef<PendingTargetConnection | null>(null);
   const pendingCaptureResolutionRef = useRef<PendingCaptureResolution | null>(null);
+  const pendingCursorStartRef = useRef<PendingCursorStart | null>(null);
+  const pendingCursorStopRef = useRef<PendingCursorStop | null>(null);
+
+  const settlePendingCursorStart = useCallback((started: boolean) => {
+    const pendingStart = pendingCursorStartRef.current;
+    if (!pendingStart) return;
+    pendingCursorStartRef.current = null;
+    window.clearTimeout(pendingStart.timeoutId);
+    pendingStart.resolve(started);
+  }, []);
+
+  const settlePendingCursorStopIfDrained = useCallback(() => {
+    const pendingStop = pendingCursorStopRef.current;
+    if (!pendingStop || pendingStop.lastSampleIndex === null) return;
+    const receivedLastIndex = samplesRef.current.at(-1)?.index ?? -1;
+    if (receivedLastIndex < pendingStop.lastSampleIndex) return;
+    pendingCursorStopRef.current = null;
+    window.clearTimeout(pendingStop.timeoutId);
+    pendingStop.resolve(true);
+  }, []);
+
+  const abortPendingCursorCommands = useCallback(() => {
+    settlePendingCursorStart(false);
+    const pendingStop = pendingCursorStopRef.current;
+    if (!pendingStop) return;
+    pendingCursorStopRef.current = null;
+    window.clearTimeout(pendingStop.timeoutId);
+    pendingStop.resolve(false);
+  }, [settlePendingCursorStart]);
 
   const settlePendingTargetConnection = useCallback((target: ExtensionTargetTab | null) => {
     const pendingConnection = pendingTargetConnectionRef.current;
@@ -199,13 +244,14 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
       window.clearTimeout(pendingResolution.timeoutId);
       pendingResolution.resolve(null);
     }
+    abortPendingCursorCommands();
     targetRef.current = null;
     setTarget(null);
     setStatus(available ? 'ready' : 'unavailable');
     setMessage(available
       ? 'Extension ready. Open your presentation, then select its tab from Connect Google Slides.'
       : 'Install or enable the RecordWeb extension, then reload this page.');
-  }, [available, settlePendingTargetConnection]);
+  }, [abortPendingCursorCommands, available, settlePendingTargetConnection]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent<unknown>) => {
@@ -228,24 +274,6 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
         setStatus('connected');
         setMessage(`Cursor tracking is ready for “${extensionMessage.target.title}”.`);
         settlePendingTargetConnection(extensionMessage.target);
-        const activeSessionId = sessionIdRef.current;
-        if (activeSessionId) {
-          const lastSample = samplesRef.current.at(-1);
-          postToExtension({
-            type: 'CURSOR_START',
-            sessionId: activeSessionId,
-            targetTabId: extensionMessage.target.tabId,
-            offsetMs: lastSample?.timestampMs ?? 0,
-            startIndex: lastSample ? lastSample.index + 1 : 0,
-          });
-          if (sessionPausedRef.current) {
-            postToExtension({
-              type: 'CURSOR_PAUSE',
-              sessionId: activeSessionId,
-              targetTabId: extensionMessage.target.tabId,
-            });
-          }
-        }
         return;
       }
 
@@ -280,6 +308,24 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
         if (extensionMessage.sessionId !== sessionIdRef.current) return;
         samplesRef.current.push(extensionMessage.sample);
         viewportRef.current = extensionMessage.viewport;
+        settlePendingCursorStopIfDrained();
+        return;
+      }
+
+      if (extensionMessage.type === 'CURSOR_STARTED') {
+        const pendingStart = pendingCursorStartRef.current;
+        if (pendingStart?.requestId !== extensionMessage.requestId
+          || pendingStart.sessionId !== extensionMessage.sessionId) return;
+        settlePendingCursorStart(true);
+        return;
+      }
+
+      if (extensionMessage.type === 'CURSOR_STOPPED') {
+        const pendingStop = pendingCursorStopRef.current;
+        if (pendingStop?.requestId !== extensionMessage.requestId
+          || pendingStop.sessionId !== extensionMessage.sessionId) return;
+        pendingStop.lastSampleIndex = extensionMessage.lastSampleIndex;
+        settlePendingCursorStopIfDrained();
         return;
       }
 
@@ -294,8 +340,15 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
       setMessage(extensionMessage.message);
       settlePendingTargetConnection(null);
       if (extensionMessage.type === 'TARGET_ENDED') {
+        const cursorSessionWasActive = Boolean(sessionIdRef.current);
+        abortPendingCursorCommands();
         targetRef.current = null;
         setTarget(null);
+        if (cursorSessionWasActive) {
+          window.dispatchEvent(new CustomEvent(RECORDWEB_PRESENTATION_COMMAND_EVENT, {
+            detail: 'stop',
+          }));
+        }
       }
     };
 
@@ -310,10 +363,18 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
         window.clearTimeout(pendingResolution.timeoutId);
         pendingResolution.resolve(null);
       }
+      abortPendingCursorCommands();
     };
-  }, [settlePendingCaptureResolution, settlePendingTargetConnection]);
+  }, [
+    abortPendingCursorCommands,
+    settlePendingCaptureResolution,
+    settlePendingCursorStart,
+    settlePendingCursorStopIfDrained,
+    settlePendingTargetConnection,
+  ]);
 
   const cursorController = useMemo<CursorCaptureController>(() => ({
+    requiredForRecording: true,
     start: async (sessionId) => {
       const currentTarget = targetRef.current;
       if (!currentTarget) {
@@ -323,7 +384,25 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
       sessionTargetRef.current = currentTarget;
       sessionPausedRef.current = false;
       samplesRef.current = [];
-      postToExtension({ type: 'CURSOR_START', sessionId, targetTabId: currentTarget.tabId });
+      const requestId = crypto.randomUUID();
+      const started = await new Promise<boolean>((resolve) => {
+        const timeoutId = window.setTimeout(() => {
+          if (pendingCursorStartRef.current?.requestId !== requestId) return;
+          pendingCursorStartRef.current = null;
+          postToExtension({ type: 'CURSOR_RESET', sessionId, targetTabId: currentTarget.tabId });
+          resolve(false);
+        }, CURSOR_COMMAND_ACK_TIMEOUT_MS);
+        pendingCursorStartRef.current = { requestId, sessionId, resolve, timeoutId };
+        postToExtension({ type: 'CURSOR_START', requestId, sessionId, targetTabId: currentTarget.tabId });
+      });
+      if (!started || targetRef.current?.tabId !== currentTarget.tabId) {
+        sessionIdRef.current = null;
+        sessionTargetRef.current = null;
+        return {
+          started: false,
+          warning: 'Cursor tracker did not acknowledge recording start. Reload the Google Slides tab and reconnect it.',
+        };
+      }
       return { started: true };
     },
     pause: async () => {
@@ -346,10 +425,34 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
       const sessionId = sessionIdRef.current;
       const currentTarget = sessionTargetRef.current;
       if (!sessionId || !currentTarget) return null;
-      postToExtension({ type: 'CURSOR_STOP', sessionId, targetTabId: currentTarget.tabId });
+      if (targetRef.current?.tabId !== currentTarget.tabId) {
+        sessionIdRef.current = null;
+        sessionTargetRef.current = null;
+        sessionPausedRef.current = false;
+        throw new Error('Cursor tracker disconnected before it could confirm the final sample.');
+      }
+      const requestId = crypto.randomUUID();
+      const complete = await new Promise<boolean>((resolve) => {
+        const timeoutId = window.setTimeout(() => {
+          if (pendingCursorStopRef.current?.requestId !== requestId) return;
+          pendingCursorStopRef.current = null;
+          resolve(false);
+        }, CURSOR_COMMAND_ACK_TIMEOUT_MS);
+        pendingCursorStopRef.current = {
+          requestId,
+          sessionId,
+          lastSampleIndex: null,
+          resolve,
+          timeoutId,
+        };
+        postToExtension({ type: 'CURSOR_STOP', requestId, sessionId, targetTabId: currentTarget.tabId });
+      });
       sessionIdRef.current = null;
       sessionTargetRef.current = null;
       sessionPausedRef.current = false;
+      if (!complete) {
+        throw new Error('Cursor tracker did not confirm its final sample; cursor.json was not created.');
+      }
       return {
         schemaVersion: 1,
         sessionId,
@@ -373,6 +476,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
       };
     },
     reset: async () => {
+      abortPendingCursorCommands();
       postToExtension({
         type: 'CURSOR_RESET',
         sessionId: sessionIdRef.current ?? undefined,
@@ -383,7 +487,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
       sessionPausedRef.current = false;
       samplesRef.current = [];
     },
-  }), []);
+  }), [abortPendingCursorCommands]);
 
   return {
     available,
