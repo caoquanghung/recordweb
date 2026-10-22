@@ -5,6 +5,7 @@
   const SAMPLE_RATE_HZ = 24;
   const CONTROLS_AUTO_HIDE_MS = 3200;
   const CAPTURE_HANDLE_ATTRIBUTE = 'data-recordweb-capture-handle';
+  const FRAME_POINTER_EVENT = 'recordweb:cursor-frame-pointer';
   // Retain the pre-session handoff module for future experiments without
   // showing a redundant Ready pill while target tabs prepare in background.
   const ENABLE_PRESESSION_READY_CONTROLS = true;
@@ -17,6 +18,7 @@
   let sampleIndex = 0;
   let cursor = { x: null, y: null, visible: false };
   let controls = null;
+  let framePointerLogged = false;
 
   function registerCaptureHandle(attempt = 0) {
     const handle = document.documentElement?.getAttribute(CAPTURE_HANDLE_ATTRIBUTE);
@@ -382,6 +384,21 @@
     cursor = { x: event.clientX, y: event.clientY, visible: true };
   }
 
+  function onFramePointer(event) {
+    const pointer = event.detail;
+    if (!pointer || typeof pointer.visible !== 'boolean') return;
+    if (!pointer.visible) {
+      cursor = { x: null, y: null, visible: false };
+      return;
+    }
+    if (!Number.isFinite(pointer.x) || !Number.isFinite(pointer.y)) return;
+    cursor = { x: pointer.x, y: pointer.y, visible: true };
+    if (!framePointerLogged) {
+      framePointerLogged = true;
+      console.info('[RecordWeb][CursorTracker] receiving pointer events from a presentation frame');
+    }
+  }
+
   function onPointerLeave() {
     cursor = { x: null, y: null, visible: false };
   }
@@ -414,6 +431,7 @@
     disconnected = true;
     resetSampler();
     document.removeEventListener('pointermove', onPointerMove, true);
+    document.removeEventListener(FRAME_POINTER_EVENT, onFramePointer);
     document.removeEventListener('pointerleave', onPointerLeave, true);
     window.removeEventListener('blur', onWindowBlur);
     document.removeEventListener('fullscreenchange', moveControlsToFullscreenSurface);
@@ -429,6 +447,7 @@
   }
 
   document.addEventListener('pointermove', onPointerMove, { capture: true, passive: true });
+  document.addEventListener(FRAME_POINTER_EVENT, onFramePointer);
   document.addEventListener('pointerleave', onPointerLeave, { capture: true, passive: true });
   window.addEventListener('blur', onWindowBlur, { passive: true });
   document.addEventListener('keydown', onKeyDown, { capture: true });
