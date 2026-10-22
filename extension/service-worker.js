@@ -20,6 +20,7 @@ function isRecordWebAppUrl(urlValue) {
 const appPorts = new Map();
 const trackerPorts = new Map();
 const captureHandles = new Map();
+const CAPTURE_TARGET_RESOLUTION_TIMEOUT_MS = 2500;
 let currentTarget = null;
 let currentAppTabId = null;
 let requestedTarget = null;
@@ -139,8 +140,18 @@ function targetTabIdForCaptureHandle(handle) {
   return null;
 }
 
+async function waitForTargetTabId(handle) {
+  const deadline = Date.now() + CAPTURE_TARGET_RESOLUTION_TIMEOUT_MS;
+  let targetTabId = targetTabIdForCaptureHandle(handle);
+  while (!targetTabId && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    targetTabId = targetTabIdForCaptureHandle(handle);
+  }
+  return targetTabId;
+}
+
 async function resolveCaptureTarget(handle, requestId, appTabId, appPort) {
-  const targetTabId = targetTabIdForCaptureHandle(handle);
+  const targetTabId = await waitForTargetTabId(handle);
   if (!targetTabId) {
     postPortMessage(appPort, {
       type: 'CAPTURE_TARGET_REJECTED',

@@ -46,3 +46,4 @@ After Start, RecordWeb automatically focuses the verified picker-selected Slides
 - Version `0.3.8` adds an explicit post-picker return to RecordWeb; the prepared Slides tab is activated when the user presses Start recording.
 - Version `0.3.9` adds an opaque Capture Handle handshake so the exact picker-selected Google Slides tab becomes both the live-preview source and cursor target; mismatched sources are rejected before recording.
 - Version `0.4.0` re-enables the pre-session target-tab bar after picker verification and lets its **Start recording** action invoke the same guarded Studio start flow without reacquiring the shared tab.
+- Version `0.4.1` tolerates asynchronous Capture Handle publication and tracker registration after the picker returns, preventing a valid new share from being stopped by the handshake race.

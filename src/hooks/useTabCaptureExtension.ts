@@ -47,7 +47,7 @@ interface PendingCaptureResolution {
 }
 
 const TARGET_CONNECTION_TIMEOUT_MS = 10_000;
-const CAPTURE_RESOLUTION_TIMEOUT_MS = 3_000;
+const CAPTURE_RESOLUTION_TIMEOUT_MS = 5_000;
 
 function postToExtension(message: Omit<PageToExtensionMessage, 'channel' | 'direction'>) {
   window.postMessage({
