@@ -413,6 +413,23 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         setSourcesOpen(true);
         return;
       }
+
+      const captureHandle = (videoTrack as MediaStreamTrack & {
+        getCaptureHandle?: () => { handle?: string } | null;
+      }).getCaptureHandle?.()?.handle;
+      if (!captureHandle) {
+        stopScreen();
+        setRecoveryMessage('RecordWeb could not verify the shared tab. Choose the prepared Google Slides tab in Chrome and click Share.');
+        setSourcesOpen(true);
+        return;
+      }
+      const selectedTarget = await tabCapture.resolveCaptureTarget(captureHandle);
+      if (!selectedTarget) {
+        stopScreen();
+        setRecoveryMessage('The selected source is not the connected Google Slides tab. Click Connect Google Slides and choose that tab in Chrome.');
+        setSourcesOpen(true);
+        return;
+      }
       focusRecordWebApp();
       setSourcesOpen(false);
     } finally {
@@ -458,15 +475,13 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     const timer = window.setTimeout(() => {
       if (countdown <= 1) {
         setCountdown(null);
-        void startRecording().then(() => {
-          if (!presentationWorkspace && tabCaptureConnected) focusTabCaptureTarget();
-        });
+        void startRecording();
       } else {
         setCountdown((value) => value === null ? null : value - 1);
       }
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [countdown, focusTabCaptureTarget, presentationWorkspace, startRecording, tabCaptureConnected]);
+  }, [countdown, startRecording]);
 
   useEffect(() => {
     const handlePresentationCommand = (event: Event) => {
@@ -560,6 +575,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     setCountdown(3);
     setSourcesOpen(false);
     setEffectsOpen(false);
+    if (!presentationWorkspace && tabCaptureConnected) focusTabCaptureTarget();
   };
 
   const recoverLatestDraft = async () => {

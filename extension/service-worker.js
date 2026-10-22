@@ -19,6 +19,7 @@ function isRecordWebAppUrl(urlValue) {
 
 const appPorts = new Map();
 const trackerPorts = new Map();
+const captureHandles = new Map();
 let currentTarget = null;
 let currentAppTabId = null;
 let requestedTarget = null;
@@ -118,7 +119,9 @@ async function openRecordWeb() {
 }
 
 function pairRequestedTarget() {
-  if (!requestedTarget || !trackerPorts.has(requestedTarget.tabId)) return;
+  if (!requestedTarget
+    || !trackerPorts.has(requestedTarget.tabId)
+    || !captureHandles.has(requestedTarget.tabId)) return;
   currentTarget = requestedTarget;
   currentAppTabId = requestedAppTabId;
   requestedTarget = null;
@@ -126,6 +129,53 @@ function pairRequestedTarget() {
   setBadge(currentTarget.tabId, 'CUR', '#22c58b');
   postPortMessage(trackerPorts.get(currentTarget.tabId), { type: 'PRESENTATION_READY' });
   sendAppMessage({ type: 'TARGET_READY', target: currentTarget });
+}
+
+function targetTabIdForCaptureHandle(handle) {
+  if (typeof handle !== 'string' || !handle.startsWith('recordweb-slides-v1:')) return null;
+  for (const [tabId, registeredHandle] of captureHandles.entries()) {
+    if (registeredHandle === handle && trackerPorts.has(tabId)) return tabId;
+  }
+  return null;
+}
+
+async function resolveCaptureTarget(handle, requestId, appTabId, appPort) {
+  const targetTabId = targetTabIdForCaptureHandle(handle);
+  if (!targetTabId) {
+    postPortMessage(appPort, {
+      type: 'CAPTURE_TARGET_REJECTED',
+      requestId,
+      message: 'The shared source is not a connected Google Slides tab. Choose the Slides tab prepared by RecordWeb.',
+    });
+    return;
+  }
+
+  try {
+    const tab = await chrome.tabs.get(targetTabId);
+    const previousTargetTabId = currentTarget?.tabId;
+    if (typeof previousTargetTabId === 'number' && previousTargetTabId !== targetTabId) {
+      postPortMessage(trackerPorts.get(previousTargetTabId), { type: 'CURSOR_RESET' });
+      clearBadge(previousTargetTabId);
+    }
+
+    currentTarget = { tabId: targetTabId, title: tab.title || 'Google Slides' };
+    currentAppTabId = appTabId;
+    requestedTarget = null;
+    requestedAppTabId = null;
+    setBadge(targetTabId, 'CUR', '#22c58b');
+    postPortMessage(trackerPorts.get(targetTabId), { type: 'PRESENTATION_READY' });
+    postPortMessage(appPort, {
+      type: 'CAPTURE_TARGET_RESOLVED',
+      requestId,
+      target: currentTarget,
+    });
+  } catch {
+    postPortMessage(appPort, {
+      type: 'CAPTURE_TARGET_REJECTED',
+      requestId,
+      message: 'The shared Google Slides tab closed before RecordWeb could connect cursor tracking.',
+    });
+  }
 }
 
 async function openGoogleSlides(urlValue, appTabId, appPort) {
@@ -169,7 +219,7 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
         return;
       }
 
-      if (trackerPorts.has(existingTab.id)) {
+      if (trackerPorts.has(existingTab.id) && captureHandles.has(existingTab.id)) {
         currentTarget = target;
         setBadge(existingTab.id, 'CUR', '#22c58b');
         postPortMessage(trackerPorts.get(existingTab.id), { type: 'PRESENTATION_READY' });
@@ -179,7 +229,7 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
           requestedTarget = target;
           requestedAppTabId = appTabId;
         }
-        await chrome.tabs.reload(existingTab.id);
+        if (!trackerPorts.has(existingTab.id)) await chrome.tabs.reload(existingTab.id);
       }
 
       return;
@@ -248,6 +298,10 @@ chrome.runtime.onConnect.addListener((port) => {
         void openGoogleSlides(message.url, tabId, port);
         return;
       }
+      if (message.type === 'RESOLVE_CAPTURE_TARGET') {
+        void resolveCaptureTarget(message.captureHandle, message.requestId, tabId, port);
+        return;
+      }
       if (message.type === 'FOCUS_APP') {
         void focusTab(tabId);
         return;
@@ -294,6 +348,12 @@ chrome.runtime.onConnect.addListener((port) => {
     }
 
     port.onMessage.addListener((message) => {
+      if (message.type === 'CAPTURE_HANDLE_READY'
+        && typeof message.handle === 'string'
+        && message.handle.startsWith('recordweb-slides-v1:')) {
+        captureHandles.set(tabId, message.handle);
+        pairRequestedTarget();
+      }
       if (message.type === 'CURSOR_SAMPLE' && currentTarget?.tabId === tabId) sendAppMessage(message);
       if (message.type === 'PRESENTATION_COMMAND' && currentTarget?.tabId === tabId) {
         const appTabId = currentAppTabId ?? appPorts.keys().next().value;
@@ -315,6 +375,7 @@ chrome.runtime.onConnect.addListener((port) => {
     port.onDisconnect.addListener(() => {
       if (trackerPorts.get(tabId) === port) {
         trackerPorts.delete(tabId);
+        captureHandles.delete(tabId);
         if (requestedTarget?.tabId === tabId) {
           requestedTarget = null;
           requestedAppTabId = null;
@@ -337,6 +398,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   appPorts.delete(tabId);
   trackerPorts.delete(tabId);
+  captureHandles.delete(tabId);
   if (requestedTarget?.tabId === tabId) {
     requestedTarget = null;
     requestedAppTabId = null;

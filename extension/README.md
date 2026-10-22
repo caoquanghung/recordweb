@@ -11,14 +11,14 @@ This unpacked Chromium Manifest V3 extension automatically prepares 24 Hz cursor
 5. Reload an already-open RecordWeb tab after installing or reloading the extension so its bridge can connect.
 6. Configure and connect the camera and microphone in RecordWeb.
 7. Paste a Google Slides URL and choose **Connect Google Slides**.
-8. Wait for cursor tracking to connect, then choose the prepared Google Slides tab in Chrome's share picker and enable tab audio when needed.
+8. Choose the Google Slides tab in Chrome's share picker, enable tab audio when needed, and press **Share**. RecordWeb verifies that exact selected tab before keeping the preview.
 9. Confirm the live preview and press **Start recording**.
 
 The extension's static content script initializes cursor tracking automatically on supported Google Slides URLs. No toolbar click or extension shortcut is needed per recording session. Chrome still requires explicit confirmation in its native share picker for every new screen-share stream.
 Standard Google Slides edit/view URLs are opened in their `/present` form so the authorized tab is the presenter surface; published presentation URLs are preserved.
 Before creating a tab, the extension compares the presentation ID with all open Google Slides tabs. It reuses the most recently used matching tab regardless of `/edit`, `/view`, `/present`, account prefix, or query parameters. An editable `/edit`, `/view`, or `/preview` tab is navigated in place to `/present`, preserving its tab ID so cursor tracking follows the presentation navigation. Both reused and newly created tabs are prepared in the background, so RecordWeb remains active until the countdown completes. A new tab is created only when no matching deck is already open. Published presentation URLs remain unchanged.
 
-After the user selects the prepared tab in Chrome's share picker, version `0.3.8` focuses RecordWeb again so the tab stream is shown in the Studio preview without moving the setup workflow to Slides. The prepared Slides tab is focused only after recording starts.
+After the user selects a tab in Chrome's share picker, version `0.3.9` reads the tab's opaque Capture Handle and asks the extension to resolve it to the matching tracker port. This makes the picker-selected tab—not merely the tab found before the picker—the cursor target. A window, full screen, non-Slides tab, or unregistered Slides tab is rejected and its stream is stopped. Once verified, RecordWeb is focused again and shows the retained stream in Studio preview. Pressing **Start recording** immediately focuses that verified Slides tab while RecordWeb runs the countdown and starts its recorders.
 
 The pre-session **Ready to record** handoff module remains implemented, including **Continue in RecordWeb** and the Start-button attention state, but its in-tab UI is disabled in version `0.3.7`. Because both reused and newly created Slides targets prepare in the background, setup remains in RecordWeb and the first presentation overlay appears only after recording starts.
 
@@ -44,4 +44,5 @@ After the countdown, RecordWeb automatically focuses the prepared Slides tab. Du
 - Version `0.3.5` adds the pre-session **Ready to record** handoff and highlights/focuses Start after returning to RecordWeb without bypassing Chrome's required share-picker gesture.
 - Version `0.3.6` keeps RecordWeb active while preparing either a reused or newly created Slides tab; the target is focused only after recording starts.
 - Version `0.3.7` disconnects the redundant pre-session Ready overlay from the UI while retaining its implementation behind a feature flag; the active-recording toolbar is unchanged.
-- Version `0.3.8` adds an explicit post-picker return to RecordWeb; the prepared Slides tab is activated only after recording starts.
+- Version `0.3.8` adds an explicit post-picker return to RecordWeb; the prepared Slides tab is activated when the user presses Start recording.
+- Version `0.3.9` adds an opaque Capture Handle handshake so the exact picker-selected Google Slides tab becomes both the live-preview source and cursor target; mismatched sources are rejected before recording.

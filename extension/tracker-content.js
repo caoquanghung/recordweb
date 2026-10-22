@@ -4,6 +4,7 @@
 
   const SAMPLE_RATE_HZ = 24;
   const CONTROLS_AUTO_HIDE_MS = 3200;
+  const CAPTURE_HANDLE_ATTRIBUTE = 'data-recordweb-capture-handle';
   // Retain the pre-session handoff module for future experiments without
   // showing a redundant Ready pill while target tabs prepare in background.
   const ENABLE_PRESESSION_READY_CONTROLS = false;
@@ -16,6 +17,15 @@
   let sampleIndex = 0;
   let cursor = { x: null, y: null, visible: false };
   let controls = null;
+
+  function registerCaptureHandle(attempt = 0) {
+    const handle = document.documentElement?.getAttribute(CAPTURE_HANDLE_ATTRIBUTE);
+    if (handle) {
+      postToExtension({ type: 'CAPTURE_HANDLE_READY', handle });
+      return;
+    }
+    if (attempt < 100) window.setTimeout(() => registerCaptureHandle(attempt + 1), 50);
+  }
 
   function controlsParent() {
     return document.fullscreenElement || document.body || document.documentElement;
@@ -423,6 +433,7 @@
   window.addEventListener('blur', onWindowBlur, { passive: true });
   document.addEventListener('keydown', onKeyDown, { capture: true });
   document.addEventListener('fullscreenchange', moveControlsToFullscreenSurface);
+  registerCaptureHandle();
 
   port.onMessage.addListener((message) => {
     if (ENABLE_PRESESSION_READY_CONTROLS && message.type === 'PRESENTATION_READY' && !sessionId) {

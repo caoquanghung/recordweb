@@ -28,6 +28,7 @@ export interface TabCaptureExtensionResult {
   cursorController: CursorCaptureController;
   setGoogleSlidesUrl: (url: string) => void;
   openGoogleSlides: () => Promise<ExtensionTargetTab | null>;
+  resolveCaptureTarget: (captureHandle: string) => Promise<ExtensionTargetTab | null>;
   focusApp: () => void;
   focusTarget: () => void;
   disconnect: () => void;
@@ -39,7 +40,14 @@ interface PendingTargetConnection {
   timeoutId: number;
 }
 
+interface PendingCaptureResolution {
+  requestId: string;
+  resolve: (target: ExtensionTargetTab | null) => void;
+  timeoutId: number;
+}
+
 const TARGET_CONNECTION_TIMEOUT_MS = 10_000;
+const CAPTURE_RESOLUTION_TIMEOUT_MS = 3_000;
 
 function postToExtension(message: Omit<PageToExtensionMessage, 'channel' | 'direction'>) {
   window.postMessage({
@@ -85,6 +93,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
   const samplesRef = useRef<CursorTrajectorySample[]>([]);
   const viewportRef = useRef({ width: 1, height: 1 });
   const pendingTargetConnectionRef = useRef<PendingTargetConnection | null>(null);
+  const pendingCaptureResolutionRef = useRef<PendingCaptureResolution | null>(null);
 
   const settlePendingTargetConnection = useCallback((target: ExtensionTargetTab | null) => {
     const pendingConnection = pendingTargetConnectionRef.current;
@@ -134,6 +143,42 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
     return promise;
   }, [available, googleSlidesUrl]);
 
+  const settlePendingCaptureResolution = useCallback((
+    requestId: string,
+    resolvedTarget: ExtensionTargetTab | null,
+  ) => {
+    const pendingResolution = pendingCaptureResolutionRef.current;
+    if (!pendingResolution || pendingResolution.requestId !== requestId) return;
+    pendingCaptureResolutionRef.current = null;
+    window.clearTimeout(pendingResolution.timeoutId);
+    pendingResolution.resolve(resolvedTarget);
+  }, []);
+
+  const resolveCaptureTarget = useCallback((captureHandle: string) => {
+    const previousResolution = pendingCaptureResolutionRef.current;
+    if (previousResolution) {
+      window.clearTimeout(previousResolution.timeoutId);
+      previousResolution.resolve(null);
+    }
+
+    const requestId = typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return new Promise<ExtensionTargetTab | null>((resolve) => {
+      const timeoutId = window.setTimeout(() => {
+        if (pendingCaptureResolutionRef.current?.requestId !== requestId) return;
+        pendingCaptureResolutionRef.current = null;
+        setStatus('error');
+        setMessage('The shared tab did not confirm cursor tracking in time. Choose the prepared Google Slides tab and try again.');
+        resolve(null);
+      }, CAPTURE_RESOLUTION_TIMEOUT_MS);
+      pendingCaptureResolutionRef.current = { requestId, resolve, timeoutId };
+      setStatus('connecting');
+      setMessage('Confirming the Google Slides tab selected in Chrome…');
+      postToExtension({ type: 'RESOLVE_CAPTURE_TARGET', captureHandle, requestId });
+    });
+  }, []);
+
   const focusTarget = useCallback(() => {
     const targetTabId = targetRef.current?.tabId;
     if (typeof targetTabId !== 'number') return;
@@ -148,6 +193,12 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
     const targetTabId = targetRef.current?.tabId;
     postToExtension({ type: 'DISCONNECT', targetTabId });
     settlePendingTargetConnection(null);
+    const pendingResolution = pendingCaptureResolutionRef.current;
+    if (pendingResolution) {
+      pendingCaptureResolutionRef.current = null;
+      window.clearTimeout(pendingResolution.timeoutId);
+      pendingResolution.resolve(null);
+    }
     targetRef.current = null;
     setTarget(null);
     setStatus(available ? 'ready' : 'unavailable');
@@ -207,6 +258,24 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
         return;
       }
 
+      if (extensionMessage.type === 'CAPTURE_TARGET_RESOLVED') {
+        targetRef.current = extensionMessage.target;
+        setTarget(extensionMessage.target);
+        setStatus('connected');
+        setMessage(`Live preview and cursor tracking are connected to “${extensionMessage.target.title}”.`);
+        settlePendingCaptureResolution(extensionMessage.requestId, extensionMessage.target);
+        return;
+      }
+
+      if (extensionMessage.type === 'CAPTURE_TARGET_REJECTED') {
+        targetRef.current = null;
+        setTarget(null);
+        setStatus('error');
+        setMessage(extensionMessage.message);
+        settlePendingCaptureResolution(extensionMessage.requestId, null);
+        return;
+      }
+
       if (extensionMessage.type === 'CURSOR_SAMPLE') {
         if (extensionMessage.sessionId !== sessionIdRef.current) return;
         samplesRef.current.push(extensionMessage.sample);
@@ -235,8 +304,14 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
     return () => {
       window.removeEventListener('message', handleMessage);
       settlePendingTargetConnection(null);
+      const pendingResolution = pendingCaptureResolutionRef.current;
+      if (pendingResolution) {
+        pendingCaptureResolutionRef.current = null;
+        window.clearTimeout(pendingResolution.timeoutId);
+        pendingResolution.resolve(null);
+      }
     };
-  }, [settlePendingTargetConnection]);
+  }, [settlePendingCaptureResolution, settlePendingTargetConnection]);
 
   const cursorController = useMemo<CursorCaptureController>(() => ({
     start: async (sessionId) => {
@@ -320,6 +395,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
     cursorController,
     setGoogleSlidesUrl,
     openGoogleSlides,
+    resolveCaptureTarget,
     focusApp,
     focusTarget,
     disconnect,
