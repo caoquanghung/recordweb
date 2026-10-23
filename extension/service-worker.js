@@ -1,5 +1,7 @@
-const APP_PORT_NAME = 'recordweb-app';
-const TRACKER_PORT_NAME = 'recordweb-tracker';
+importScripts('extension-protocol.js', 'google-slides.js');
+
+const { MESSAGE, PORT } = globalThis.RecordWebExtensionProtocol;
+const GoogleSlides = globalThis.RecordWebGoogleSlides;
 const APP_URL = chrome.runtime.getManifest().homepage_url;
 const APP_ORIGINS = new Set([
   new URL(APP_URL).origin,
@@ -22,53 +24,22 @@ const trackerPorts = new Map();
 const captureHandles = new Map();
 const CAPTURE_TARGET_RESOLUTION_TIMEOUT_MS = 2500;
 const TRACKER_RECONNECT_GRACE_MS = 2500;
+const CURSOR_COMMAND_TYPES = new Set([
+  MESSAGE.CURSOR_START,
+  MESSAGE.CURSOR_PAUSE,
+  MESSAGE.CURSOR_RESUME,
+  MESSAGE.CURSOR_STOP,
+  MESSAGE.CURSOR_RESET,
+]);
 let currentTarget = null;
 let currentAppTabId = null;
 let requestedTarget = null;
 let requestedAppTabId = null;
 
-function parseGoogleSlidesUrl(value) {
-  try {
-    const url = new URL(value);
-    const slidePath = /^\/presentation\/(?:u\/\d+\/)?d\/[^/]+(?:\/|$)/;
-    if (url.protocol !== 'https:' || url.hostname !== 'docs.google.com' || !slidePath.test(url.pathname)) return null;
-    const editableDeckPath = url.pathname.match(
-      /^(\/presentation\/(?:u\/\d+\/)?d\/(?!e(?:\/|$))[^/]+)(?:\/(?:edit|view|preview|present))?\/?$/,
-    );
-    if (editableDeckPath) url.pathname = `${editableDeckPath[1]}/present`;
-    return url;
-  } catch {
-    return null;
-  }
-}
-
-function googleSlidesDeckKey(value) {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== 'https:' || url.hostname !== 'docs.google.com') return null;
-    const match = url.pathname.match(/^\/presentation\/(?:u\/\d+\/)?d\/(e\/)?([^/]+)/);
-    if (!match) return null;
-    return `${match[1] ? 'published' : 'deck'}:${match[2]}`;
-  } catch {
-    return null;
-  }
-}
-
-function isEditableGoogleSlidesPresentUrl(value) {
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:'
-      && url.hostname === 'docs.google.com'
-      && /^\/presentation\/(?:u\/\d+\/)?d\/(?!e(?:\/|$))[^/]+\/present\/?$/.test(url.pathname);
-  } catch {
-    return false;
-  }
-}
-
 async function findExistingGoogleSlidesTab(deckKey) {
-  const tabs = await chrome.tabs.query({ url: 'https://docs.google.com/presentation/*' });
+  const tabs = await chrome.tabs.query({ url: GoogleSlides.SLIDES_TAB_QUERY });
   return tabs
-    .filter((tab) => tab.id && tab.url && googleSlidesDeckKey(tab.url) === deckKey)
+    .filter((tab) => tab.id && tab.url && GoogleSlides.deckKey(tab.url) === deckKey)
     .sort((left, right) => {
       if (left.active !== right.active) return left.active ? -1 : 1;
       return (right.lastAccessed || 0) - (left.lastAccessed || 0);
@@ -129,8 +100,8 @@ function pairRequestedTarget() {
   requestedTarget = null;
   requestedAppTabId = null;
   setBadge(currentTarget.tabId, 'CUR', '#22c58b');
-  postPortMessage(trackerPorts.get(currentTarget.tabId), { type: 'PRESENTATION_READY' });
-  sendAppMessage({ type: 'TARGET_READY', target: currentTarget });
+  postPortMessage(trackerPorts.get(currentTarget.tabId), { type: MESSAGE.PRESENTATION_READY });
+  sendAppMessage({ type: MESSAGE.TARGET_READY, target: currentTarget });
 }
 
 function targetTabIdForCaptureHandle(handle) {
@@ -173,10 +144,10 @@ function adoptTarget(tabId, appTabId, title = 'Google Slides') {
 
 async function prepareCaptureHandles() {
   try {
-    const tabs = await chrome.tabs.query({ url: 'https://docs.google.com/presentation/*' });
+    const tabs = await chrome.tabs.query({ url: GoogleSlides.SLIDES_TAB_QUERY });
     await Promise.allSettled(tabs.flatMap((tab) => (
       typeof tab.id === 'number'
-        ? [chrome.tabs.sendMessage(tab.id, { type: 'PREPARE_CAPTURE_HANDLE' })]
+        ? [chrome.tabs.sendMessage(tab.id, { type: MESSAGE.PREPARE_CAPTURE_HANDLE })]
         : []
     )));
   } catch (error) {
@@ -192,7 +163,7 @@ async function routeCursorMessage(message, appTabId, appPort) {
     return;
   }
   postPortMessage(appPort, {
-    type: 'EXTENSION_ERROR',
+    type: MESSAGE.EXTENSION_ERROR,
     message: 'The cursor tracker is no longer connected to the prepared presentation.',
   });
 }
@@ -201,7 +172,7 @@ async function resolveCaptureTarget(handle, requestId, appTabId, appPort) {
   const targetTabId = await waitForTargetTabId(handle);
   if (!targetTabId) {
     postPortMessage(appPort, {
-      type: 'CAPTURE_TARGET_REJECTED',
+      type: MESSAGE.CAPTURE_TARGET_REJECTED,
       requestId,
       message: 'The shared source is not a trackable Google Slides tab. Open or reload the presentation tab, then choose it again.',
     });
@@ -212,7 +183,7 @@ async function resolveCaptureTarget(handle, requestId, appTabId, appPort) {
     const tab = await chrome.tabs.get(targetTabId);
     const previousTargetTabId = currentTarget?.tabId;
     if (typeof previousTargetTabId === 'number' && previousTargetTabId !== targetTabId) {
-      postPortMessage(trackerPorts.get(previousTargetTabId), { type: 'CURSOR_RESET' });
+      postPortMessage(trackerPorts.get(previousTargetTabId), { type: MESSAGE.CURSOR_RESET });
       clearBadge(previousTargetTabId);
     }
 
@@ -221,15 +192,15 @@ async function resolveCaptureTarget(handle, requestId, appTabId, appPort) {
     requestedTarget = null;
     requestedAppTabId = null;
     setBadge(targetTabId, 'CUR', '#22c58b');
-    postPortMessage(trackerPorts.get(targetTabId), { type: 'PRESENTATION_READY' });
+    postPortMessage(trackerPorts.get(targetTabId), { type: MESSAGE.PRESENTATION_READY });
     postPortMessage(appPort, {
-      type: 'CAPTURE_TARGET_RESOLVED',
+      type: MESSAGE.CAPTURE_TARGET_RESOLVED,
       requestId,
       target: currentTarget,
     });
   } catch {
     postPortMessage(appPort, {
-      type: 'CAPTURE_TARGET_REJECTED',
+      type: MESSAGE.CAPTURE_TARGET_REJECTED,
       requestId,
       message: 'The shared Google Slides tab closed before RecordWeb could connect cursor tracking.',
     });
@@ -237,18 +208,18 @@ async function resolveCaptureTarget(handle, requestId, appTabId, appPort) {
 }
 
 async function openGoogleSlides(urlValue, appTabId, appPort) {
-  const url = parseGoogleSlidesUrl(urlValue);
+  const url = GoogleSlides.parse(urlValue);
   if (!url) {
-    postPortMessage(appPort, { type: 'EXTENSION_ERROR', message: 'RecordWeb received an invalid Google Slides URL.' });
+    postPortMessage(appPort, { type: MESSAGE.EXTENSION_ERROR, message: 'RecordWeb received an invalid Google Slides URL.' });
     return;
   }
 
   try {
-    const deckKey = googleSlidesDeckKey(url.href);
+    const deckKey = GoogleSlides.deckKey(url.href);
     const existingTab = deckKey ? await findExistingGoogleSlidesTab(deckKey) : null;
     if (currentTarget && existingTab?.id !== currentTarget.tabId) {
       postPortMessage(appPort, {
-        type: 'EXTENSION_ERROR',
+        type: MESSAGE.EXTENSION_ERROR,
         message: 'Disconnect the current presentation before preparing a different Google Slides deck.',
       });
       return;
@@ -257,10 +228,10 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
     if (existingTab?.id) {
       const target = { tabId: existingTab.id, title: existingTab.title || 'Google Slides' };
       currentAppTabId = appTabId;
-      postPortMessage(appPort, { type: 'TARGET_OPENED', target, reused: true });
+      postPortMessage(appPort, { type: MESSAGE.TARGET_OPENED, target, reused: true });
 
-      const shouldEnterPresentMode = isEditableGoogleSlidesPresentUrl(url.href)
-        && !isEditableGoogleSlidesPresentUrl(existingTab.url || '');
+      const shouldEnterPresentMode = GoogleSlides.isEditablePresentUrl(url.href)
+        && !GoogleSlides.isEditablePresentUrl(existingTab.url || '');
       if (shouldEnterPresentMode) {
         currentTarget = target;
         setBadge(existingTab.id, 'CUR', '#22c58b');
@@ -280,8 +251,8 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
       if (trackerPorts.has(existingTab.id) && captureHandles.has(existingTab.id)) {
         currentTarget = target;
         setBadge(existingTab.id, 'CUR', '#22c58b');
-        postPortMessage(trackerPorts.get(existingTab.id), { type: 'PRESENTATION_READY' });
-        postPortMessage(appPort, { type: 'TARGET_READY', target });
+        postPortMessage(trackerPorts.get(existingTab.id), { type: MESSAGE.PRESENTATION_READY });
+        postPortMessage(appPort, { type: MESSAGE.TARGET_READY, target });
       } else {
         if (!currentTarget) {
           requestedTarget = target;
@@ -295,7 +266,7 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
 
     if (currentTarget) {
       postPortMessage(appPort, {
-        type: 'EXTENSION_ERROR',
+        type: MESSAGE.EXTENSION_ERROR,
         message: 'Disconnect the current presentation before preparing a different Google Slides deck.',
       });
       return;
@@ -305,13 +276,13 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
     if (!tab.id) throw new Error('Chrome did not return the new tab ID.');
     requestedTarget = { tabId: tab.id, title: tab.title || 'Google Slides' };
     requestedAppTabId = appTabId;
-    postPortMessage(appPort, { type: 'TARGET_OPENED', target: requestedTarget, reused: false });
+    postPortMessage(appPort, { type: MESSAGE.TARGET_OPENED, target: requestedTarget, reused: false });
     pairRequestedTarget();
   } catch (error) {
     requestedTarget = null;
     requestedAppTabId = null;
     postPortMessage(appPort, {
-      type: 'EXTENSION_ERROR',
+      type: MESSAGE.EXTENSION_ERROR,
       message: `Could not find or open Google Slides: ${error instanceof Error ? error.message : String(error)}`,
     });
   }
@@ -320,7 +291,7 @@ async function openGoogleSlides(urlValue, appTabId, appPort) {
 function releaseTarget(targetTabId) {
   if (typeof targetTabId !== 'number') return;
   const trackerPort = trackerPorts.get(targetTabId);
-  if (trackerPort) postPortMessage(trackerPort, { type: 'CURSOR_RESET' });
+  if (trackerPort) postPortMessage(trackerPort, { type: MESSAGE.CURSOR_RESET });
   clearBadge(targetTabId);
   if (currentTarget?.tabId === targetTabId) {
     currentTarget = null;
@@ -336,145 +307,168 @@ chrome.action.onClicked.addListener(() => {
   void openRecordWeb();
 });
 
-chrome.runtime.onConnect.addListener((port) => {
-  const tabId = port.sender?.tab?.id;
-  if (!tabId) return;
+function syncAppPort(port) {
+  postPortMessage(port, { type: MESSAGE.BRIDGE_READY });
+  if (currentTarget) postPortMessage(port, { type: MESSAGE.TARGET_READY, target: currentTarget });
+}
 
-  if (port.name === APP_PORT_NAME) {
-    if (!isRecordWebAppUrl(port.sender?.tab?.url || '')) return;
-    appPorts.set(tabId, port);
-    postPortMessage(port, { type: 'BRIDGE_READY' });
-    if (currentTarget) postPortMessage(port, { type: 'TARGET_READY', target: currentTarget });
+function handleAppMessage(message, appTabId, appPort) {
+  switch (message.type) {
+    case MESSAGE.PAGE_READY:
+      syncAppPort(appPort);
+      break;
+    case MESSAGE.PREPARE_CAPTURE_HANDLES:
+      void prepareCaptureHandles();
+      break;
+    case MESSAGE.OPEN_GOOGLE_SLIDES:
+      void openGoogleSlides(message.url, appTabId, appPort);
+      break;
+    case MESSAGE.RESOLVE_CAPTURE_TARGET:
+      void resolveCaptureTarget(message.captureHandle, message.requestId, appTabId, appPort);
+      break;
+    case MESSAGE.FOCUS_APP:
+      void focusTab(appTabId);
+      break;
+    case MESSAGE.FOCUS_TARGET:
+      if (typeof message.targetTabId !== 'number') break;
+      adoptTarget(message.targetTabId, appTabId);
+      void focusTab(message.targetTabId).then((focused) => {
+        if (!focused) {
+          postPortMessage(appPort, {
+            type: MESSAGE.TARGET_ENDED,
+            message: 'The prepared presentation tab is no longer open.',
+          });
+        }
+      });
+      break;
+    case MESSAGE.DISCONNECT:
+      releaseTarget(message.targetTabId);
+      break;
+    default:
+      if (CURSOR_COMMAND_TYPES.has(message.type)) {
+        void routeCursorMessage(message, appTabId, appPort);
+      }
+  }
+}
 
-    port.onMessage.addListener((message) => {
-      if (message.type === 'PAGE_READY') {
-        postPortMessage(port, { type: 'BRIDGE_READY' });
-        if (currentTarget) postPortMessage(port, { type: 'TARGET_READY', target: currentTarget });
-        return;
-      }
-      if (message.type === 'PREPARE_CAPTURE_HANDLES') {
-        void prepareCaptureHandles();
-        return;
-      }
-      if (message.type === 'OPEN_GOOGLE_SLIDES') {
-        void openGoogleSlides(message.url, tabId, port);
-        return;
-      }
-      if (message.type === 'RESOLVE_CAPTURE_TARGET') {
-        void resolveCaptureTarget(message.captureHandle, message.requestId, tabId, port);
-        return;
-      }
-      if (message.type === 'FOCUS_APP') {
-        void focusTab(tabId);
-        return;
-      }
-      if (message.type === 'FOCUS_TARGET' && typeof message.targetTabId === 'number') {
-        adoptTarget(message.targetTabId, tabId);
-        void focusTab(message.targetTabId).then((focused) => {
-          if (!focused) postPortMessage(port, { type: 'TARGET_ENDED', message: 'The prepared presentation tab is no longer open.' });
-        });
-        return;
-      }
-      if (message.type === 'DISCONNECT') {
-        releaseTarget(message.targetTabId);
-        return;
-      }
-      if (message.type?.startsWith('CURSOR_')) {
-        void routeCursorMessage(message, tabId, port);
-      }
-    });
+function connectAppPort(port, tabId) {
+  if (!isRecordWebAppUrl(port.sender?.tab?.url || '')) return;
+  appPorts.set(tabId, port);
+  syncAppPort(port);
+  port.onMessage.addListener((message) => handleAppMessage(message, tabId, port));
+  port.onDisconnect.addListener(() => {
+    if (appPorts.get(tabId) === port) appPorts.delete(tabId);
+  });
+}
 
-    port.onDisconnect.addListener(() => {
-      if (appPorts.get(tabId) === port) {
-        appPorts.delete(tabId);
-      }
-    });
+function forwardTrackerSessionMessage(message, tabId, port) {
+  if (currentTarget?.tabId !== tabId && !message.sessionId) return;
+  if (currentTarget?.tabId !== tabId) {
+    adoptTarget(tabId, currentAppTabId, port.sender?.tab?.title || 'Google Slides');
+  }
+  sendAppMessage(message);
+}
+
+function forwardPresentationCommand(message, tabId, port) {
+  if (currentTarget && currentTarget.tabId !== tabId) return;
+  adoptTarget(tabId, currentAppTabId, port.sender?.tab?.title || 'Google Slides');
+  const appTabId = currentAppTabId ?? appPorts.keys().next().value;
+
+  if (message.command === 'return-to-start') {
+    if (typeof appTabId === 'number') void focusTab(appTabId).then(() => sendAppMessage(message));
+    else sendAppMessage(message);
     return;
   }
 
-  if (port.name === TRACKER_PORT_NAME) {
-    trackerPorts.set(tabId, port);
-    postPortMessage(port, { type: 'TRACKER_READY' });
-    const wasRequestedTarget = requestedTarget?.tabId === tabId;
-    if (wasRequestedTarget) {
-      requestedTarget = { tabId, title: port.sender?.tab?.title || requestedTarget.title };
-    }
-    pairRequestedTarget();
-    if (!wasRequestedTarget && currentTarget?.tabId === tabId) {
-      currentTarget = { tabId, title: port.sender?.tab?.title || currentTarget.title };
-      setBadge(tabId, 'CUR', '#22c58b');
-      postPortMessage(port, { type: 'PRESENTATION_READY' });
-      sendAppMessage({ type: 'TARGET_READY', target: currentTarget });
-    }
+  sendAppMessage(message);
+  if ((message.command === 'stop' || message.command === 'end-session')
+    && typeof appTabId === 'number') {
+    void focusTab(appTabId);
+  }
+}
 
-    port.onMessage.addListener((message) => {
-      if (message.type === 'CAPTURE_HANDLE_READY'
-        && typeof message.handle === 'string'
-        && message.handle.startsWith('recordweb-slides-v1:')) {
+function handleTrackerMessage(message, tabId, port) {
+  switch (message.type) {
+    case MESSAGE.CAPTURE_HANDLE_READY:
+      if (typeof message.handle === 'string' && message.handle.startsWith('recordweb-slides-v1:')) {
         captureHandles.set(tabId, message.handle);
         pairRequestedTarget();
       }
-      if (message.type === 'TRACKER_STATE' && message.sessionId) {
+      break;
+    case MESSAGE.TRACKER_STATE:
+      if (message.sessionId) {
         adoptTarget(tabId, currentAppTabId, port.sender?.tab?.title || 'Google Slides');
-        sendAppMessage({ type: 'TARGET_READY', target: currentTarget });
+        sendAppMessage({ type: MESSAGE.TARGET_READY, target: currentTarget });
       }
-      if ((message.type === 'CURSOR_SAMPLE'
-        || message.type === 'CURSOR_STARTED'
-        || message.type === 'CURSOR_STOPPED')
-        && (currentTarget?.tabId === tabId || message.sessionId)) {
-        if (currentTarget?.tabId !== tabId) adoptTarget(tabId, currentAppTabId, port.sender?.tab?.title || 'Google Slides');
-        sendAppMessage(message);
-      }
-      if (message.type === 'PRESENTATION_COMMAND'
-        && (!currentTarget || currentTarget.tabId === tabId)) {
-        adoptTarget(tabId, currentAppTabId, port.sender?.tab?.title || 'Google Slides');
-        const appTabId = currentAppTabId ?? appPorts.keys().next().value;
-        if (message.command === 'return-to-start') {
-          if (typeof appTabId === 'number') {
-            void focusTab(appTabId).then(() => sendAppMessage(message));
-          } else {
-            sendAppMessage(message);
-          }
-          return;
-        }
-        sendAppMessage(message);
-        if (message.command === 'stop' || message.command === 'end-session') {
-          if (typeof appTabId === 'number') void focusTab(appTabId);
-        }
-      }
-    });
-
-    port.onDisconnect.addListener(() => {
-      if (trackerPorts.get(tabId) !== port) return;
-      trackerPorts.delete(tabId);
-      setTimeout(() => {
-        if (trackerPorts.has(tabId)) return;
-        captureHandles.delete(tabId);
-        if (requestedTarget?.tabId === tabId) {
-          requestedTarget = null;
-          requestedAppTabId = null;
-        }
-        clearBadge(tabId);
-        if (currentTarget?.tabId === tabId) {
-          currentTarget = null;
-          currentAppTabId = null;
-          sendAppMessage({
-            type: 'TARGET_ENDED',
-            message: 'Cursor tracking disconnected from the selected Google Slides tab. RecordWeb will stop any active recording to protect cursor data.',
-          });
-        }
-      }, TRACKER_RECONNECT_GRACE_MS);
-    });
+      break;
+    case MESSAGE.CURSOR_SAMPLE:
+    case MESSAGE.CURSOR_STARTED:
+    case MESSAGE.CURSOR_STOPPED:
+      forwardTrackerSessionMessage(message, tabId, port);
+      break;
+    case MESSAGE.PRESENTATION_COMMAND:
+      forwardPresentationCommand(message, tabId, port);
+      break;
+    default:
+      break;
   }
+}
+
+function handleTrackerDisconnect(tabId, port) {
+  if (trackerPorts.get(tabId) !== port) return;
+  trackerPorts.delete(tabId);
+  setTimeout(() => {
+    if (trackerPorts.has(tabId)) return;
+    captureHandles.delete(tabId);
+    if (requestedTarget?.tabId === tabId) {
+      requestedTarget = null;
+      requestedAppTabId = null;
+    }
+    clearBadge(tabId);
+    if (currentTarget?.tabId === tabId) {
+      currentTarget = null;
+      currentAppTabId = null;
+      sendAppMessage({
+        type: MESSAGE.TARGET_ENDED,
+        message: 'Cursor tracking disconnected from the selected Google Slides tab. RecordWeb will stop any active recording to protect cursor data.',
+      });
+    }
+  }, TRACKER_RECONNECT_GRACE_MS);
+}
+
+function connectTrackerPort(port, tabId) {
+  trackerPorts.set(tabId, port);
+  postPortMessage(port, { type: MESSAGE.TRACKER_READY });
+  const wasRequestedTarget = requestedTarget?.tabId === tabId;
+  if (wasRequestedTarget) {
+    requestedTarget = { tabId, title: port.sender?.tab?.title || requestedTarget.title };
+  }
+  pairRequestedTarget();
+  if (!wasRequestedTarget && currentTarget?.tabId === tabId) {
+    currentTarget = { tabId, title: port.sender?.tab?.title || currentTarget.title };
+    setBadge(tabId, 'CUR', '#22c58b');
+    postPortMessage(port, { type: MESSAGE.PRESENTATION_READY });
+    sendAppMessage({ type: MESSAGE.TARGET_READY, target: currentTarget });
+  }
+
+  port.onMessage.addListener((message) => handleTrackerMessage(message, tabId, port));
+  port.onDisconnect.addListener(() => handleTrackerDisconnect(tabId, port));
+}
+
+chrome.runtime.onConnect.addListener((port) => {
+  const tabId = port.sender?.tab?.id;
+  if (!tabId) return;
+  if (port.name === PORT.APP) connectAppPort(port, tabId);
+  if (port.name === PORT.TRACKER) connectTrackerPort(port, tabId);
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (currentTarget?.tabId !== tabId || !changeInfo.url) return;
-  if (parseGoogleSlidesUrl(changeInfo.url)) return;
+  if (GoogleSlides.parse(changeInfo.url)) return;
   currentTarget = null;
   currentAppTabId = null;
   clearBadge(tabId);
-  sendAppMessage({ type: 'TARGET_ENDED', message: 'The selected tab navigated away from Google Slides.' });
+  sendAppMessage({ type: MESSAGE.TARGET_ENDED, message: 'The selected tab navigated away from Google Slides.' });
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
@@ -484,12 +478,12 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   if (requestedTarget?.tabId === tabId) {
     requestedTarget = null;
     requestedAppTabId = null;
-    sendAppMessage({ type: 'EXTENSION_ERROR', message: 'The Google Slides tab was closed before cursor tracking became ready.' });
+    sendAppMessage({ type: MESSAGE.EXTENSION_ERROR, message: 'The Google Slides tab was closed before cursor tracking became ready.' });
   }
   if (currentTarget?.tabId === tabId) {
     currentTarget = null;
     currentAppTabId = null;
-    sendAppMessage({ type: 'TARGET_ENDED', message: 'The selected Google Slides tab was closed.' });
+    sendAppMessage({ type: MESSAGE.TARGET_ENDED, message: 'The selected Google Slides tab was closed.' });
   }
   if (currentAppTabId === tabId) currentAppTabId = null;
   if (requestedAppTabId === tabId) requestedAppTabId = null;

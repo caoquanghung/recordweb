@@ -4,7 +4,7 @@ import { RECORDING_ARCHIVE_KINDS } from '@/lib/recordingArchive';
 import { formatDuration } from './studioConfig';
 import { StudioIcon } from './StudioPrimitives';
 import type { StudioController } from './useStudioController';
-import styles from './StudioShell.module.css';
+import styles from './StudioReviewWorkspace.module.css';
 
 export function StudioReviewWorkspace({ studio }: { studio: StudioController }) {
   const {

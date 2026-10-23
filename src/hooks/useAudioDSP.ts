@@ -1,25 +1,26 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { disconnectAudioNodes, readAnalyserRmsDb } from './audioGraphUtils';
+import {
+  createAudioGraph,
+  disposeAudioGraph,
+  getAudioGraphStreams,
+  SILENT_AUDIO_LEVELS,
+  startAudioGraphMeter,
+  type AudioGraph,
+  type AudioLevels,
+} from './audioDspGraph';
 import { getErrorMessage } from '@/hooks/mediaHookUtils';
 import {
   applyMicrophoneGain,
   applyMicrophonePreset,
-  createMicrophoneAudioProcessor,
   DEFAULT_CUSTOM_CONFIG,
-  disposeMicrophoneAudioProcessor,
   getPresetParameters,
-  processMicrophoneNoiseGate,
   type AudioDspPreset,
-  type MicrophoneAudioProcessor,
   type MicrophoneGateState,
 } from './microphoneAudioProcessor';
 import {
   applySystemAudioGain,
-  createSystemAudioProcessor,
-  disposeSystemAudioProcessor,
-  type SystemAudioProcessor,
 } from './systemAudioProcessor';
 import type { AudioFilterConfig } from '@/types/media';
 
@@ -54,46 +55,6 @@ export interface UseAudioDSPResult {
   suspend: () => Promise<void>;
 }
 
-interface AudioGraph {
-  context: AudioContext;
-  mixedDestination: MediaStreamAudioDestinationNode;
-  microphoneDestination: MediaStreamAudioDestinationNode | null;
-  systemAudioDestination: MediaStreamAudioDestinationNode | null;
-  microphone: MicrophoneAudioProcessor | null;
-  systemAudio: SystemAudioProcessor | null;
-  mixedMeterAnalyser: AnalyserNode;
-}
-
-interface AudioLevelSnapshot {
-  level: number;
-  levelDb: number;
-}
-
-interface AudioLevels {
-  mixed: AudioLevelSnapshot;
-  microphone: AudioLevelSnapshot;
-  system: AudioLevelSnapshot;
-}
-
-const SILENT_LEVEL: AudioLevelSnapshot = { level: 0, levelDb: -100 };
-
-function toLevelSnapshot(levelDb: number): AudioLevelSnapshot {
-  return {
-    levelDb,
-    level: Math.min(1, Math.max(0, (levelDb + 60) / 60)),
-  };
-}
-
-function disposeAudioGraph(graph: AudioGraph) {
-  graph.context.onstatechange = null;
-  disposeMicrophoneAudioProcessor(graph.microphone);
-  disposeSystemAudioProcessor(graph.systemAudio);
-  disconnectAudioNodes(graph.mixedMeterAnalyser);
-  [graph.mixedDestination, graph.microphoneDestination, graph.systemAudioDestination]
-    .forEach((destination) => destination?.stream.getTracks().forEach((track) => track.stop()));
-  void graph.context.close();
-}
-
 export function useAudioDSP({
   microphoneStream,
   systemAudioStream,
@@ -105,7 +66,6 @@ export function useAudioDSP({
   customConfig = DEFAULT_CUSTOM_CONFIG,
 }: UseAudioDSPOptions): UseAudioDSPResult {
   const graphRef = useRef<AudioGraph | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
   const gateStateRef = useRef<MicrophoneGateState>({
     enabled: true,
     thresholdDb: -50,
@@ -116,11 +76,7 @@ export function useAudioDSP({
   const [microphoneOutputStream, setMicrophoneOutputStream] = useState<MediaStream | null>(null);
   const [systemAudioOutputStream, setSystemAudioOutputStream] = useState<MediaStream | null>(null);
   const [state, setState] = useState<AudioDspState>('idle');
-  const [levels, setLevels] = useState<AudioLevels>({
-    mixed: SILENT_LEVEL,
-    microphone: SILENT_LEVEL,
-    system: SILENT_LEVEL,
-  });
+  const [levels, setLevels] = useState<AudioLevels>(SILENT_AUDIO_LEVELS);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -136,124 +92,45 @@ export function useAudioDSP({
         setMicrophoneOutputStream(null);
         setSystemAudioOutputStream(null);
         setState('idle');
-        setLevels({ mixed: SILENT_LEVEL, microphone: SILENT_LEVEL, system: SILENT_LEVEL });
+        setLevels(SILENT_AUDIO_LEVELS);
         setError(null);
       }, 0);
       return () => window.clearTimeout(resetState);
     }
 
+    let stopMeter: (() => void) | null = null;
     const initializeGraph = window.setTimeout(() => {
-      let initializingContext: AudioContext | null = null;
-      let initializingGraph: AudioGraph | null = null;
       try {
         setState('initializing');
         setError(null);
 
-        const context = new AudioContext();
-        initializingContext = context;
-        const mixedDestination = context.createMediaStreamDestination();
-        const microphoneDestination = hasMicrophone ? context.createMediaStreamDestination() : null;
-        const systemAudioDestination = hasSystemAudio ? context.createMediaStreamDestination() : null;
-        const mixedMeterAnalyser = context.createAnalyser();
-        mixedMeterAnalyser.fftSize = 256;
-        mixedMeterAnalyser.smoothingTimeConstant = 0.82;
-
-        const graph: AudioGraph = {
-          context,
-          mixedDestination,
-          microphoneDestination,
-          systemAudioDestination,
-          microphone: null,
-          systemAudio: null,
-          mixedMeterAnalyser,
-        };
-        initializingGraph = graph;
-
         const initialConfiguration = configurationRef.current;
-        graph.microphone = hasMicrophone && microphoneStream && microphoneDestination
-          ? createMicrophoneAudioProcessor({
-              context,
-              stream: microphoneStream,
-              mixedDestination,
-              sourceDestination: microphoneDestination,
-              mixedMeterAnalyser,
-              preset: initialConfiguration.preset,
-              customConfig: initialConfiguration.customConfig,
-              muted: initialConfiguration.muted,
-              micGain: initialConfiguration.micGain,
-              gateState: gateStateRef.current,
-            })
-          : null;
-        graph.systemAudio = hasSystemAudio && systemAudioStream && systemAudioDestination
-          ? createSystemAudioProcessor({
-              context,
-              stream: systemAudioStream,
-              mixedDestination,
-              sourceDestination: systemAudioDestination,
-              mixedMeterAnalyser,
-              systemGain: initialConfiguration.systemGain,
-              monitorDestination: monitorSystemAudio ? context.destination : undefined,
-            })
-          : null;
+        const graph = createAudioGraph({
+          microphoneStream,
+          systemAudioStream,
+          preset: initialConfiguration.preset,
+          customConfig: initialConfiguration.customConfig,
+          muted: initialConfiguration.muted,
+          micGain: initialConfiguration.micGain,
+          systemGain: initialConfiguration.systemGain,
+          monitorSystemAudio,
+          gateState: gateStateRef.current,
+        });
         graphRef.current = graph;
-        initializingGraph = null;
-        initializingContext = null;
-        setOutputStream(mixedDestination.stream);
-        setMicrophoneOutputStream(microphoneDestination?.stream ?? null);
-        setSystemAudioOutputStream(systemAudioDestination?.stream ?? null);
-        setState(context.state === 'running' ? 'running' : 'suspended');
+        const streams = getAudioGraphStreams(graph);
+        setOutputStream(streams.outputStream);
+        setMicrophoneOutputStream(streams.microphoneOutputStream);
+        setSystemAudioOutputStream(streams.systemAudioOutputStream);
+        setState(graph.context.state === 'running' ? 'running' : 'suspended');
 
-        context.onstatechange = () => {
-          if (graphRef.current?.context !== context) return;
-          setState(context.state === 'running' ? 'running' : context.state === 'closed' ? 'closed' : 'suspended');
+        graph.context.onstatechange = () => {
+          if (graphRef.current?.context !== graph.context) return;
+          setState(graph.context.state === 'running'
+            ? 'running'
+            : graph.context.state === 'closed' ? 'closed' : 'suspended');
         };
-
-        const mixedMeterData = new Uint8Array(mixedMeterAnalyser.fftSize);
-        const microphoneMeterData = graph.microphone
-          ? new Uint8Array(graph.microphone.meterAnalyser.fftSize)
-          : null;
-        const systemMeterData = graph.systemAudio
-          ? new Uint8Array(graph.systemAudio.meterAnalyser.fftSize)
-          : null;
-        let lastMeterPublish = 0;
-
-        const updateAudio = (timestamp: number) => {
-          if (context.state === 'running') {
-            if (graph.microphone) {
-              processMicrophoneNoiseGate(
-                graph.microphone,
-                gateStateRef.current,
-                timestamp,
-                context.currentTime,
-              );
-            }
-
-            if (timestamp - lastMeterPublish >= 50) {
-              const mixedDb = readAnalyserRmsDb(mixedMeterAnalyser, mixedMeterData);
-              const microphoneDb = graph.microphone && microphoneMeterData
-                ? readAnalyserRmsDb(graph.microphone.meterAnalyser, microphoneMeterData)
-                : -100;
-              const systemDb = graph.systemAudio && systemMeterData
-                ? readAnalyserRmsDb(graph.systemAudio.meterAnalyser, systemMeterData)
-                : -100;
-              setLevels({
-                mixed: toLevelSnapshot(mixedDb),
-                microphone: toLevelSnapshot(microphoneDb),
-                system: toLevelSnapshot(systemDb),
-              });
-              lastMeterPublish = timestamp;
-            }
-          }
-          animationFrameRef.current = requestAnimationFrame(updateAudio);
-        };
-
-        animationFrameRef.current = requestAnimationFrame(updateAudio);
+        stopMeter = startAudioGraphMeter(graph, gateStateRef.current, setLevels);
       } catch (cause) {
-        if (initializingGraph) {
-          disposeAudioGraph(initializingGraph);
-        } else if (initializingContext && initializingContext.state !== 'closed') {
-          void initializingContext.close();
-        }
         setState('error');
         setError(getErrorMessage(cause, 'The Web Audio processing graph could not be created.'));
       }
@@ -261,8 +138,8 @@ export function useAudioDSP({
 
     return () => {
       window.clearTimeout(initializeGraph);
-      if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
+      stopMeter?.();
+      stopMeter = null;
 
       const graph = graphRef.current;
       graphRef.current = null;

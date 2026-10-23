@@ -8,12 +8,12 @@ import {
   type RefCallback,
 } from 'react';
 import {
-  createPresentationRenderer,
-  validatePresentationFile,
-  type PresentationRenderer,
-} from '@/lib/presentation';
+  paintPreparedPage,
+  preparePresentationDeck,
+  PresentationDeckSession,
+  renderPresentationPage,
+} from '@/lib/presentationDeckSession';
 import {
-  MAX_PRESENTATION_PAGES,
   type PresentationDeckStatus,
   type PresentationFileMetadata,
 } from '@/types/presentation';
@@ -51,8 +51,7 @@ function toErrorMessage(cause: unknown) {
 export function usePresentationDeck({
   renderWidth = 1920,
 }: UsePresentationDeckOptions = {}): UsePresentationDeckResult {
-  const rendererRef = useRef<PresentationRenderer | null>(null);
-  const operationIdRef = useRef(0);
+  const [deckSession] = useState(() => new PresentationDeckSession());
   const renderRequestIdRef = useRef(0);
   const playbackAdvancePendingRef = useRef(false);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
@@ -80,13 +79,11 @@ export function usePresentationDeck({
   }, []);
 
   const disposeCurrentRenderer = useCallback(() => {
-    const renderer = rendererRef.current;
-    rendererRef.current = null;
-    if (renderer) void renderer.dispose().catch(() => undefined);
-  }, []);
+    deckSession.disposeCurrent();
+  }, [deckSession]);
 
   const clear = useCallback(() => {
-    operationIdRef.current += 1;
+    deckSession.invalidate();
     playbackAdvancePendingRef.current = false;
     disposeCurrentRenderer();
     setStatus('idle');
@@ -104,12 +101,11 @@ export function usePresentationDeck({
       context?.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
     }
     interactionLayerElementRef.current?.replaceChildren();
-  }, [disposeCurrentRenderer]);
+  }, [deckSession, disposeCurrentRenderer]);
 
   const load = useCallback(async (file: File) => {
-    const operationId = operationIdRef.current + 1;
-    operationIdRef.current = operationId;
-    const previousRenderer = rendererRef.current;
+    const operation = deckSession.beginLoad();
+    const { id: operationId, previousRenderer } = operation;
     const replacingActiveDeck = Boolean(previousRenderer && metadata);
 
     if (replacingActiveDeck) {
@@ -123,52 +119,42 @@ export function usePresentationDeck({
     setProgress(0);
     setProgressMessage(replacingActiveDeck ? 'Validating replacement…' : 'Validating presentation…');
     setError(null);
-    let candidateRenderer: PresentationRenderer | null = null;
-
     try {
-      const kind = await validatePresentationFile(file);
-      if (operationId !== operationIdRef.current) return false;
-      if (!replacingActiveDeck) setStatus('loading');
-      candidateRenderer = await createPresentationRenderer(kind, file, (nextProgress, message) => {
-        if (operationId !== operationIdRef.current) return;
-        setProgress(Math.round(Math.min(1, Math.max(0, nextProgress)) * 100));
-        setProgressMessage(message);
-      });
-
-      if (operationId !== operationIdRef.current) {
-        await candidateRenderer.dispose();
-        return false;
-      }
-      if (candidateRenderer.pageCount > MAX_PRESENTATION_PAGES) {
-        throw new Error(`The presentation exceeds the ${MAX_PRESENTATION_PAGES}-page limit.`);
-      }
-
-      setProgressMessage('Preparing the first slide…');
-      const preparedCanvas = document.createElement('canvas');
-      await candidateRenderer.renderPage(0, preparedCanvas, renderWidth);
-      if (operationId !== operationIdRef.current) {
-        await candidateRenderer.dispose();
-        return false;
-      }
+      const prepared = await preparePresentationDeck(
+        file,
+        renderWidth,
+        (nextProgress, message) => {
+          if (!deckSession.isCurrent(operationId)) return;
+          setProgress(Math.round(Math.min(1, Math.max(0, nextProgress)) * 100));
+          setProgressMessage(message);
+        },
+        () => deckSession.isCurrent(operationId),
+        () => {
+          if (!replacingActiveDeck) setStatus('loading');
+        },
+        () => setProgressMessage('Preparing the first slide…'),
+      );
+      if (!prepared) return false;
 
       const activeCanvas = canvasElementRef.current;
-      if (activeCanvas) {
-        const context = activeCanvas.getContext('2d', { alpha: false });
-        if (!context) throw new Error('Canvas 2D rendering is unavailable.');
-        activeCanvas.width = preparedCanvas.width;
-        activeCanvas.height = preparedCanvas.height;
-        context.drawImage(preparedCanvas, 0, 0);
+      try {
+        if (activeCanvas) paintPreparedPage(prepared.firstPageCanvas, activeCanvas);
+      } catch (cause) {
+        await prepared.renderer.dispose().catch(() => undefined);
+        throw cause;
       }
 
       renderRequestIdRef.current += 1;
-      rendererRef.current = candidateRenderer;
-      candidateRenderer = null;
+      if (!deckSession.commit(operationId, prepared.renderer)) {
+        await prepared.renderer.dispose();
+        return false;
+      }
       playbackAdvancePendingRef.current = false;
       setMetadata({
         name: file.name,
-        kind,
+        kind: prepared.kind,
         sizeBytes: file.size,
-        pageCount: rendererRef.current.pageCount,
+        pageCount: prepared.renderer.pageCount,
       });
       setCurrentPageIndex(0);
       setHasPendingPlaybackSteps(false);
@@ -176,14 +162,13 @@ export function usePresentationDeck({
       setProgressMessage('Presentation ready');
       setStatus('ready');
       setIsReplacing(false);
-      if (previousRenderer && previousRenderer !== rendererRef.current) {
+      if (previousRenderer && previousRenderer !== prepared.renderer) {
         void previousRenderer.dispose().catch(() => undefined);
       }
       return true;
     } catch (cause) {
-      if (candidateRenderer) await candidateRenderer.dispose().catch(() => undefined);
-      if (operationId !== operationIdRef.current) return false;
-      if (replacingActiveDeck && rendererRef.current === previousRenderer) {
+      if (!deckSession.isCurrent(operationId)) return false;
+      if (replacingActiveDeck && deckSession.currentRenderer === previousRenderer) {
         setStatus('ready');
         setProgress(0);
         setProgressMessage('Current presentation remains active.');
@@ -195,7 +180,7 @@ export function usePresentationDeck({
       setError(toErrorMessage(cause));
       return false;
     }
-  }, [metadata, renderWidth]);
+  }, [deckSession, metadata, renderWidth]);
 
   const renderInto = useCallback(async (
     pageIndex: number,
@@ -203,22 +188,19 @@ export function usePresentationDeck({
     width: number,
     shouldCommit: () => boolean = () => true,
   ) => {
-    const renderer = rendererRef.current;
+    const renderer = deckSession.currentRenderer;
     if (!renderer || pageIndex < 0 || pageIndex >= renderer.pageCount) return;
-    const operationId = operationIdRef.current;
-    const scratchCanvas = document.createElement('canvas');
-    await renderer.renderPage(pageIndex, scratchCanvas, width);
-    if (
-      operationId !== operationIdRef.current
-      || rendererRef.current !== renderer
-      || !shouldCommit()
-    ) return;
-    targetCanvas.width = scratchCanvas.width;
-    targetCanvas.height = scratchCanvas.height;
-    const context = targetCanvas.getContext('2d', { alpha: false });
-    if (!context) throw new Error('Canvas 2D rendering is unavailable.');
-    context.drawImage(scratchCanvas, 0, 0);
-  }, []);
+    const operationId = deckSession.currentOperationId;
+    await renderPresentationPage(
+      renderer,
+      pageIndex,
+      targetCanvas,
+      width,
+      () => deckSession.isCurrent(operationId)
+        && deckSession.currentRenderer === renderer
+        && shouldCommit(),
+    );
+  }, [deckSession]);
 
   useEffect(() => {
     if (status !== 'ready' || !canvas) return;
@@ -229,7 +211,7 @@ export function usePresentationDeck({
       setIsRendering(true);
       setError(null);
       try {
-        const renderer = rendererRef.current;
+        const renderer = deckSession.currentRenderer;
         if (renderer?.presentPage) {
           await renderer.presentPage(currentPageIndex, canvas, renderWidth);
           if (!cancelled && renderRequestId === renderRequestIdRef.current) {
@@ -251,20 +233,20 @@ export function usePresentationDeck({
     };
     void renderCurrentPage();
     return () => { cancelled = true; };
-  }, [canvas, currentPageIndex, renderInto, renderWidth, status]);
+  }, [canvas, currentPageIndex, deckSession, renderInto, renderWidth, status]);
 
   const goToPage = useCallback((pageIndex: number) => {
-    const pageCount = rendererRef.current?.pageCount ?? 0;
+    const pageCount = deckSession.currentRenderer?.pageCount ?? 0;
     if (pageCount <= 0) return;
     const nextPageIndex = Math.min(pageCount - 1, Math.max(0, Math.trunc(pageIndex)));
     if (nextPageIndex === currentPageIndex) return;
     setHasPendingPlaybackSteps(false);
     setCurrentPageIndex(nextPageIndex);
-  }, [currentPageIndex]);
+  }, [currentPageIndex, deckSession]);
 
   useEffect(() => {
     if (status !== 'ready' || !interactionLayer) return;
-    const renderer = rendererRef.current;
+    const renderer = deckSession.currentRenderer;
     interactionLayer.replaceChildren();
     if (!renderer?.renderInteractionLayer) return;
     let cancelled = false;
@@ -273,16 +255,16 @@ export function usePresentationDeck({
       interactionLayer,
       renderWidth,
       (pageIndex) => {
-        if (!cancelled && rendererRef.current === renderer) goToPage(pageIndex);
+        if (!cancelled && deckSession.currentRenderer === renderer) goToPage(pageIndex);
       },
     ).catch((cause) => {
       if (!cancelled) setError(toErrorMessage(cause));
     });
     return () => { cancelled = true; };
-  }, [currentPageIndex, goToPage, interactionLayer, metadata, renderWidth, status]);
+  }, [currentPageIndex, deckSession, goToPage, interactionLayer, metadata, renderWidth, status]);
 
   const nextPage = useCallback(() => {
-    const renderer = rendererRef.current;
+    const renderer = deckSession.currentRenderer;
     const pageCount = renderer?.pageCount ?? 0;
     if (!renderer?.advancePlaybackStep) {
       setCurrentPageIndex((current) => Math.min(Math.max(0, pageCount - 1), current + 1));
@@ -290,28 +272,28 @@ export function usePresentationDeck({
     }
     if (playbackAdvancePendingRef.current) return;
 
-    const operationId = operationIdRef.current;
+    const operationId = deckSession.currentOperationId;
     playbackAdvancePendingRef.current = true;
     setIsRendering(true);
     setError(null);
     void renderer.advancePlaybackStep()
       .then((advanced) => {
-        if (operationId !== operationIdRef.current || rendererRef.current !== renderer) return;
+        if (!deckSession.isCurrent(operationId) || deckSession.currentRenderer !== renderer) return;
         setHasPendingPlaybackSteps(Boolean(renderer.hasPendingPlaybackSteps?.()));
         if (!advanced) {
           setCurrentPageIndex((current) => Math.min(Math.max(0, pageCount - 1), current + 1));
         }
       })
       .catch((cause) => {
-        if (operationId === operationIdRef.current) setError(toErrorMessage(cause));
+        if (deckSession.isCurrent(operationId)) setError(toErrorMessage(cause));
       })
       .finally(() => {
-        if (operationId === operationIdRef.current) {
+        if (deckSession.isCurrent(operationId)) {
           playbackAdvancePendingRef.current = false;
           setIsRendering(false);
         }
       });
-  }, []);
+  }, [deckSession]);
 
   const previousPage = useCallback(() => {
     if (currentPageIndex <= 0) return;
@@ -328,9 +310,9 @@ export function usePresentationDeck({
   }, [renderInto]);
 
   useEffect(() => () => {
-    operationIdRef.current += 1;
+    deckSession.invalidate();
     disposeCurrentRenderer();
-  }, [disposeCurrentRenderer]);
+  }, [deckSession, disposeCurrentRenderer]);
 
   return {
     status,

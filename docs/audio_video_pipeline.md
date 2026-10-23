@@ -27,6 +27,13 @@ Browsers pause `requestAnimationFrame()` when the document becomes a background 
 
 The worker clock prevents the common short/medium background-tab freeze. Browsers or operating systems may still fully suspend a page under memory pressure, battery-saving policies, or mobile backgrounding; a normal web page cannot override full process suspension.
 
+`useCanvasCompositor` owns source-video lifecycle, the generated
+`captureStream(30)` track, and the visibility-aware loop. `usePipPlacement` owns
+anchor/custom-position state plus pointer and keyboard interaction. Deterministic
+frame drawing, PiP geometry, clipping, and the development FPS overlay live in
+`canvasCompositorRenderer.ts`, keeping both interaction and rendering policy
+independently inspectable without changing the public compositor contract.
+
 ### 1.2 Layout Composition Strategies
 * **Background Layer (Screen Capture)**:
   * When screen capture aspect ratio does not match 16:9 (e.g. 16:10 or ultra-wide displays), the engine calculates optimal letterboxing/pillarboxing with deep studio dark background (`#0d1117`) or centered fill.
@@ -55,6 +62,8 @@ The worker clock prevents the common short/medium background-tab freeze. Browser
 * Google Slides may replace an early Capture Handle configuration during application startup. The main-world extension producer therefore keeps one stable opaque handle, reapplies the same configuration at bounded lifecycle checkpoints through five seconds, and exposes the DOM handle to the isolated tracker only after `setCaptureHandleConfig()` succeeds.
 * Connect also sends a fire-and-forget preparation signal before `getDisplayMedia()`. Open Slides tabs synchronously reapply their existing handle and re-register it while the native picker is open; Studio never awaits this extension work, preserving the Connect click's transient user activation. The app bridge and target tracker reconnect with bounded backoff after Manifest V3 worker suspension, and the tracker republishes its handle plus active-session state so service-worker memory loss does not require a page reload.
 * Google Slides presentation fullscreen may render its interactive surface inside a child frame, whose pointer events do not bubble to the top document. A frame-only extension sensor observes matching Slides and eligible `about:blank` descendants, maps coordinates through each owning frame's bounds, and relays them to the single top-frame tracker. Session state, the 24 Hz sampler, Capture Handle registration, and presentation controls remain top-frame-only.
+* Extension `0.4.6` keeps those contracts behind explicit module boundaries: shared protocol constants and resilient port transport; separate Capture Handle producer and frame sensor; isolated 24 Hz sampler and Shadow DOM controls; a thin top-frame tracker orchestrator; and a service worker responsible only for tab identity, routing, focus, and fail-closed target loss. On the app side, React connection state remains in `useTabCaptureExtension`, while cursor acknowledgements, sample draining, and trajectory assembly live in `extensionCursorCapture`.
+* Raw media-device ownership remains in `useMediaDevices`, while `mediaCapture.ts` owns browser constraints, CaptureController focus policy, error normalization, and track shutdown. This keeps React state transitions separate from browser API policy without changing which layer owns the raw tracks.
 
 ### 1.4 Presentation Self-Tab Capture (Non-Compositor Path)
 
@@ -95,6 +104,10 @@ current-tab video + mixed audio -> useRecordingSession composite recorder
   first page. A successful swap repaints the same captured canvas without replacing
   the tab-capture track or restarting `MediaRecorder`; failure keeps the current
   material active.
+* `PresentationDeckSession` owns renderer identity, operation invalidation, atomic
+  commit, and disposal. `usePresentationDeck` owns React-facing status and
+  navigation state. Page rendering commits through a scratch canvas only while both
+  the operation and renderer identity remain current.
 * `/presentation` reuses the existing Studio chrome, review flow, diagnostics, audio
   controls, and recording controls without modifying `/`. Its source panel never
   requests screen sharing; the recording gesture starts current-tab capture only
@@ -111,6 +124,10 @@ current-tab video + mixed audio -> useRecordingSession composite recorder
   re-normalize the last pointer position so the custom cursor stays aligned while
   the viewport changes. Fullscreen remains an explicit presenter gesture in the MVP
   and can be exited with `Escape` or `Shift+F`.
+* Presentation pointer observation and coordinate normalization live in
+  `presentationPointer.ts`. The independent `presentationCursorCapture.ts` session
+  samples that state at 24 Hz using the shared active-time recording clock, so pause
+  intervals remain excluded without coupling DOM listeners to serialization.
 * Presentation workspace initialization passes `null` to MediaPipe and the canvas
   compositor even before capture starts. A screen stream retained by the global
   media provider is never used as presentation video or tab audio.
@@ -202,6 +219,11 @@ meters without interrupting the recorder paths. The dedicated source destination
 allow optional microphone-only and system-audio-only recordings while preserving
 the existing mixed master stream.
 
+`useAudioDSP` owns React state and live configuration effects. `audioDspGraph.ts`
+owns graph construction, generated destination streams, the meter/noise-gate RAF,
+and full graph disposal; microphone and system processor topology remains in the
+existing processor modules.
+
 Google Slides recording uses native display capture, so the system gain is not
 connected to `AudioContext.destination`; the browser retains normal tab playback
 and RecordWeb avoids accidental system-audio feedback.
@@ -227,6 +249,8 @@ part of the captured pixels while expanded or collapsed.
 ---
 
 ## 4. Pause, Resume & State Synchronization
+
+`useRecordingSession` coordinates React state and recorder lifecycle. Supporting responsibilities are isolated in `recordingClock.ts` (active-time accounting), `recordingAssets.ts` (single-track recorder topology, codec selection, draft snapshots, and per-asset WebM repair), and `recordingFinalization.ts` (cursor asset assembly, waveform extraction, and composite validation). The hook remains the owner of recorder callbacks, the coordinated stop barrier, IndexedDB persistence order, and preview URL lifecycle.
 
 ### 4.1 Chrono-Timeline Tracking
 To ensure that paused time does not cause blank frames or audio-video drift:

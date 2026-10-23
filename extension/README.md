@@ -17,6 +17,21 @@ This unpacked Chromium Manifest V3 extension automatically prepares 24 Hz cursor
 The extension's static content script initializes cursor tracking automatically on supported Google Slides URLs. No toolbar click or extension shortcut is needed per recording session. Chrome still requires explicit confirmation in its native share picker for every new screen-share stream.
 The default Studio UI does not request or store a Slides URL. Its Connect action opens Chrome's picker directly and resolves the selected tab through Capture Handle. The extension still retains its URL-based lookup/opening module for future or non-UI workflows: when explicitly invoked, it can compare presentation IDs, reuse a matching tab, normalize editable URLs to `/present`, or create a background tab while preserving published presentation URLs.
 
+## Module map
+
+- `extension-protocol.js`: shared port names, message names, channel, and reconnect timings.
+- `resilient-port.js`: reconnect and optional outbound-message queue used by both content-script clients.
+- `recordweb-bridge.js`: the narrow RecordWeb page ↔ extension transport boundary.
+- `capture-handle-main.js`: MAIN-world Capture Handle producer for a Slides document.
+- `cursor-frame-sensor.js`: child-frame pointer mapping for Slides presentation surfaces.
+- `cursor-sampler.js`: session clock, pause/resume state, 24 Hz sampling, and final sample.
+- `tracker-controls.js`: isolated Shadow DOM ready/recording controls.
+- `tracker-content.js`: top-frame orchestration between handle registration, pointer input, sampler, controls, and the tracker port.
+- `google-slides.js`: URL parsing and deck matching for the dormant URL-based flow.
+- `service-worker.js`: tab/port registry, Capture Handle resolution, focus routing, and tracker-loss policy.
+
+On the web app side, `useTabCaptureExtension.ts` owns connection-facing React state, while `extensionCursorCapture.ts` owns the cursor start/stop acknowledgements, sample drain, and `CursorTrajectory` assembly. `captureHandle.ts` only reads and waits for the browser Capture Handle.
+
 After the user selects a tab in Chrome's share picker, version `0.3.9` reads the tab's opaque Capture Handle and asks the extension to resolve it to the matching tracker port. This makes the picker-selected tab the cursor target without requiring a URL field. A window, full screen, non-Slides tab, or unregistered Slides tab is rejected and its stream is stopped. Once verified, RecordWeb is focused again and shows the retained stream in Studio preview. Pressing **Start recording** keeps or returns focus to RecordWeb for the visible three-second countdown, then focuses the verified Slides tab and starts the cursor/recorder handshake.
 
 After picker verification, the selected Slides tab exposes the compact, auto-collapsing **Ready to record** control. If the teacher visits the Slides tab to make last-minute edits, expanding the control and choosing **Start recording** sends the same guarded Start command to the connected Studio without reopening the picker. The existing RecordWeb Start button remains available in Studio.
@@ -51,3 +66,4 @@ After Start, RecordWeb automatically focuses the verified picker-selected Slides
 - Version `0.4.3` makes Capture Handle publication lifecycle-safe for Google Slides: one stable handle is reapplied at document, DOM, load, pageshow, and bounded delayed checkpoints, while the DOM handle is published only after Chrome accepts the configuration.
 - Version `0.4.4` adds frame-aware pointer tracking for Google Slides presentation fullscreen. A minimal sensor observes matching child frames and eligible `about:blank` descendants, maps nested-frame coordinates into the top viewport, and forwards them to the existing single 24 Hz tracker without duplicating session controls.
 - Version `0.4.5` makes Connect and repeat recording resilient to Manifest V3 worker suspension. The Studio bridge and Slides tracker reconnect with bounded backoff, the tracker re-registers its handle/session state, cursor commands tolerate a short reconnect window, and every Connect asks open Slides tabs to reapply their existing Capture Handle immediately before the native picker without delaying its user gesture.
+- Version `0.4.6` reorganizes the extension into explicit protocol, transport, sampler, toolbar, URL, tracker-orchestration, and service-worker boundaries. It preserves the `0.4.5` wire protocol and fail-closed recording behavior while making each lifecycle independently inspectable.

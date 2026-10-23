@@ -82,15 +82,27 @@ export type ExtensionToPageMessage =
       message: string;
     };
 
-export type PageToExtensionMessage = {
+interface PageToExtensionMessageBase {
   channel: typeof RECORDWEB_EXTENSION_CHANNEL;
   direction: 'page-to-extension';
-  type: 'PAGE_READY' | 'PREPARE_CAPTURE_HANDLES' | 'OPEN_GOOGLE_SLIDES' | 'RESOLVE_CAPTURE_TARGET' | 'FOCUS_APP' | 'FOCUS_TARGET' | 'CURSOR_START' | 'CURSOR_PAUSE' | 'CURSOR_RESUME' | 'CURSOR_STOP' | 'CURSOR_RESET' | 'DISCONNECT';
-  sessionId?: string;
-  targetTabId?: number;
-  offsetMs?: number;
-  startIndex?: number;
-  url?: string;
-  captureHandle?: string;
-  requestId?: string;
-};
+}
+
+export type PageToExtensionPayload =
+  | { type: 'PAGE_READY' | 'PREPARE_CAPTURE_HANDLES' | 'FOCUS_APP' }
+  | { type: 'OPEN_GOOGLE_SLIDES'; url: string }
+  | { type: 'RESOLVE_CAPTURE_TARGET'; captureHandle: string; requestId: string }
+  | { type: 'FOCUS_TARGET'; targetTabId: number }
+  | { type: 'DISCONNECT'; targetTabId?: number }
+  | {
+      type: 'CURSOR_START';
+      requestId: string;
+      sessionId: string;
+      targetTabId: number;
+      offsetMs?: number;
+      startIndex?: number;
+    }
+  | { type: 'CURSOR_PAUSE' | 'CURSOR_RESUME'; sessionId?: string; targetTabId?: number }
+  | { type: 'CURSOR_STOP'; requestId: string; sessionId: string; targetTabId: number }
+  | { type: 'CURSOR_RESET'; sessionId?: string; targetTabId?: number };
+
+export type PageToExtensionMessage = PageToExtensionMessageBase & PageToExtensionPayload;

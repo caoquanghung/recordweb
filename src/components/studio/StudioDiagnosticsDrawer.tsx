@@ -1,6 +1,6 @@
 import { StatusDot, StudioIcon } from './StudioPrimitives';
 import type { StudioController } from './useStudioController';
-import styles from './StudioShell.module.css';
+import styles from './StudioDiagnosticsDrawer.module.css';
 
 export function StudioDiagnosticsDrawer({ studio }: { studio: StudioController }) {
   const {
