@@ -4,6 +4,7 @@
 
   const HANDLE_ATTRIBUTE = 'data-recordweb-capture-handle';
   const STATUS_ATTRIBUTE = 'data-recordweb-capture-handle-status';
+  const PREPARE_EVENT = 'recordweb:prepare-capture-handle';
   const LOG_PREFIX = '[RecordWeb][CaptureHandleProducer]';
   const RETRY_DELAYS_MS = [250, 1000, 2500, 5000];
   const randomId = typeof crypto.randomUUID === 'function'
@@ -62,6 +63,7 @@
 
   window.addEventListener('load', () => applyCaptureHandleConfig('window-load'), { once: true });
   window.addEventListener('pageshow', () => applyCaptureHandleConfig('pageshow'));
+  document.addEventListener(PREPARE_EVENT, () => applyCaptureHandleConfig('on-demand-prepare'));
 
   RETRY_DELAYS_MS.forEach((delayMs) => {
     window.setTimeout(() => applyCaptureHandleConfig(`retry-${delayMs}ms`), delayMs);

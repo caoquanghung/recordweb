@@ -6,11 +6,16 @@
   const CONTROLS_AUTO_HIDE_MS = 3200;
   const CAPTURE_HANDLE_ATTRIBUTE = 'data-recordweb-capture-handle';
   const FRAME_POINTER_EVENT = 'recordweb:cursor-frame-pointer';
+  const PREPARE_CAPTURE_HANDLE_EVENT = 'recordweb:prepare-capture-handle';
+  const TRACKER_PORT_NAME = 'recordweb-tracker';
+  const RECONNECT_DELAYS_MS = [0, 100, 250, 500, 1000, 2500, 5000];
   // Retain the pre-session handoff module for future experiments without
   // showing a redundant Ready pill while target tabs prepare in background.
   const ENABLE_PRESESSION_READY_CONTROLS = true;
-  const port = chrome.runtime.connect({ name: 'recordweb-tracker' });
-  let disconnected = false;
+  let port = null;
+  let reconnectTimer = null;
+  let reconnectAttempt = 0;
+  let captureHandleRetryTimer = null;
   let sessionId = null;
   let timer = null;
   let activeStartedAt = 0;
@@ -23,10 +28,61 @@
   function registerCaptureHandle(attempt = 0) {
     const handle = document.documentElement?.getAttribute(CAPTURE_HANDLE_ATTRIBUTE);
     if (handle) {
+      captureHandleRetryTimer = null;
       postToExtension({ type: 'CAPTURE_HANDLE_READY', handle });
       return;
     }
-    if (attempt < 100) window.setTimeout(() => registerCaptureHandle(attempt + 1), 50);
+    if (attempt < 100) {
+      captureHandleRetryTimer = window.setTimeout(() => registerCaptureHandle(attempt + 1), 50);
+    }
+  }
+
+  function restartCaptureHandleRegistration() {
+    if (captureHandleRetryTimer !== null) window.clearTimeout(captureHandleRetryTimer);
+    captureHandleRetryTimer = null;
+    registerCaptureHandle();
+  }
+
+  function scheduleReconnect() {
+    if (reconnectTimer !== null || !chrome.runtime?.id) return;
+    const delayMs = RECONNECT_DELAYS_MS[Math.min(reconnectAttempt, RECONNECT_DELAYS_MS.length - 1)];
+    reconnectAttempt += 1;
+    reconnectTimer = window.setTimeout(() => {
+      reconnectTimer = null;
+      connectPort();
+    }, delayMs);
+  }
+
+  function connectPort() {
+    if (port || !chrome.runtime?.id) return port;
+    let connectedPort;
+    try {
+      connectedPort = chrome.runtime.connect({ name: TRACKER_PORT_NAME });
+    } catch {
+      scheduleReconnect();
+      return null;
+    }
+
+    port = connectedPort;
+    connectedPort.onMessage.addListener((message) => {
+      if (port !== connectedPort) return;
+      reconnectAttempt = 0;
+      handleExtensionMessage(message);
+    });
+    connectedPort.onDisconnect.addListener(() => {
+      if (port !== connectedPort) return;
+      port = null;
+      scheduleReconnect();
+    });
+    restartCaptureHandleRegistration();
+    postToExtension({
+      type: 'TRACKER_STATE',
+      sessionId,
+      paused: Boolean(sessionId && !activeStartedAt),
+      timestampMs: Math.round(activeTimestamp()),
+      nextSampleIndex: sampleIndex,
+    });
+    return connectedPort;
   }
 
   function controlsParent() {
@@ -306,7 +362,7 @@
   }
 
   function publishSample() {
-    if (!sessionId || disconnected) return;
+    if (!sessionId) return;
     const size = viewport();
     postToExtension({
       type: 'CURSOR_SAMPLE',
@@ -323,12 +379,14 @@
   }
 
   function postToExtension(message) {
-    if (disconnected) return false;
+    const connectedPort = port ?? connectPort();
+    if (!connectedPort) return false;
     try {
-      port.postMessage(message);
+      connectedPort.postMessage(message);
       return true;
     } catch {
-      teardown(false);
+      if (port === connectedPort) port = null;
+      scheduleReconnect();
       return false;
     }
   }
@@ -426,35 +484,13 @@
     postToExtension({ type: 'PRESENTATION_COMMAND', command });
   }
 
-  function teardown(disconnectPort) {
-    if (disconnected) return;
-    disconnected = true;
-    resetSampler();
-    document.removeEventListener('pointermove', onPointerMove, true);
-    document.removeEventListener(FRAME_POINTER_EVENT, onFramePointer);
-    document.removeEventListener('pointerleave', onPointerLeave, true);
-    window.removeEventListener('blur', onWindowBlur);
-    document.removeEventListener('fullscreenchange', moveControlsToFullscreenSurface);
-    document.removeEventListener('keydown', onKeyDown, true);
-    globalThis.__recordWebCursorTrackerInstalled = false;
-    if (disconnectPort) {
-      try {
-        port.disconnect();
-      } catch {
-        // The port may already be disconnected by an extension reload.
-      }
-    }
-  }
-
   document.addEventListener('pointermove', onPointerMove, { capture: true, passive: true });
   document.addEventListener(FRAME_POINTER_EVENT, onFramePointer);
   document.addEventListener('pointerleave', onPointerLeave, { capture: true, passive: true });
   window.addEventListener('blur', onWindowBlur, { passive: true });
   document.addEventListener('keydown', onKeyDown, { capture: true });
   document.addEventListener('fullscreenchange', moveControlsToFullscreenSurface);
-  registerCaptureHandle();
-
-  port.onMessage.addListener((message) => {
+  function handleExtensionMessage(message) {
     if (ENABLE_PRESESSION_READY_CONTROLS && message.type === 'PRESENTATION_READY' && !sessionId) {
       createControls('ready');
     }
@@ -486,6 +522,13 @@
     }
     if (message.type === 'CURSOR_RESET' && (!message.sessionId || message.sessionId === sessionId)) resetSampler();
     if (message.type === 'DISCONNECT') resetSampler();
+  }
+
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type !== 'PREPARE_CAPTURE_HANDLE') return;
+    document.dispatchEvent(new Event(PREPARE_CAPTURE_HANDLE_EVENT));
+    restartCaptureHandleRegistration();
   });
-  port.onDisconnect.addListener(() => teardown(false));
+
+  connectPort();
 })();

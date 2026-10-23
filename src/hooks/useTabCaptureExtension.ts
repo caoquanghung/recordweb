@@ -28,6 +28,7 @@ export interface TabCaptureExtensionResult {
   cursorController: CursorCaptureController;
   setGoogleSlidesUrl: (url: string) => void;
   openGoogleSlides: () => Promise<ExtensionTargetTab | null>;
+  prepareCaptureHandles: () => void;
   resolveCaptureTarget: (captureHandle: string) => Promise<ExtensionTargetTab | null>;
   focusApp: () => void;
   focusTarget: () => void;
@@ -222,6 +223,10 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
       setMessage('Confirming the Google Slides tab selected in Chrome…');
       postToExtension({ type: 'RESOLVE_CAPTURE_TARGET', captureHandle, requestId });
     });
+  }, []);
+
+  const prepareCaptureHandles = useCallback(() => {
+    postToExtension({ type: 'PREPARE_CAPTURE_HANDLES' });
   }, []);
 
   const focusTarget = useCallback(() => {
@@ -499,6 +504,7 @@ export function useTabCaptureExtension(): TabCaptureExtensionResult {
     cursorController,
     setGoogleSlidesUrl,
     openGoogleSlides,
+    prepareCaptureHandles,
     resolveCaptureTarget,
     focusApp,
     focusTarget,

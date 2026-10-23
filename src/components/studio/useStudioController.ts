@@ -389,6 +389,9 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       }
 
       void resumeAudio();
+      // Do not await extension work here. getDisplayMedia() must remain in the
+      // original Connect click's transient user-activation chain.
+      tabCapture.prepareCaptureHandles();
       const capture = await acquireScreen();
       const videoTrack = capture?.getVideoTracks()[0];
       if (!capture || !videoTrack) {
