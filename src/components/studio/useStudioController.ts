@@ -466,13 +466,14 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     const timer = window.setTimeout(() => {
       if (countdown <= 1) {
         setCountdown(null);
+        if (!presentationWorkspace && tabCaptureConnected) focusTabCaptureTarget();
         void startRecording();
       } else {
         setCountdown((value) => value === null ? null : value - 1);
       }
-    }, 800);
+    }, 1000);
     return () => window.clearTimeout(timer);
-  }, [countdown, startRecording]);
+  }, [countdown, focusTabCaptureTarget, presentationWorkspace, startRecording, tabCaptureConnected]);
 
   useEffect(() => {
     if (!startRecordingAttention) return;
@@ -539,12 +540,12 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     setRecoveryMessage('');
     setSourceCaptureEnabled(true);
     await resumeAudio();
+    if (!presentationWorkspace && tabCaptureConnected) focusRecordWebApp();
     setCountdown(3);
     setSourcesOpen(false);
     setEffectsOpen(false);
-    if (!presentationWorkspace && tabCaptureConnected) focusTabCaptureTarget();
   }, [
-    focusTabCaptureTarget,
+    focusRecordWebApp,
     mode,
     presentationDeck.metadata,
     presentationDeck.status,
