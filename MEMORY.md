@@ -9,7 +9,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 * **Project**: RecordWeb — High-performance, client-side web recording studio.
 * **Core Capabilities**: Screen, webcam, and audio recording with real-time video compositing (PiP, AI background removal/blur), Web Audio DSP filtering, 30 FPS regulation, and dual local/cloud export.
 * **Technology Stack**:
-  * **Framework**: Next.js 16 (App Router), React 19, TypeScript.
+  * **Framework**: Next.js 16.4.2 (App Router), React 19, TypeScript.
   * **Styling**: Vanilla CSS (CSS Modules & Custom Properties, adaptive light/dark Glassmorphism design tokens).
   * **Vision AI**: Google MediaPipe Selfie Segmentation (`@mediapipe/selfie_segmentation`) via WebGL/WASM.
   * **Audio Processing**: Native Web Audio API (`AudioContext`, `BiquadFilterNode`, `DynamicsCompressorNode`, `AnalyserNode`).
@@ -95,6 +95,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added `figma-to-page` with a strict two-input contract: a node-specific Figma URL and an explicit target route/page; agents must never infer the implementation destination
   - [x] Consolidated the media/audio/video invariants into the authoritative `docs/audio_video_pipeline.md`; removed the duplicate `.agents/rules/media_audio_video.md`
 - [x] **Phase 1 (Scaffolding): Next.js 16 + React 19 + TypeScript Setup**:
+  - [x] Upgraded Next.js and `eslint-config-next` from 16.4.0 to 16.4.2 for the published security advisory; enabled `experimental.agentUpgrade: "security"`
   - [x] Initialized Next.js App Router with TypeScript and Turbopack
   - [x] Installed `@neondatabase/serverless`, `@vercel/blob`, `idb-keyval`, `fix-webm-duration`
   - [x] Defined TypeScript types (`types/media.ts`, `types/recording.ts`, `types/database.ts`)
