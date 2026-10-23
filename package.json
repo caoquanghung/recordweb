@@ -26,7 +26,7 @@
     "fix-webm-duration": "^1.0.6",
     "idb-keyval": "^6.3.0",
     "mediabunny": "^1.61.2",
-    "next": "16.4.0",
+    "next": "16.4.2",
     "pdfjs-dist": "6.4.299",
     "pptx-browser": "4.1.5",
     "react": "19.3.0",
@@ -39,7 +39,7 @@
     "@types/react-dom": "^19",
     "electron": "^44.7.0",
     "eslint": "^9",
-    "eslint-config-next": "16.4.0",
+    "eslint-config-next": "16.4.2",
     "typescript": "^5"
   }
 }
