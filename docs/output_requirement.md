@@ -112,7 +112,7 @@ x = clientX / width
 y = clientY / height
 ```
 
-Valid visible samples satisfy `0 <= x <= 1` and `0 <= y <= 1`. Do not silently clamp an out-of-bounds pointer. Set `visible` to `false` and both coordinates to `null`.
+Valid samples satisfy `0 <= x <= 1` and `0 <= y <= 1`. Do not emit a sample while the pointer is outside the tracked content.
 
 #### Sampling and timing
 
@@ -122,13 +122,13 @@ Valid visible samples satisfy `0 <= x <= 1` and `0 <= y <= 1`. Do not silently c
 - Emit no cursor samples while paused.
 - After resume, continue from accumulated active time without a pause-sized gap.
 - Synchronize with media using `timestampMs`, not by matching the 24 Hz sample index to 30 FPS video frames.
-- Emit a sample at every scheduled interval even when the pointer has not moved.
+- Emit a sample at every scheduled interval while the pointer is inside the tracked content, even when it has not moved.
 
 #### JSON contract
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "sessionId": "018f-example-session-id",
   "sampleRateHz": 24,
   "coordinateSpace": {
@@ -151,14 +151,13 @@ Valid visible samples satisfy `0 <= x <= 1` and `0 <= y <= 1`. Do not silently c
     "targetTitle": "Example target tab"
   },
   "samples": [
-    { "index": 0, "timestampMs": 0, "x": 0.42, "y": 0.31, "visible": true },
-    { "index": 1, "timestampMs": 41.667, "x": 0.43, "y": 0.31, "visible": true },
-    { "index": 2, "timestampMs": 83.333, "x": null, "y": null, "visible": false }
+    { "index": 0, "timestampMs": 0, "x": 0.42, "y": 0.31 },
+    { "index": 1, "timestampMs": 41.667, "x": 0.43, "y": 0.31 }
   ]
 }
 ```
 
-Required top-level fields are `schemaVersion`, `sessionId`, `sampleRateHz`, `coordinateSpace`, `timeline`, `tracking`, and `samples`. Every sample requires `index`, `timestampMs`, `x`, `y`, and `visible`.
+Required top-level fields are `schemaVersion`, `sessionId`, `sampleRateHz`, `coordinateSpace`, `timeline`, `tracking`, and `samples`. Every sample requires `index`, `timestampMs`, `x`, and `y`. Samples are omitted while the cursor is outside the tracked content.
 
 ## 4. Shared Session Timeline
 

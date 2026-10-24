@@ -35,13 +35,12 @@ export function createPresentationCursorCaptureSession(): PresentationCursorCapt
   const startTimer = () => {
     clearTimer();
     timer = window.setInterval(() => {
-      if (!clock.isActive()) return;
+      if (!clock.isActive() || !pointer.visible) return;
       samples.push({
         index: samples.length,
         timestampMs: Math.round(clock.elapsed()),
-        x: pointer.visible ? pointer.x : null,
-        y: pointer.visible ? pointer.y : null,
-        visible: pointer.visible,
+        x: pointer.x,
+        y: pointer.y,
       });
     }, 1000 / PRESENTATION_CURSOR_SAMPLE_RATE_HZ);
   };
@@ -80,7 +79,7 @@ export function createPresentationCursorCaptureSession(): PresentationCursorCapt
       const completedSessionId = sessionId;
       sessionId = null;
       return {
-        schemaVersion: 1,
+        schemaVersion: 2,
         sessionId: completedSessionId,
         sampleRateHz: PRESENTATION_CURSOR_SAMPLE_RATE_HZ,
         coordinateSpace: {

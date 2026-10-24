@@ -35,14 +35,24 @@ test('sampler preserves its active-time clock and publishes a final indexed samp
   });
 
   sampler.start('session-1');
-  assert.equal(calls[0].sample.index, 0);
-  assert.equal(calls[0].sample.visible, false);
+  assert.equal(calls.length, 0);
 
   sampler.updateCursor({ x: 500, y: 125, visible: true });
   now = 100;
   intervalCallback();
   assert.deepEqual(
-    { x: calls[1].sample.x, y: calls[1].sample.y, timestampMs: calls[1].sample.timestampMs },
+    calls[0].sample,
+    { index: 0, x: 0.5, y: 0.25, timestampMs: 100 },
+  );
+
+  sampler.updateCursor({ x: null, y: null, visible: false });
+  now = 150;
+  intervalCallback();
+  assert.equal(calls.length, 1);
+
+  sampler.updateCursor({ x: 500, y: 125, visible: true });
+  assert.deepEqual(
+    { x: calls[0].sample.x, y: calls[0].sample.y, timestampMs: calls[0].sample.timestampMs },
     { x: 0.5, y: 0.25, timestampMs: 100 },
   );
 
@@ -52,7 +62,7 @@ test('sampler preserves its active-time clock and publishes a final indexed samp
     sessionId: 'session-1',
     paused: true,
     timestampMs: 250,
-    nextSampleIndex: 2,
+    nextSampleIndex: 1,
   });
 
   now = 500;
@@ -61,7 +71,7 @@ test('sampler preserves its active-time clock and publishes a final indexed samp
   intervalCallback();
   const stopped = sampler.stop({ showReadyControls: true });
 
-  assert.deepEqual(stopped, { stoppedSessionId: 'session-1', lastSampleIndex: 3 });
+  assert.deepEqual(stopped, { stoppedSessionId: 'session-1', lastSampleIndex: 2 });
   assert.equal(calls.at(-1).sample.timestampMs, 350);
   assert.deepEqual(controlEvents, [
     ['show', 'recording'],

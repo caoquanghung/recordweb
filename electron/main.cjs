@@ -55,18 +55,19 @@ function cursorSample(state, timestampMs) {
   const normalizedX = (point.x - left) / width;
   const normalizedY = (point.y - top) / height;
   const visible = normalizedX >= 0 && normalizedX <= 1 && normalizedY >= 0 && normalizedY <= 1;
+  if (!visible) return null;
   return {
     index: state.samples.length,
     timestampMs: Number(timestampMs.toFixed(3)),
-    x: visible ? Number(normalizedX.toFixed(6)) : null,
-    y: visible ? Number(normalizedY.toFixed(6)) : null,
-    visible,
+    x: Number(normalizedX.toFixed(6)),
+    y: Number(normalizedY.toFixed(6)),
   };
 }
 
 function sampleThrough(state, elapsedMs) {
   while (state.nextSampleAtMs <= elapsedMs + 0.25) {
-    state.samples.push(cursorSample(state, state.nextSampleAtMs));
+    const sample = cursorSample(state, state.nextSampleAtMs);
+    if (sample) state.samples.push(sample);
     state.nextSampleAtMs += SAMPLE_INTERVAL_MS;
   }
 }
@@ -147,7 +148,7 @@ function registerCursorIpc() {
     state.samples = state.samples.filter((sample) => sample.timestampMs < durationMs);
     state.samples.forEach((sample, index) => { sample.index = index; });
     const trajectory = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       sessionId: state.sessionId,
       sampleRateHz: SAMPLE_RATE_HZ,
       coordinateSpace: {

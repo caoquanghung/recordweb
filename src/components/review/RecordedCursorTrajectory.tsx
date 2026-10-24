@@ -9,27 +9,65 @@ interface Props { blob: Blob; }
 const VIEWBOX_WIDTH = 1000;
 const VIEWBOX_HEIGHT = 562.5;
 const TRAIL_DURATION_MS = 3000;
+const MAX_SAMPLE_GAP_MS = (1000 / 24) * 3;
 
-function validTrajectory(value: unknown): value is CursorTrajectory {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Partial<CursorTrajectory>;
-  return candidate.schemaVersion === 1
-    && candidate.sampleRateHz === 24
-    && Array.isArray(candidate.samples)
-    && typeof candidate.timeline?.durationMs === 'number';
+interface LegacyCursorTrajectorySample {
+  index: number;
+  timestampMs: number;
+  x: number | null;
+  y: number | null;
+  visible: boolean;
+}
+
+function finiteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function parseTrajectory(value: unknown): CursorTrajectory | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as Partial<Omit<CursorTrajectory, 'schemaVersion' | 'samples'>> & {
+    schemaVersion?: number;
+    samples?: unknown[];
+  };
+  if ((candidate.schemaVersion !== 1 && candidate.schemaVersion !== 2)
+    || candidate.sampleRateHz !== 24
+    || !Array.isArray(candidate.samples)
+    || typeof candidate.timeline?.durationMs !== 'number') return null;
+
+  const samples = candidate.samples.flatMap((sample, index) => {
+    if (!sample || typeof sample !== 'object') return [];
+    const legacySample = sample as CursorTrajectorySample | LegacyCursorTrajectorySample;
+    if (!finiteNumber(legacySample.timestampMs)
+      || !finiteNumber(legacySample.x)
+      || !finiteNumber(legacySample.y)
+      || legacySample.x < 0
+      || legacySample.x > 1
+      || legacySample.y < 0
+      || legacySample.y > 1
+      || ('visible' in legacySample && !legacySample.visible)) return [];
+    return [{
+      index,
+      timestampMs: legacySample.timestampMs,
+      x: legacySample.x,
+      y: legacySample.y,
+    }];
+  });
+
+  return { ...candidate, schemaVersion: 2, samples } as CursorTrajectory;
 }
 
 function pathSegments(samples: CursorTrajectorySample[], maximumPoints = 2400) {
   const stride = Math.max(1, Math.ceil(samples.length / maximumPoints));
   const segments: string[] = [];
   let current = '';
+  let previousTimestamp: number | null = null;
   samples.forEach((sample, index) => {
-    if (index % stride !== 0 && index !== samples.length - 1) return;
-    if (!sample.visible || sample.x === null || sample.y === null) {
+    if (previousTimestamp !== null && sample.timestampMs - previousTimestamp > MAX_SAMPLE_GAP_MS) {
       if (current) segments.push(current);
       current = '';
-      return;
     }
+    previousTimestamp = sample.timestampMs;
+    if (index % stride !== 0 && index !== samples.length - 1) return;
     const x = sample.x * VIEWBOX_WIDTH;
     const y = sample.y * VIEWBOX_HEIGHT;
     current += `${current ? ' L' : 'M'} ${x.toFixed(2)} ${y.toFixed(2)}`;
@@ -56,9 +94,11 @@ function findSampleIndex(samples: CursorTrajectorySample[], timeMs: number) {
 
 function cursorPosition(samples: CursorTrajectorySample[], index: number, timeMs: number) {
   const current = samples[index];
-  if (!current?.visible || current.x === null || current.y === null) return null;
+  if (!current || timeMs - current.timestampMs > MAX_SAMPLE_GAP_MS) return null;
   const next = samples[index + 1];
-  if (!next?.visible || next.x === null || next.y === null || next.timestampMs <= current.timestampMs) {
+  if (!next
+    || next.timestampMs <= current.timestampMs
+    || next.timestampMs - current.timestampMs > MAX_SAMPLE_GAP_MS) {
     return { x: current.x, y: current.y };
   }
   const progress = Math.min(1, Math.max(0, (timeMs - current.timestampMs) / (next.timestampMs - current.timestampMs)));
@@ -84,8 +124,9 @@ export function RecordedCursorTrajectory({ blob }: Props) {
     let cancelled = false;
     void blob.text().then((text) => {
       const parsed: unknown = JSON.parse(text);
-      if (!validTrajectory(parsed)) throw new Error('Unsupported cursor trajectory file.');
-      if (!cancelled) setTrajectory(parsed);
+      const nextTrajectory = parseTrajectory(parsed);
+      if (!nextTrajectory) throw new Error('Unsupported cursor trajectory file.');
+      if (!cancelled) setTrajectory(nextTrajectory);
     }).catch((cause) => {
       if (!cancelled) setError((cause as Error).message);
     });

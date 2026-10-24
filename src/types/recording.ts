@@ -21,13 +21,12 @@ export type RecordingAssetKind =
 export interface CursorTrajectorySample {
   index: number;
   timestampMs: number;
-  x: number | null;
-  y: number | null;
-  visible: boolean;
+  x: number;
+  y: number;
 }
 
 export interface CursorTrajectory {
-  schemaVersion: 1;
+  schemaVersion: 2;
   sessionId: string;
   sampleRateHz: 24;
   coordinateSpace: {

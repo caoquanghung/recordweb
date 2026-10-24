@@ -19,7 +19,7 @@
     );
 
     const publishSample = () => {
-      if (!sessionId) return;
+      if (!sessionId || !cursor.visible || cursor.x === null || cursor.y === null) return;
       const size = viewport();
       sendSample({
         sessionId,
@@ -27,9 +27,8 @@
         sample: {
           index: sampleIndex++,
           timestampMs: Math.round(activeTimestamp()),
-          x: cursor.visible && cursor.x !== null ? Math.min(1, Math.max(0, cursor.x / size.width)) : null,
-          y: cursor.visible && cursor.y !== null ? Math.min(1, Math.max(0, cursor.y / size.height)) : null,
-          visible: cursor.visible,
+          x: Math.min(1, Math.max(0, cursor.x / size.width)),
+          y: Math.min(1, Math.max(0, cursor.y / size.height)),
         },
       });
     };

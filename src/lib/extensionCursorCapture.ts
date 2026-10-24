@@ -175,7 +175,7 @@ export function createExtensionCursorCapture({
       }
 
       return {
-        schemaVersion: 1,
+        schemaVersion: 2,
         sessionId: stoppedSessionId,
         sampleRateHz: 24,
         coordinateSpace: {

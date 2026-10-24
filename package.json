@@ -11,6 +11,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:extension": "node --test extension/tests/*.test.mjs",
+    "extension:icons": "node scripts/generate-extension-icons.mjs",
+    "extension:package": "node scripts/package-extension.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",

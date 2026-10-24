@@ -14,6 +14,10 @@ This unpacked Chromium Manifest V3 extension automatically prepares 24 Hz cursor
 8. Choose that tab in Chrome's share picker, enable tab audio when needed, and press **Share**. RecordWeb verifies that exact selected tab before keeping the preview.
 9. Confirm the live preview and press **Start recording**.
 
+## Chrome Web Store package
+
+Run `npm run extension:package` from the repository root. The command creates a validated ZIP under `artifacts/chrome-web-store/` with a production-only manifest: localhost, loopback, Vercel Preview wildcard access, tests, and development documentation are excluded. Store listing copy, permission explanations, reviewer notes, privacy disclosures, and the remaining publisher steps are maintained in `docs/chrome_web_store_submission.md`.
+
 The extension's static content script initializes cursor tracking automatically on supported Google Slides URLs. No toolbar click or extension shortcut is needed per recording session. Chrome still requires explicit confirmation in its native share picker for every new screen-share stream.
 The default Studio UI does not request or store a Slides URL. Its Connect action opens Chrome's picker directly and resolves the selected tab through Capture Handle. The extension still retains its URL-based lookup/opening module for future or non-UI workflows: when explicitly invoked, it can compare presentation IDs, reuse a matching tab, normalize editable URLs to `/present`, or create a background tab while preserving published presentation URLs.
 
@@ -67,3 +71,4 @@ After Start, RecordWeb automatically focuses the verified picker-selected Slides
 - Version `0.4.4` adds frame-aware pointer tracking for Google Slides presentation fullscreen. A minimal sensor observes matching child frames and eligible `about:blank` descendants, maps nested-frame coordinates into the top viewport, and forwards them to the existing single 24 Hz tracker without duplicating session controls.
 - Version `0.4.5` makes Connect and repeat recording resilient to Manifest V3 worker suspension. The Studio bridge and Slides tracker reconnect with bounded backoff, the tracker re-registers its handle/session state, cursor commands tolerate a short reconnect window, and every Connect asks open Slides tabs to reapply their existing Capture Handle immediately before the native picker without delaying its user gesture.
 - Version `0.4.6` reorganizes the extension into explicit protocol, transport, sampler, toolbar, URL, tracker-orchestration, and service-worker boundaries. It preserves the `0.4.5` wire protocol and fail-closed recording behavior while making each lifecycle independently inspectable.
+- Version `0.4.7` writes cursor trajectory schema v2: persisted samples contain only numeric `x`/`y` coordinates, and intervals where the pointer is outside the tracked content are omitted instead of producing nullable coordinates plus a `visible` flag.

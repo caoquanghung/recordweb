@@ -67,9 +67,9 @@ The extension service worker owns pairing and routing, but it must not be the 24
 
 - Coordinates are relative to the visible content viewport of the captured target tab.
 - `x = clientX / viewportWidth` and `y = clientY / viewportHeight`.
-- Valid visible coordinates remain within `[0, 1]`.
-- When the pointer is outside the document, `visible` is `false` and `x/y` are `null`.
-- The sampler emits one sample every `41.6667 ms`, including when the pointer has not moved.
+- Valid coordinates remain within `[0, 1]`.
+- No sample is emitted while the pointer is outside the tracked document.
+- The sampler emits one sample every `41.6667 ms` while the pointer is inside the document, including when it has not moved.
 - Pause time is excluded from `timestampMs`.
 - The cursor asset uses the same `sessionId` as every media asset.
 - Target-tab navigation to a different origin invalidates the `activeTab` grant; RecordWeb must warn and mark cursor capture unavailable rather than fabricate samples.
@@ -80,7 +80,7 @@ The cursor JSON uses `tracking.mode: "browser-extension-tab"` and includes the e
 
 - Only one target tab may be paired with a recording session.
 - Closing the target tab ends its video, audio, and cursor sources.
-- Switching to another tab does not change the target. Cursor samples become invisible because the pointer is no longer interacting with the captured document.
+- Switching to another tab does not change the target. Cursor sampling pauses until the pointer interacts with the captured document again.
 - If tab audio is captured, RecordWeb must preserve local playback through the Web Audio graph when Chromium suppresses the tab's normal audio output.
 - The one-use media stream ID must be consumed immediately; an expired ID requires the user to invoke the extension again.
 - Unsupported browser pages such as `chrome://` and extension-store pages cannot be tracked.
@@ -97,7 +97,7 @@ The existing Electron display cursor helper is a legacy implementation and remai
 5. remove Electron runtime dependencies only after equivalent tests pass; and
 6. update deployment instructions for loading an unpacked extension and publishing it later.
 
-Review and Library render the JSON as an interactive timeline player. The player interpolates the visible cursor between adjacent 24 Hz samples, shows a short recent trail over a faint full-session path, and provides play, pause, seek, and playback-speed controls. This visualization is derived in the browser and does not create or upload a second encoded video asset. The stored raw samples remain unchanged.
+Review and Library render the JSON as an interactive timeline player. The player interpolates the cursor between adjacent 24 Hz samples, treats larger timestamp gaps as periods without a cursor, shows a short recent trail over a faint full-session path, and provides play, pause, seek, and playback-speed controls. This visualization is derived in the browser and does not create or upload a second encoded video asset. The stored raw samples remain unchanged.
 
 ## 7. RecordWeb Presentation Cursor
 
