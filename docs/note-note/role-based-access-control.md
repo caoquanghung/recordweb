@@ -171,14 +171,11 @@ Việc phân quyền phải áp dụng từ điểm kích hoạt tới endpoint,
 
 Trước khi dùng `experiments:use`, mỗi tính năng phải được ghi rõ là **core** hay **experimental**. Không suy ra chỉ từ tên component hoặc trạng thái UI.
 
-Presentation Studio là quyết định còn mở:
-
-- Nếu là **core**, cả `user` và `developer` được dùng; không kiểm tra `experiments:use`.
-- Nếu là **experimental**, phải bảo vệ đồng thời nút `Tải PDF/PPTX` trong `StudioToolbar`, direct route `/presentation`, `PresentationSourcesPanel` và `PresentationStage` bằng `experiments:use`.
+Presentation Studio được phân loại là **core** theo `UI-specification.md`: cả `user` và `developer` được dùng, không kiểm tra `experiments:use` tại nút `Tải PDF/PPTX`, direct route `/presentation`, `PresentationSourcesPanel` hoặc `PresentationStage`.
 
 Các option thử nghiệm trong `StudioEffectsPanel` cũng chỉ được gate ở option cụ thể đã được phân loại. Không ẩn toàn bộ Effects panel nếu các chức năng core vẫn nằm trong đó.
 
-Quyết định cần chốt trước Phase 3: **Presentation Studio là core hay experimental?**
+Nếu quyết định sản phẩm thay đổi và Presentation trở thành experimental, phải gate đồng thời mọi entry point và direct route; không chỉ ẩn nút trên Studio.
 
 ## 6. UI integration
 
@@ -205,7 +202,7 @@ UI layer dự kiến gồm:
 | `StudioHeader` | Tách device preflight khỏi trigger internal diagnostics |
 | `StudioDiagnosticsDrawer` | Chỉ hiển thị dữ liệu vận hành nội bộ cho `developer` |
 | `SettingsClient` | Gate Cloud & Services diagnostics bằng `diagnostics:internal` |
-| `StudioToolbar` | Gate lối vào Presentation nếu tính năng được chốt là experimental |
+| `StudioToolbar` | Presentation là core; không gate theo role |
 | `SidebarShowcase` | Không tự quyết định quyền; server page `/component/sidebar` phải bảo vệ route |
 | `/admin` components | Chỉ nhận dữ liệu sau server check `users:manage` |
 
@@ -265,7 +262,7 @@ Yêu cầu UI:
 - Cập nhật Clerk webhook để mirror role vào Neon.
 - Thêm helper 401/403 thống nhất.
 - Bảo vệ `/api/health`, internal diagnostics và các API dành cho developer.
-- Bảo vệ server page `/admin` và `/component/sidebar`; bảo vệ `/presentation` nếu được phân loại experimental.
+- Bảo vệ server page `/admin` và `/component/sidebar`; giữ `/presentation` là core cho cả hai role.
 - Giữ nguyên toàn bộ ownership/share predicate hiện tại.
 
 ### Phase 3 — UI authorization
@@ -295,7 +292,7 @@ Yêu cầu UI:
 - Developer gọi API internal được phép nhưng không truy cập recording của user khác.
 - API quản trị yêu cầu `users:manage`; chỉ role `developer` có permission này.
 - User mở trực tiếp `/component/sidebar` bị từ chối hoặc route không tồn tại trong production.
-- Presentation Studio có phân loại core/experimental rõ ràng; nếu experimental, user không thể bypass bằng `/presentation`.
+- Presentation Studio được phân loại core và truy cập được bởi cả hai role.
 - Preview tiêu chuẩn của cả hai role chỉ có composite video và mixed audio; developer inspection nằm ở tool riêng.
 - Ẩn UI đặc quyền không phải cách duy nhất bảo vệ chức năng.
 - Direct API call không thể bypass server authorization.
@@ -313,8 +310,7 @@ Yêu cầu UI:
 | Developer gọi internal diagnostics API | 200 |
 | User mở trực tiếp `/component/sidebar` | 403/404 |
 | Developer mở `/component/sidebar` | 200 nếu giữ showcase; 404 nếu loại route khỏi production |
-| User mở `/presentation` khi Presentation là experimental | 403/404 |
-| User mở `/presentation` khi Presentation là core | Thành công |
+| User hoặc Developer mở `/presentation` | Thành công; Presentation là core |
 | Developer đọc/xóa recording của user khác | Bị từ chối |
 | Developer gọi user-management API | Thành công |
 | Role claim không hợp lệ | Xử lý như `user` |
@@ -327,4 +323,24 @@ Yêu cầu UI:
 | Developer xem preview tiêu chuẩn | Vẫn chỉ composite; inspection dùng tool riêng |
 
 Sau khi triển khai, cần chạy `npm run lint`, `npm run build`, các test API authorization và Playwright E2E cho từng role.
+
+## 10. Trạng thái triển khai
+
+Đã hoàn thành trong code:
+
+- permission contract, fail-closed role parser và Route Handler authorization helper;
+- migration `0006_user_roles.sql`, database type và schema verification;
+- Clerk webhook mirror `publicMetadata.appRole` vào Neon;
+- bảo vệ `/api/health` và direct route `/component/sidebar`;
+- `PermissionProvider`, `usePermission()` và `<Can>` cho client UI;
+- tách device preflight khỏi internal diagnostics;
+- composite-only preview tại Review, Library và Recording Details;
+- authorization unit tests, anonymous E2E checks, lint và production build.
+
+Rollout còn phải thực hiện:
+
+1. Apply migration theo thứ tự `0005` rồi `0006` trên đúng Neon environment.
+2. Cấu hình Clerk session token template với claim `{ "metadata": "{{user.public_metadata}}" }`.
+3. Gán `publicMetadata.appRole = "developer"` cho tài khoản nội bộ; tài khoản còn lại không cần gán vì mặc định là `user`.
+4. Refresh session và chạy authenticated E2E bằng một tài khoản `user` và một tài khoản `developer`.
 

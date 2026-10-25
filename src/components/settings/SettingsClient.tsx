@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { WorkspaceShell } from '@/components/app/WorkspaceShell';
 import { useAppTheme } from '@/components/app/useAppTheme';
+import { Can } from '@/components/auth/PermissionProvider';
 import { getAllLocalRecordings, getRecordingDrafts } from '@/lib/idb';
 import styles from './SettingsClient.module.css';
 
@@ -83,15 +84,17 @@ export function SettingsClient() {
           <small className={styles.note}>Clearing browser site data also removes IndexedDB recordings that have not been downloaded or uploaded.</small>
         </section>
 
-        <section className={`${styles.card} ${styles.wideCard}`}>
-          <div className={styles.cardHeading}><div><span>Cloud diagnostics</span><h2>Service connections</h2></div><button onClick={() => void runHealthCheck()} disabled={checking}>{checking ? 'Checking…' : 'Run check'}</button></div>
-          <p>These checks confirm configuration and connectivity without exposing credentials to the browser.</p>
-          <div className={styles.serviceList}>
-            <div><i className={health?.auth === 'authenticated' ? styles.ready : ''} /><span>Clerk authentication</span><strong>{health ? 'Authenticated' : 'Not checked'}</strong></div>
-            <div><i className={health?.database === 'connected' ? styles.ready : ''} /><span>Neon database</span><strong>{health?.database ?? 'Not checked'}</strong></div>
-            <div><i className={health?.blob === 'configured' ? styles.ready : ''} /><span>Vercel Blob</span><strong>{health?.blob ?? 'Not checked'}</strong></div>
-          </div>
-        </section>
+        <Can permission="diagnostics:internal">
+          <section className={`${styles.card} ${styles.wideCard}`}>
+            <div className={styles.cardHeading}><div><span>Cloud diagnostics</span><h2>Service connections</h2></div><button onClick={() => void runHealthCheck()} disabled={checking}>{checking ? 'Checking…' : 'Run check'}</button></div>
+            <p>These checks confirm configuration and connectivity without exposing credentials to the browser.</p>
+            <div className={styles.serviceList}>
+              <div><i className={health?.auth === 'authenticated' ? styles.ready : ''} /><span>Clerk authentication</span><strong>{health ? 'Authenticated' : 'Not checked'}</strong></div>
+              <div><i className={health?.database === 'connected' ? styles.ready : ''} /><span>Neon database</span><strong>{health?.database ?? 'Not checked'}</strong></div>
+              <div><i className={health?.blob === 'configured' ? styles.ready : ''} /><span>Vercel Blob</span><strong>{health?.blob ?? 'Not checked'}</strong></div>
+            </div>
+          </section>
+        </Can>
 
         <section className={`${styles.card} ${styles.wideCard}`}>
           <div className={styles.cardHeading}><div><span>Privacy model</span><h2>Where your data goes</h2></div><em>Client-first</em></div>

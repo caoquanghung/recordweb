@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { AppSidebar } from '@/components/app/AppSidebar';
 import styles from './LibraryClient.module.css';
 import {
-  CursorPreviewDialog,
   RecordingPreviewDialog,
   SharingDialog,
 } from './LibraryDialogs';
@@ -22,7 +21,7 @@ export function LibraryClient() {
   const {
     tab, setTab, query, setQuery, sort, setSort, page, setPage,
     cloud, shared, localOnly, loading, message,
-    preview, setPreview, cursorPreview, setCursorPreview,
+    preview, setPreview,
     sharingRecording, setSharingRecording, shares,
     recipientEmail, setRecipientEmail, permission, setPermission, shareBusy,
     loadLibrary, paginatedEntries, visibleCount, pageCount,
@@ -124,13 +123,11 @@ export function LibraryClient() {
             <LibraryRecordingGrid
               entries={paginatedEntries}
               setPreview={setPreview}
-              setCursorPreview={setCursorPreview}
               downloadLocalFiles={library.downloadLocalFiles}
               downloadCloudFiles={library.downloadCloudFiles}
               removeLocal={library.removeLocal}
               removeCloud={library.removeCloud}
               openSharing={library.openSharing}
-              openCloudCursor={library.openCloudCursor}
               togglePublic={library.togglePublic}
             />
           )}
@@ -164,7 +161,6 @@ export function LibraryClient() {
         </div>
 
         {preview && <RecordingPreviewDialog preview={preview} onClose={() => setPreview(null)} />}
-        {cursorPreview && <CursorPreviewDialog preview={cursorPreview} onClose={() => setCursorPreview(null)} />}
         {sharingRecording && (
           <SharingDialog
             recording={sharingRecording}

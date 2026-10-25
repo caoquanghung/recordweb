@@ -1,6 +1,6 @@
 ---
-spec_version: 4
-status: draft
+spec_version: 5
+status: implemented-core
 purpose: Screen-to-component map for role-based UI planning
 repository_commit: f58d4da
 ---
@@ -60,11 +60,11 @@ Nếu Developer cần waveform, cursor trajectory hoặc source inspection, các
 | Parent | Component con |
 | --- | --- |
 | `StudioStage`, `PresentationStage` | `AudioMeterPanel` → `AudioLevelMeter` |
-| `StudioReviewWorkspace` | Hiện đang dùng `RecordedAudioWaveforms` và `RecordedCursorTrajectory`; phải bỏ khỏi user preview |
+| `StudioReviewWorkspace` | Chỉ render composite preview; waveform và cursor trajectory đã được bỏ khỏi standard review |
 | `LibraryRecordingGrid` | Local, Cloud và Shared card variants |
-| `CloudRecordingWaveform` | Hiện đang dùng `RecordedAudioWaveforms`; phải bỏ khỏi user-facing cards |
-| `CursorPreviewDialog` | Hiện đang dùng `RecordedCursorTrajectory`; không render cho user |
-| `RecordingDetailsClient` | Hiện có waveform và source list; user view chỉ giữ composite video |
+| `CloudRecordingWaveform` | Không còn được render từ user-facing Library cards |
+| `CursorPreviewDialog` | Không còn được render từ user-facing Library |
+| `RecordingDetailsClient` | Chỉ giữ composite video trong media preview; waveform và source list đã được bỏ |
 
 Audio waveform và cursor components không xuất hiện trong user preview. Nếu giữ lại cho Developer, role check phải nằm ở developer-only UI wrapper; không đặt role logic vào các visualization component hoặc media hooks.
 
@@ -109,3 +109,13 @@ Waveform/cursor/source inspection có thể được thêm lại cho Developer d
 | --- | --- |
 | `PresentationShell` | Không được route hiện tại sử dụng; `/presentation` dùng `StudioShell` |
 | `AppNavigation` | Navigation cũ; active screens dùng `AppSidebar` |
+
+## 8. Trạng thái triển khai
+
+- `PermissionProvider`, `usePermission()` và `<Can>` đã được đặt dưới `ClerkProvider`.
+- `AppSidebar` hỗ trợ `requiredPermission` cho menu đặc quyền.
+- Studio device preflight khả dụng cho cả hai role; Clerk/Neon/Blob diagnostics chỉ render và gọi API cho Developer.
+- Settings cloud diagnostics chỉ render cho Developer.
+- Studio/Presentation Review, Library cards/dialog và Recording Details hiện dùng composite-only preview.
+- Presentation Studio được phân loại là core cho cả User và Developer.
+- Developer management screen và developer-only source inspection tool chưa nằm trong scope hiện tại.

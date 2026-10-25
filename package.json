@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:authorization": "node --experimental-strip-types --test tests/unit/authorization.test.mjs",
     "test:extension": "node --test extension/tests/*.test.mjs",
     "extension:icons": "node scripts/generate-extension-icons.mjs",
     "extension:package": "node scripts/package-extension.mjs",

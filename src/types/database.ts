@@ -1,10 +1,12 @@
 import type { RecordingMediaProfile, RecordingProjectStatus } from './recordingProject';
+import type { AppRole } from '@/lib/auth/roles';
 
 /** Mirrors the `users` table — populated by the auth provider callback. */
 export interface DbUser {
   id: string;           // Clerk / Auth.js user ID (VARCHAR 128)
   email: string;
   display_name: string | null;
+  role: AppRole;
   created_at: string;
 }
 

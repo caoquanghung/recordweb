@@ -2,6 +2,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import { PermissionProvider } from "@/components/auth/PermissionProvider";
 import { GlobalMediaControl } from "@/components/media/GlobalMediaControl";
 import { MediaSessionProvider } from "@/components/media/MediaSessionProvider";
 import "./globals.css";
@@ -29,10 +30,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {`try{const saved=localStorage.getItem('recordweb-theme');const theme=saved==='light'||saved==='dark'?saved:(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=theme}catch{document.documentElement.dataset.theme='dark'}`}
         </Script>
         <ClerkProvider>
-          <MediaSessionProvider>
-            {children}
-            <GlobalMediaControl />
-          </MediaSessionProvider>
+          <PermissionProvider>
+            <MediaSessionProvider>
+              {children}
+              <GlobalMediaControl />
+            </MediaSessionProvider>
+          </PermissionProvider>
         </ClerkProvider>
       </body>
     </html>

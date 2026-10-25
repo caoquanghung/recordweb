@@ -1,41 +1,36 @@
 import Link from 'next/link';
-import { RecordedAudioWaveforms } from '@/components/review/RecordedAudioWaveforms';
 import { RECORDING_ARCHIVE_KINDS } from '@/lib/recordingArchive';
-import type { DbRecording, DbRecordingAsset, DbSharedRecording } from '@/types/database';
+import type { DbRecording, DbSharedRecording } from '@/types/database';
 import type { RecordingMetadata } from '@/types/recording';
 import styles from './LibraryClient.module.css';
 import {
-  CloudRecordingWaveform,
   formatLibraryBytes,
   formatLibraryDate,
   formatLibraryDuration,
   LibraryIcon,
   RecordingThumbnail,
 } from './LibraryPrimitives';
-import type { CursorPreview, LibraryEntry, RecordingPreview } from './useLibraryController';
+import type { LibraryEntry, RecordingPreview } from './useLibraryController';
 
 type LibraryRecordingGridProps = {
   entries: LibraryEntry[];
   setPreview: (preview: RecordingPreview) => void;
-  setCursorPreview: (preview: CursorPreview) => void;
   downloadLocalFiles: (recording: RecordingMetadata) => Promise<void>;
   downloadCloudFiles: (recording: DbRecording | DbSharedRecording) => Promise<void>;
   removeLocal: (recording: RecordingMetadata) => Promise<void>;
   removeCloud: (recording: DbRecording) => Promise<void>;
   openSharing: (recording: DbRecording) => Promise<void>;
-  openCloudCursor: (title: string, asset: DbRecordingAsset) => Promise<void>;
   togglePublic: (recording: DbRecording) => Promise<void>;
 };
 
 function LocalRecordingCard({
   recording,
   setPreview,
-  setCursorPreview,
   downloadLocalFiles,
   removeLocal,
 }: Pick<
   LibraryRecordingGridProps,
-  'setPreview' | 'setCursorPreview' | 'downloadLocalFiles' | 'removeLocal'
+  'setPreview' | 'downloadLocalFiles' | 'removeLocal'
 > & { recording: RecordingMetadata }) {
   const canDownload = Boolean(
     recording.blob || RECORDING_ARCHIVE_KINDS.some((kind) => recording.assets?.[kind]?.blob),
@@ -63,17 +58,6 @@ function LocalRecordingCard({
           <span><i className={styles.readyDot} />Sẵn sàng xem lại</span>
           <time>{formatLibraryDate(recording.createdAt)}</time>
         </div>
-        {recording.assets?.audio?.blob && (
-          <div className={styles.waveform}>
-            <RecordedAudioWaveforms
-              durationSeconds={recording.durationSeconds}
-              mixed={recording.assets.audio}
-              microphone={recording.assets['microphone-audio']}
-              systemAudio={recording.assets['system-audio']}
-              compact
-            />
-          </div>
-        )}
         <div className={styles.cardActions}>
           {recording.previewUrl && (
             <button className={styles.primaryCardButton} type="button" onClick={() => setPreview({
@@ -85,14 +69,6 @@ function LocalRecordingCard({
             </button>
           )}
           {canDownload && <button type="button" onClick={() => void downloadLocalFiles(recording)}><LibraryIcon name="download" />Tải về</button>}
-          {recording.assets?.cursor?.blob && (
-            <button type="button" onClick={() => setCursorPreview({
-              title: recording.title,
-              blob: recording.assets!.cursor!.blob!,
-            })}>
-              <LibraryIcon name="cursor" />Con trỏ
-            </button>
-          )}
           <button className={styles.danger} type="button" onClick={() => void removeLocal(recording)}><LibraryIcon name="trash" />Xoá</button>
         </div>
       </div>
@@ -106,11 +82,10 @@ function CloudRecordingCard({
   downloadCloudFiles,
   removeCloud,
   openSharing,
-  openCloudCursor,
   togglePublic,
 }: Pick<
   LibraryRecordingGridProps,
-  'setPreview' | 'downloadCloudFiles' | 'removeCloud' | 'openSharing' | 'openCloudCursor' | 'togglePublic'
+  'setPreview' | 'downloadCloudFiles' | 'removeCloud' | 'openSharing' | 'togglePublic'
 > & { recording: DbRecording }) {
   return (
     <article className={styles.card}>
@@ -136,14 +111,10 @@ function CloudRecordingCard({
           <span>{recording.is_public ? 'Liên kết công khai' : recording.resolution}</span>
           <time>{formatLibraryDate(recording.created_at)}</time>
         </div>
-        <div className={styles.waveform}><CloudRecordingWaveform recording={recording} /></div>
         <div className={styles.cardActions}>
           <Link className={styles.primaryCardButton} href={`/library/${recording.id}`}><LibraryIcon name="play" />Xem lại</Link>
           <button type="button" onClick={() => void openSharing(recording)}><LibraryIcon name="share" />Chia sẻ</button>
           {(recording.storage_url || recording.assets?.length) && <button type="button" onClick={() => void downloadCloudFiles(recording)}><LibraryIcon name="download" />Tải về</button>}
-          {recording.assets?.filter((asset) => asset.kind === 'cursor').map((asset) => (
-            <button type="button" key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}><LibraryIcon name="cursor" />Con trỏ</button>
-          ))}
           <button type="button" onClick={() => void togglePublic(recording)}><LibraryIcon name="lock" />{recording.is_public ? 'Đặt riêng tư' : 'Mở liên kết'}</button>
           <button className={styles.danger} type="button" onClick={() => void removeCloud(recording)}><LibraryIcon name="trash" />Xoá</button>
         </div>
@@ -156,8 +127,7 @@ function SharedRecordingCard({
   recording,
   setPreview,
   downloadCloudFiles,
-  openCloudCursor,
-}: Pick<LibraryRecordingGridProps, 'setPreview' | 'downloadCloudFiles' | 'openCloudCursor'> & {
+}: Pick<LibraryRecordingGridProps, 'setPreview' | 'downloadCloudFiles'> & {
   recording: DbSharedRecording;
 }) {
   const canDownload = recording.share_permission === 'viewer_download';
@@ -184,13 +154,9 @@ function SharedRecordingCard({
           <span>{canDownload ? 'Được xem và tải' : 'Chỉ được xem'}</span>
           <time>{formatLibraryDate(recording.created_at)}</time>
         </div>
-        <div className={styles.waveform}><CloudRecordingWaveform recording={recording} /></div>
         <div className={styles.cardActions}>
           <Link className={styles.primaryCardButton} href={`/library/${recording.id}`}><LibraryIcon name="play" />Xem lại</Link>
           {canDownload && (recording.storage_url || recording.assets?.length) && <button type="button" onClick={() => void downloadCloudFiles(recording)}><LibraryIcon name="download" />Tải về</button>}
-          {canDownload && recording.assets?.filter((asset) => asset.kind === 'cursor').map((asset) => (
-            <button type="button" key={`visualize-${asset.id}`} onClick={() => void openCloudCursor(recording.title, asset)}><LibraryIcon name="cursor" />Con trỏ</button>
-          ))}
         </div>
       </div>
     </article>

@@ -6,3 +6,15 @@ test('renders the public sign-in route', async ({ page }) => {
   await expect(page).toHaveURL(/\/sign-in(?:\/|\?|$)/);
   await expect(page.locator('main')).toBeVisible();
 });
+
+test('rejects anonymous internal diagnostics requests', async ({ request }) => {
+  const response = await request.get('/api/health', { maxRedirects: 0 });
+
+  expect(response.status()).toBe(401);
+});
+
+test('redirects anonymous sidebar showcase access to sign-in', async ({ page }) => {
+  await page.goto('/component/sidebar', { waitUntil: 'domcontentloaded' });
+
+  await expect(page).toHaveURL(/\/sign-in(?:\/|\?|$)/);
+});

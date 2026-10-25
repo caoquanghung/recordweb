@@ -5,6 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { usePermissions } from '@/components/auth/PermissionProvider';
+import type { AppPermission } from '@/lib/auth/roles';
 import { useAppTheme } from './useAppTheme';
 import styles from './AppSidebar.module.css';
 
@@ -17,6 +19,7 @@ export interface AppSidebarItem {
   icon: AppSidebarIcon;
   href?: string;
   onSelect?: () => void;
+  requiredPermission?: AppPermission;
 }
 
 interface AppSidebarProps {
@@ -55,6 +58,7 @@ export function AppSidebar({
   const { signOut } = useClerk();
   const { user } = useUser();
   const { theme, toggleTheme } = useAppTheme();
+  const { hasPermission } = usePermissions();
   const [isOpen, setIsOpen] = useState(false);
   const resolvedPathname = activeHref ?? pathname;
   const displayName = user?.fullName || user?.firstName || 'Thầy Hoàng Nam';
@@ -108,7 +112,9 @@ export function AppSidebar({
           </Link>
 
           <nav className={styles.nav} aria-label="Các khu vực ứng dụng">
-            {items.map((item) => {
+            {items.filter((item) => (
+              !item.requiredPermission || hasPermission(item.requiredPermission)
+            )).map((item) => {
               const active = isActiveRoute(resolvedPathname, item.href);
               const content = (
                 <>

@@ -199,6 +199,16 @@ if (command === "verify") {
         RAISE EXCEPTION 'Missing required column: studio_presets.user_id';
       END IF;
       IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'users'
+          AND column_name = 'role'
+          AND is_nullable = 'NO'
+          AND column_default LIKE '%user%'
+      ) THEN
+        RAISE EXCEPTION 'Missing required column: users.role';
+      END IF;
+      IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
         WHERE conrelid = 'recordings'::regclass
           AND contype = 'f'
@@ -229,6 +239,14 @@ if (command === "verify") {
           AND condeferrable
       ) THEN
         RAISE EXCEPTION 'Missing deferrable project segment ordering constraint';
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'users'::regclass
+          AND conname = 'users_role_check'
+          AND pg_get_constraintdef(oid) LIKE '%developer%'
+      ) THEN
+        RAISE EXCEPTION 'Missing users role constraint';
       END IF;
     END
     $$;`,

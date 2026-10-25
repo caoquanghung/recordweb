@@ -1,6 +1,7 @@
 import { UserButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import { useAppTheme } from '@/components/app/useAppTheme';
+import { usePermission } from '@/components/auth/PermissionProvider';
 import type { StudioController } from './useStudioController';
 import { StudioIcon } from './StudioPrimitives';
 import styles from './StudioShell.module.css';
@@ -21,8 +22,10 @@ export function StudioHeader({
   onReturnToRecording,
 }: StudioHeaderProps) {
   const { theme, toggleTheme } = useAppTheme();
+  const canViewInternalDiagnostics = usePermission('diagnostics:internal');
   const {
     healthState,
+    runDevicePreflight,
     runSystemCheck,
     setDiagnosticsOpen,
   } = studio;
@@ -65,7 +68,10 @@ export function StudioHeader({
             className={styles.secondaryButton}
             onClick={() => {
               setDiagnosticsOpen(true);
-              if (healthState === 'idle') void runSystemCheck();
+              if (healthState === 'idle') {
+                if (canViewInternalDiagnostics) void runSystemCheck();
+                else runDevicePreflight();
+              }
             }}
           >
             <StudioIcon name="shield" /> Kiểm tra
@@ -98,7 +104,10 @@ export function StudioHeader({
           className={styles.secondaryButton}
           onClick={() => {
             setDiagnosticsOpen(true);
-            if (healthState === 'idle') void runSystemCheck();
+            if (healthState === 'idle') {
+              if (canViewInternalDiagnostics) void runSystemCheck();
+              else runDevicePreflight();
+            }
           }}
         >
           <StudioIcon name="shield" />

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUserId, unauthorizedResponse } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { isBlobStorageConfigured } from '@/lib/blobCredentials';
 import { getDb, isDbConfigured } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
-  const userId = await getSessionUserId();
-  if (!userId) return unauthorizedResponse();
+  const authorization = await requirePermission('diagnostics:internal');
+  if (!authorization.authorized) return authorization.response;
 
   let database: 'connected' | 'not-configured' | 'error' = 'not-configured';
 

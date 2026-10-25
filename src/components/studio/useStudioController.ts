@@ -812,15 +812,27 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     }
   };
 
-  const runSystemCheck = async () => {
-    setHealthState('checking');
-    setCapabilities({
+  const inspectBrowserCapabilities = () => {
+    const nextCapabilities: BrowserCapabilities = {
       screenCapture: Boolean(navigator.mediaDevices?.getDisplayMedia),
       cameraAndMic: Boolean(navigator.mediaDevices?.getUserMedia),
       mediaRecorder: 'MediaRecorder' in window,
       indexedDb: 'indexedDB' in window,
       fileSystemSave: 'showSaveFilePicker' in window,
-    });
+    };
+    setCapabilities(nextCapabilities);
+    return nextCapabilities;
+  };
+
+  const runDevicePreflight = () => {
+    setHealthState('checking');
+    inspectBrowserCapabilities();
+    setHealthState('ready');
+  };
+
+  const runSystemCheck = async () => {
+    setHealthState('checking');
+    inspectBrowserCapabilities();
     try {
       const response = await fetch('/api/health', { cache: 'no-store' });
       const data = await response.json();
@@ -976,6 +988,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     uploadRecording,
     publishAndCopyLink,
     runSystemCheck,
+    runDevicePreflight,
     savePreset,
     applyPreset,
   };

@@ -4,11 +4,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppSidebar } from '@/components/app/AppSidebar';
-import {
-  RecordedAudioWaveforms,
-  type RecordedWaveformSource,
-} from '@/components/review/RecordedAudioWaveforms';
-import { isRecordedWaveformPeaks } from '@/lib/audioWaveform';
 import { downloadRecordingArchive } from '@/lib/recordingArchive';
 import type { DbRecording, DbSharedRecording } from '@/types/database';
 import styles from './RecordingDetailsClient.module.css';
@@ -52,29 +47,6 @@ function formatBytes(bytes: number) {
   if (safeBytes < 1024 * 1024) return `${Math.max(1, Math.round(safeBytes / 1024))} KB`;
   if (safeBytes < 1024 * 1024 * 1024) return `${(safeBytes / 1024 / 1024).toFixed(1)} MB`;
   return `${(safeBytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
-
-function waveformSource(
-  recording: DbRecording,
-  kind: 'audio' | 'microphone-audio' | 'system-audio',
-): RecordedWaveformSource | undefined {
-  const asset = recording.assets?.find((candidate) => candidate.kind === kind);
-  if (asset) {
-    const peaks = asset.metadata.waveformPeaks;
-    return {
-      mimeType: asset.mime_type,
-      waveformPeaks: isRecordedWaveformPeaks(peaks) ? peaks : undefined,
-      src: asset.storage_url,
-    };
-  }
-
-  if (kind !== 'audio' || !recording.storage_url) return undefined;
-  const peaks = recording.settings.waveformPeaks;
-  return {
-    mimeType: recording.mime_type,
-    waveformPeaks: isRecordedWaveformPeaks(peaks) ? peaks : undefined,
-    src: recording.storage_url,
-  };
 }
 
 function getChapters(settings: Record<string, unknown>): Chapter[] {
@@ -128,7 +100,6 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
   const [message, setMessage] = useState('');
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
-  const [sourcesExpanded, setSourcesExpanded] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -168,12 +139,6 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
     && (recording.storage_url || recording.assets?.length),
   );
   const chapters = useMemo(() => recording ? getChapters(recording.settings) : [], [recording]);
-  const mixed = recording ? waveformSource(recording, 'audio') : undefined;
-  const microphone = recording ? waveformSource(recording, 'microphone-audio') : undefined;
-  const systemAudio = recording ? waveformSource(recording, 'system-audio') : undefined;
-  const screenAsset = recording?.assets?.find((asset) => asset.kind === 'screen');
-  const webcamAsset = recording?.assets?.find((asset) => asset.kind === 'webcam');
-  const cursorAsset = recording?.assets?.find((asset) => asset.kind === 'cursor');
 
   const copyShareLink = async () => {
     if (!recording) return;
@@ -238,14 +203,6 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
     : 'share_permission' in recording && recording.share_permission === 'viewer_download'
       ? 'Xem và tải'
       : 'Chỉ xem';
-  const sources = [
-    screenAsset ? { label: 'Màn hình bài giảng', detail: screenAsset.resolution || recording.resolution, icon: 'aspect' } : null,
-    webcamAsset ? { label: 'Camera giảng viên', detail: webcamAsset.resolution || 'Nguồn camera', icon: 'user' } : null,
-    microphone ? { label: 'Microphone', detail: 'Âm thanh giọng nói', icon: 'audio' } : null,
-    systemAudio ? { label: 'Âm thanh hệ thống', detail: 'Âm thanh thiết bị', icon: 'system-audio' } : null,
-    cursorAsset ? { label: 'Dữ liệu con trỏ', detail: 'Quỹ đạo đã lưu', icon: 'cursor' } : null,
-  ].filter((source): source is { label: string; detail: string; icon: string } => source !== null);
-
   return (
     <div className={styles.shell}>
       <AppSidebar activeHref="/library" />
@@ -303,34 +260,6 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
                 </div>
               </section>
 
-              <section className={`${styles.card} ${styles.waveformCard}`} aria-labelledby="audio-heading">
-                <div className={styles.cardHeader}>
-                  <div><span className={styles.cardIcon}><DetailIcon name="audio" size={20} /></span><div><h2 id="audio-heading">Âm thanh bài giảng</h2><p>Dạng sóng của bản phối hoàn chỉnh</p></div></div>
-                </div>
-                {mixed ? (
-                  <RecordedAudioWaveforms durationSeconds={Number(recording.duration_seconds)} mixed={mixed} microphone={microphone} systemAudio={systemAudio} compact />
-                ) : (
-                  <div className={styles.emptyInline}>Bài giảng này chưa có dữ liệu dạng sóng âm thanh.</div>
-                )}
-              </section>
-
-              <section className={styles.card} aria-labelledby="sources-heading">
-                <button className={styles.disclosure} type="button" onClick={() => setSourcesExpanded((current) => !current)} aria-expanded={sourcesExpanded}>
-                  <span><span className={styles.cardIcon}><DetailIcon name="system-audio" size={20} /></span><span><strong id="sources-heading">Nguồn ghi & hiệu ứng</strong><small>Các thành phần đã lưu cùng bài giảng</small></span></span>
-                  <span className={sourcesExpanded ? styles.chevronOpen : ''}><DetailIcon name="chevron" size={18} /></span>
-                </button>
-                {sourcesExpanded && (
-                  <div className={styles.sourceGrid}>
-                    {sources.length > 0 ? sources.map((source) => (
-                      <div className={styles.sourceItem} key={source.label}>
-                        <span><DetailIcon name={source.icon} size={19} /></span>
-                        <div><strong>{source.label}</strong><small>{source.detail}</small></div>
-                        <i aria-hidden="true" />
-                      </div>
-                    )) : <div className={styles.emptyInline}>Không có nguồn phụ được lưu cho bài giảng này.</div>}
-                  </div>
-                )}
-              </section>
             </div>
 
             <aside className={styles.rightColumn} aria-label="Thông tin bổ sung">

@@ -1,6 +1,7 @@
 import { verifyWebhook } from '@clerk/nextjs/webhooks';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { parseAppRole } from '@/lib/auth/roles';
 
 function displayName(firstName: string | null, lastName: string | null) {
   const name = [firstName, lastName].filter(Boolean).join(' ').trim();
@@ -25,16 +26,20 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const role = parseAppRole(user.public_metadata?.appRole);
+
       await sql`
-        INSERT INTO users (id, email, display_name)
+        INSERT INTO users (id, email, display_name, role)
         VALUES (
           ${user.id},
           ${primaryEmail},
-          ${displayName(user.first_name, user.last_name)}
+          ${displayName(user.first_name, user.last_name)},
+          ${role}
         )
         ON CONFLICT (id) DO UPDATE SET
           email = EXCLUDED.email,
-          display_name = EXCLUDED.display_name;
+          display_name = EXCLUDED.display_name,
+          role = EXCLUDED.role;
       `;
     }
 

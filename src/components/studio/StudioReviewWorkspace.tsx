@@ -1,5 +1,3 @@
-import { RecordedAudioWaveforms } from '@/components/review/RecordedAudioWaveforms';
-import { RecordedCursorTrajectory } from '@/components/review/RecordedCursorTrajectory';
 import { RECORDING_ARCHIVE_KINDS } from '@/lib/recordingArchive';
 import { formatDuration } from './studioConfig';
 import { StudioIcon } from './StudioPrimitives';
@@ -47,17 +45,6 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
           <><div><StudioIcon name="play" /></div><strong>Preparing preview…</strong></>
         )}
       </div>
-      {activeRecording?.assets?.audio?.blob && (
-        <RecordedAudioWaveforms
-          durationSeconds={activeRecording.durationSeconds}
-          mixed={activeRecording.assets.audio}
-          microphone={activeRecording.assets['microphone-audio']}
-          systemAudio={activeRecording.assets['system-audio']}
-        />
-      )}
-      {activeRecording?.assets?.cursor?.blob && (
-        <RecordedCursorTrajectory blob={activeRecording.assets.cursor.blob} />
-      )}
       {recordingFileCount > 0 && (
         <div className={styles.sourceAssets}>
           <div>
