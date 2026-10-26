@@ -2535,6 +2535,21 @@
 .connectSecondary:hover:not(:disabled) { border-color: #93c5fd; background: #eff6ff; }
 .connectPrimary:disabled,
 .connectSecondary:disabled { color: #94a3b8; border-color: #e2e8f0; background: #e2e8f0; box-shadow: none; cursor: not-allowed; }
+.nextStepPulse { position: relative; --step-pulse-color: rgba(37, 99, 235, .75); }
+.studioScreen .standardGrid .recordButton.nextStepPulse { --step-pulse-color: rgba(220, 38, 38, .8); }
+.nextStepPulse::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--step-pulse-color);
+  border-radius: inherit;
+  pointer-events: none;
+  animation: nextStepBlink 1.8s ease-in-out infinite;
+}
+@keyframes nextStepBlink {
+  0%, 100% { opacity: 0; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.045); }
+}
 .connectionHint { margin-top: 8px; color: #64748b; font-size: 11px; line-height: 1.45; }
 .inspectorTip { display: flex; gap: 9px; margin-bottom: 16px; padding: 14px; border: 1px solid #dbeafe; border-radius: 16px; color: #475569; background: #f8fbff; }
 .inspectorTip .icon { width: 16px; color: #2563eb; }
@@ -2629,4 +2644,5 @@
 @media (prefers-reduced-motion: reduce) {
   .connectPrimary,
   .connectSecondary { transition: none; }
+  .nextStepPulse::after { animation: none; opacity: 1; transform: none; }
 }

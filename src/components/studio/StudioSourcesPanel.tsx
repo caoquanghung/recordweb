@@ -53,7 +53,7 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
             {mode !== 'screen-only' && <span>Camera: {mediaStatuses.camera}</span>}
           </div>
           <button
-            className={styles.connectPrimary}
+            className={`${styles.connectPrimary} ${studio.session === 'setup' && !requiredDevicesConnected && !isConnectingSources ? styles.nextStepPulse : ''}`}
             type="button"
             onClick={() => void connectSources()}
             disabled={isConnectingSources || isConnectingSlideSource || studio.session !== 'setup'}
@@ -79,7 +79,7 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
             </p>
             {screenStream && <p className={styles.connectionDetail}>{hasSystemAudio ? 'Tab audio shared' : 'Tab audio not shared'}</p>}
             <button
-              className={styles.connectSecondary}
+              className={`${styles.connectSecondary} ${studio.session === 'setup' && requiredDevicesConnected && !slidesReady && tabCapture.available && !isConnectingSources && !isConnectingSlideSource ? styles.nextStepPulse : ''}`}
               type="button"
               onClick={() => void connectSlideSource()}
               disabled={!requiredDevicesConnected || !tabCapture.available || isConnectingSources || isConnectingSlideSource || studio.session !== 'setup'}

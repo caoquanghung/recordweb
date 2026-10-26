@@ -118,7 +118,7 @@ export function StudioStage({ studio }: { studio: StudioController }) {
         {session === 'setup' ? (
           <button
             ref={startButtonRef}
-            className={`${styles.recordButton} ${startRecordingAttention > 0 ? styles.recordButtonAttention : ''}`}
+            className={`${styles.recordButton} ${recordingReady ? (startRecordingAttention > 0 ? styles.recordButtonAttention : styles.nextStepPulse) : ''}`}
             onClick={() => void startUiTest()}
             disabled={!recordingReady || session !== 'setup'}
             title={!recordingReady ? mode === 'webcam-only' ? 'Connect the camera and microphone before recording' : 'Connect the required devices and Google Slides before recording' : undefined}
