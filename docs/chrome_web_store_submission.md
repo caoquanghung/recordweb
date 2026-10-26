@@ -16,14 +16,14 @@ The command creates:
 artifacts/chrome-web-store/recordweb-presentation-cursor-<version>.zip
 ```
 
-The generated Store manifest differs intentionally from `extension/manifest.json`:
+The generated Store manifest is normalized from `extension/manifest.json`:
 
-- It keeps only the canonical HTTPS RecordWeb origin from `homepage_url`.
+- It derives the canonical HTTPS RecordWeb origin from `homepage_url`.
 - It keeps the Google Slides presentation origin.
-- It removes localhost, `127.0.0.1`, and Vercel Preview wildcard access.
+- It rejects localhost, loopback, and broad Vercel wildcard access.
 - It excludes tests, documentation, and the editable SVG icon source.
 
-Continue using `extension/manifest.json` for unpacked local and Vercel Preview testing.
+Load the generated package unpacked for the final production-origin runtime test before uploading the ZIP.
 
 ## Store listing
 
@@ -44,12 +44,12 @@ Track the presenter cursor in the Google Slides tab explicitly shared with Recor
 ```text
 RecordWeb Presentation Cursor connects a Google Slides tab to the RecordWeb browser recording studio.
 
-After you select a Google Slides tab in Chrome's native share picker, the extension verifies that exact tab and records normalized cursor movement and click timing for the active recording session. This lets RecordWeb reconstruct the presenter's cursor alongside the finished recording.
+After you select a Google Slides tab in Chrome's native share picker, the extension verifies that exact tab and records normalized cursor movement with active-recording timestamps. This lets RecordWeb reconstruct the presenter's cursor alongside the finished recording.
 
 Features:
 - One-time installation with no extension click required for each session
 - Exact shared-tab verification using Chrome Capture Handle
-- Cursor movement and click-state capture during recording
+- Cursor movement capture with active-recording timestamps
 - Start, pause, resume, microphone, camera, and end-session controls in the selected Slides tab
 - Support for Google Slides browser fullscreen presentation
 - Local-first processing; cloud upload occurs only when the user chooses to upload the recording
@@ -68,7 +68,7 @@ Choose the primary language used by the Store listing. English is the safest fir
 ## Single purpose
 
 ```text
-Track pointer position and clicks in the Google Slides tab explicitly shared with RecordWeb so the cursor can be reconstructed in the corresponding recording.
+Track pointer positions in the Google Slides tab explicitly shared with RecordWeb so the cursor can be reconstructed in the corresponding recording.
 ```
 
 ## Permission justifications
@@ -76,7 +76,7 @@ Track pointer position and clicks in the Google Slides tab explicitly shared wit
 ### `https://docs.google.com/presentation/*`
 
 ```text
-Required to publish an opaque Capture Handle, verify the Google Slides tab explicitly selected in Chrome's share picker, track pointer coordinates and click state during an active RecordWeb recording, and display session controls in that selected presentation tab. The extension does not read slide text, credentials, cookies, or unrelated browsing activity.
+Required to publish an opaque Capture Handle, verify the Google Slides tab explicitly selected in Chrome's share picker, track pointer coordinates during an active RecordWeb recording, and display session controls in that selected presentation tab. The extension does not read slide text, credentials, cookies, or unrelated browsing activity.
 ```
 
 ### Canonical RecordWeb production origin
@@ -103,7 +103,7 @@ All executable extension JavaScript is included in the uploaded package. The ext
 
 Complete the dashboard fields truthfully using these facts:
 
-- Cursor coordinates, click state, and timestamps are handled for the user-facing recording feature.
+- Cursor coordinates and active-recording timestamps are handled for the user-facing recording feature.
 - The selected Google Slides URL or presentation identifier and an opaque Capture Handle are used only to pair the chosen tab.
 - Cursor samples are sent to the RecordWeb page in the same browser through Chrome extension messaging.
 - A finalized cursor trajectory is stored locally with the recording.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RecordWeb Presentation Cursor",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "minimum_chrome_version": "116",
   "description": "Track the cursor in a Google Slides presentation while RecordWeb records the user-selected shared tab.",
   "homepage_url": "https://recordweb-nine.vercel.app/",
@@ -12,10 +12,7 @@
     "128": "icons/icon-128.png"
   },
   "host_permissions": [
-    "http://localhost/*",
-    "http://127.0.0.1/*",
     "https://recordweb-nine.vercel.app/*",
-    "https://*.vercel.app/*",
     "https://docs.google.com/presentation/*"
   ],
   "action": {
@@ -31,10 +28,7 @@
   "content_scripts": [
     {
       "matches": [
-        "http://localhost/*",
-        "http://127.0.0.1/*",
-        "https://recordweb-nine.vercel.app/*",
-        "https://*.vercel.app/*"
+        "https://recordweb-nine.vercel.app/*"
       ],
       "js": ["extension-protocol.js", "resilient-port.js", "recordweb-bridge.js"],
       "run_at": "document_start"

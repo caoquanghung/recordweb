@@ -5,13 +5,7 @@
   const { CHANNEL, PORT } = globalThis.RecordWebExtensionProtocol;
   const canonicalAppOrigin = new URL(chrome.runtime.getManifest().homepage_url).origin;
 
-  const isAllowedAppOrigin = ({ origin, hostname, port, protocol }) => (
-    origin === canonicalAppOrigin
-    || ((hostname === 'localhost' || hostname === '127.0.0.1') && port === '3000' && protocol === 'http:')
-    || (hostname.startsWith('recordweb-') && hostname.endsWith('-coannoacs-projects.vercel.app'))
-  );
-
-  if (!isAllowedAppOrigin(window.location)) return;
+  if (window.location.origin !== canonicalAppOrigin) return;
 
   const portClient = globalThis.RecordWebResilientPort.create({
     portName: PORT.APP,

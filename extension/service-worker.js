@@ -3,17 +3,11 @@ importScripts('extension-protocol.js', 'google-slides.js');
 const { MESSAGE, PORT } = globalThis.RecordWebExtensionProtocol;
 const GoogleSlides = globalThis.RecordWebGoogleSlides;
 const APP_URL = chrome.runtime.getManifest().homepage_url;
-const APP_ORIGINS = new Set([
-  new URL(APP_URL).origin,
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-]);
+const APP_ORIGIN = new URL(APP_URL).origin;
 
 function isRecordWebAppUrl(urlValue) {
   try {
-    const url = new URL(urlValue);
-    return APP_ORIGINS.has(url.origin)
-      || (url.hostname.startsWith('recordweb-') && url.hostname.endsWith('-coannoacs-projects.vercel.app'));
+    return new URL(urlValue).origin === APP_ORIGIN;
   } catch {
     return false;
   }

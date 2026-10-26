@@ -15,7 +15,7 @@ export default function PrivacyPolicyPage() {
           <Link className={styles.brand} href="/">RecordWeb</Link>
           <span>Chrome extension privacy policy</span>
           <h1>Privacy Policy</h1>
-          <p>Last updated: October 24, 2026</p>
+          <p>Last updated: October 26, 2026</p>
         </header>
 
         <section>
@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2>Data the extension handles</h2>
           <ul>
-            <li>Normalized pointer coordinates, click state, and timestamps during an active recording session.</li>
+            <li>Normalized pointer coordinates and timestamps during an active recording session.</li>
             <li>The Google Slides tab identity and presentation URL or identifier needed to bind RecordWeb to the tab the user explicitly shared.</li>
             <li>A random, opaque Capture Handle used to verify that the browser picker and cursor tracker refer to the same tab.</li>
             <li>Temporary extension connection and tab identifiers needed to start, pause, resume, stop, and finalize cursor capture.</li>
@@ -87,6 +87,10 @@ export default function PrivacyPolicyPage() {
             Data is used only to provide and maintain the user-facing recording feature described above. It is not
             transferred for advertising, credit assessment, surveillance, or sale. Service providers process data only
             when required to operate storage selected by the user.
+          </p>
+          <p>
+            RecordWeb&apos;s use and transfer of information handled by the extension adheres to the Chrome Web Store
+            User Data Policy, including the Limited Use requirements.
           </p>
         </section>
 
