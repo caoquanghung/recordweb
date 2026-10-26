@@ -16,6 +16,7 @@ interface AudioMeterPanelProps {
   systemAudio: AudioMeterReading;
   state: AudioDspState;
   compact?: boolean;
+  minimal?: boolean;
   onResume?: () => void;
 }
 
@@ -24,11 +25,48 @@ export function AudioMeterPanel({
   systemAudio,
   state,
   compact = false,
+  minimal = false,
   onResume,
 }: AudioMeterPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const combinedLevel = Math.max(microphone.level, systemAudio.level);
   const percentage = Math.round(combinedLevel * 100);
+  const meters = (
+    <>
+      <AudioLevelMeter
+        label="Microphone"
+        level={microphone.level}
+        levelDb={microphone.levelDb}
+        state={state}
+        hasInput={microphone.available}
+        compact={compact}
+        minimal={minimal}
+        tone="microphone"
+      />
+      <AudioLevelMeter
+        label="System audio"
+        level={systemAudio.level}
+        levelDb={systemAudio.levelDb}
+        state={state}
+        hasInput={systemAudio.available}
+        compact={compact}
+        minimal={minimal}
+        tone="system"
+      />
+    </>
+  );
+
+  if (minimal) {
+    return (
+      <section className={`${styles.panel} ${styles.minimal}`} aria-label="Live audio levels">
+        <div className={styles.minimalHeading}>
+          <strong>Audio activity</strong>
+          {state === 'suspended' && onResume && <button type="button" onClick={onResume}>Start audio</button>}
+        </div>
+        <div className={styles.minimalMeters}>{meters}</div>
+      </section>
+    );
+  }
 
   if (compact && collapsed) {
     return (
@@ -75,24 +113,7 @@ export function AudioMeterPanel({
         ) : null}
       </div>
       <div className={styles.meters}>
-        <AudioLevelMeter
-          label="Microphone"
-          level={microphone.level}
-          levelDb={microphone.levelDb}
-          state={state}
-          hasInput={microphone.available}
-          compact={compact}
-          tone="microphone"
-        />
-        <AudioLevelMeter
-          label="System audio"
-          level={systemAudio.level}
-          levelDb={systemAudio.levelDb}
-          state={state}
-          hasInput={systemAudio.available}
-          compact={compact}
-          tone="system"
-        />
+        {meters}
       </div>
     </section>
   );

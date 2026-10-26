@@ -9,6 +9,7 @@ interface AudioLevelMeterProps {
   state: AudioDspState;
   hasInput: boolean;
   compact?: boolean;
+  minimal?: boolean;
   tone?: 'microphone' | 'system' | 'mixed';
 }
 
@@ -19,6 +20,7 @@ export function AudioLevelMeter({
   state,
   hasInput,
   compact = false,
+  minimal = false,
   tone = 'mixed',
 }: AudioLevelMeterProps) {
   const percentage = Math.round(level * 100);
@@ -32,15 +34,15 @@ export function AudioLevelMeter({
   } as CSSProperties;
 
   return (
-    <div className={`${styles.meter} ${compact ? styles.compact : ''}`}>
+    <div className={`${styles.meter} ${compact ? styles.compact : ''} ${minimal ? styles.minimal : ''}`} title={`${label}: ${status}`}>
       <div className={styles.header}>
-        <span>{label}</span>
-        <small>{status}</small>
+        <span>{minimal ? label === 'Microphone' ? 'Mic' : 'Tab' : label}</span>
+        {!minimal && <small>{status}</small>}
       </div>
       <div
         className={styles.track}
         role="meter"
-        aria-label={`${label} level`}
+        aria-label={`${label} level${hasInput ? '' : ', not connected'}`}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percentage}

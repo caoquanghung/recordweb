@@ -33,3 +33,7 @@ Only the 1024 × 960 Figma frame was supplied. Proposed adaptation: preserve the
 ## Acceptance
 
 At the reference desktop size, both connection buttons and Record should be reachable without scrolling the page. On narrow viewports there should be no horizontal overflow or clipped record controls. Step 2 and Record must be disabled until their respective prerequisites are met; green Ready must appear only after verified connection. Existing review and recording lifecycle must still work. Authenticated extension/device runtime testing remains required because the static Figma frame does not define browser permissions or capture behavior.
+
+## Follow-up UI decision
+
+The Standard Studio setup/recording workspace now occupies one browser viewport. Its source inspector scrolls internally for advanced controls, while the page and preview controls stay fixed. Two minimal Mic/Tab activity bars live inside the first source card; Presentation keeps the existing larger audio meter. This follows the user's later request and supersedes the earlier meter placement.

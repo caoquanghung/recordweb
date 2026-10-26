@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { AudioMeterPanel } from './AudioMeterPanel';
 import { formatDuration } from './studioConfig';
 import { StatusDot, StudioIcon } from './StudioPrimitives';
 import type { StudioController } from './useStudioController';
@@ -24,14 +23,6 @@ export function StudioStage({ studio }: { studio: StudioController }) {
     background,
     countdown,
     compositeStream,
-    audioState,
-    resumeAudio,
-    microphoneLevel,
-    microphoneLevelDb,
-    microphoneStream,
-    systemAudioLevel,
-    systemAudioLevelDb,
-    hasSystemAudio,
     elapsed,
     startRecordingAttention,
     startUiTest,
@@ -144,24 +135,6 @@ export function StudioStage({ studio }: { studio: StudioController }) {
         <button className={`${styles.roundControl} ${micMuted ? styles.controlOff : ''}`} onClick={() => setMicMuted((value) => !value)} aria-label="Toggle microphone"><StudioIcon name="mic" /></button>
         <button className={`${styles.roundControl} ${!cameraVisible ? styles.controlOff : ''}`} onClick={() => setCameraVisible((value) => !value)} aria-label="Toggle camera"><StudioIcon name="camera" /></button>
       </div>
-      {session !== 'processing' && (
-        <AudioMeterPanel
-          key={session === 'setup' ? 'setup-meters' : 'recording-meters'}
-          compact={session !== 'setup'}
-          state={audioState}
-          onResume={() => void resumeAudio()}
-          microphone={{
-            level: microphoneLevel,
-            levelDb: microphoneLevelDb,
-            available: Boolean(microphoneStream),
-          }}
-          systemAudio={{
-            level: systemAudioLevel,
-            levelDb: systemAudioLevelDb,
-            available: hasSystemAudio,
-          }}
-        />
-      )}
       <div className={styles.shortcutHint}>Space pause/resume · Alt+S finish · video is checkpointed to IndexedDB</div>
     </section>
   );

@@ -78,7 +78,7 @@ Lưu ý: Studio dùng `AppNavigation` nhưng có shell/layout riêng; Dashboard,
 | `src/components/studio/studioConfig.ts` | Type, option list, MIME/extension, asset và duration helper dùng chung | Trung bình: một số helper tham gia upload/download contract |
 | `src/components/studio/StudioChrome.tsx` | Header, theme/diagnostics actions, panel toolbar và session notice | Presentation + phát event qua controller |
 | `src/components/studio/StudioSourcesPanel.tsx` | Capture mode, device selection, source status và output resolution | UI trực tiếp phát lệnh acquire/stop qua controller |
-| `src/components/studio/StudioStage.tsx` | Canvas preview, countdown, audio meter và recording control dock | Giữ nguyên canvas ref/pointer handlers và start/pause/resume/stop actions |
+| `src/components/studio/StudioStage.tsx` | Canvas preview, countdown và recording control dock | Giữ nguyên canvas ref/pointer handlers và start/pause/resume/stop actions |
 | `src/components/studio/StudioEffectsPanel.tsx` | Camera/AI, audio DSP và preset controls | UI phát thay đổi compositor/audio/preset qua controller |
 | `src/components/studio/StudioReviewWorkspace.tsx` | Review video, waveform, cursor, source download, upload/publish actions | Presentation của finalized assets và cloud state |
 | `src/components/studio/StudioDiagnosticsDrawer.tsx` | Preflight capability/service drawer | Presentation của health/capability state |
@@ -86,7 +86,7 @@ Lưu ý: Studio dùng `AppNavigation` nhưng có shell/layout riêng; Dashboard,
 | `src/components/studio/StudioShell.module.css` | Layout và toàn bộ visual Studio; gần 2.000 dòng CSS, gồm responsive drawers, stage, controls, review và diagnostics | Class name được dùng bởi các Studio view; đổi tên phải sửa đồng bộ consumer |
 | `src/components/studio/AudioLevelMeter.tsx` | Thanh mức âm lượng và trạng thái audio | Nhận trạng thái DSP; cách hiển thị phụ thuộc mức tín hiệu thực |
 | `src/components/studio/AudioLevelMeter.module.css` | Màu, chuyển động và layout VU meter | Thấp nếu chỉ chỉnh visual |
-| `src/components/studio/AudioMeterPanel.tsx` | Gom mixed/microphone/system meter, collapse/expand | Có local interaction state |
+| `src/components/studio/AudioMeterPanel.tsx` | Gom microphone/system meter; Standard Studio hiển thị hai thanh nhỏ trong `StudioSourcesPanel`, Presentation giữ chế độ collapse/expand | Có local interaction state ở chế độ Presentation |
 | `src/components/studio/AudioMeterPanel.module.css` | Panel và responsive meter | Thấp đến trung bình |
 
 ### 3.3. Dashboard, Library và Settings

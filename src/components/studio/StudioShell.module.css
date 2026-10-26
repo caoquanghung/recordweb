@@ -2363,8 +2363,23 @@
   --dim: #64748b;
   --green: #059669;
   --red: #dc2626;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
   color: var(--text);
   background: var(--studio-bg);
+}
+
+.studioScreen .standardWorkspace .studioTopbar,
+.studioScreen .standardWorkspace .studioSessionBar { flex: 0 0 auto; }
+
+.studioScreen .standardWorkspace .sessionNotice {
+  flex: 0 0 auto;
+  max-height: 25dvh;
+  overflow-y: auto;
 }
 
 .studioScreen .standardWorkspace .studioTopbar,
@@ -2399,31 +2414,38 @@
     "stage sources"
     "stage effects";
   gap: 0;
-  min-height: calc(100dvh - 114px);
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
   padding: 0;
   align-items: stretch;
+  overflow: hidden;
   background: #fff;
 }
 
-.studioScreen .standardGrid.effectsClosed { grid-template-areas: "stage sources"; }
-.studioScreen .standardGrid.sourcesClosed { grid-template-areas: "stage effects"; }
+.studioScreen .standardGrid.effectsClosed { grid-template-areas: "stage sources"; grid-template-rows: minmax(0, 1fr); }
+.studioScreen .standardGrid.sourcesClosed { grid-template-areas: "stage effects"; grid-template-rows: minmax(0, 1fr); }
 .studioScreen .standardGrid.sourcesClosed.effectsClosed {
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "stage";
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .studioScreen .standardGrid .stageColumn {
   width: 100%;
   min-width: 0;
+  min-height: 0;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 20px clamp(16px, 2vw, 32px) 24px;
+  overflow: hidden;
+  padding: 12px clamp(16px, 2vw, 32px) 14px;
   background: linear-gradient(126deg, #f8fafc, #eff6ff 58%, #f0f9ff);
 }
 
 .studioScreen .standardGrid .stageToolbar {
-  width: min(100%, 960px, 98dvh);
+  width: min(100%, 960px, max(160px, calc((100dvh - 380px) * 1.7778)));
   margin-inline: auto;
   height: 40px;
   padding: 0 12px;
@@ -2436,7 +2458,7 @@
 .studioScreen .standardGrid .stageTags span { color: #475569; }
 
 .studioScreen .standardGrid .stage {
-  width: min(100%, 960px, 98dvh);
+  width: min(100%, 960px, max(160px, calc((100dvh - 380px) * 1.7778)));
   margin-inline: auto;
   flex: 0 0 auto;
   border: 0;
@@ -2482,14 +2504,22 @@
   display: flex;
   flex-direction: column;
   width: 320px;
-  max-height: calc(100dvh - 114px);
-  min-height: 640px;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
   overflow: hidden;
   border: 0;
   border-left: 1px solid #e2e8f0;
   border-radius: 0;
   background: #fff;
   box-shadow: -4px 0 20px rgba(15, 23, 42, .03);
+}
+
+.studioScreen .standardGrid .rightPanel {
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .inspectorHeader {
@@ -2632,13 +2662,17 @@
   .studioScreen .standardGrid.sourcesClosed.effectsClosed {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "sources" "stage" "effects";
+    grid-template-rows: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 1fr);
   }
-  .studioScreen .standardGrid.sourcesClosed { grid-template-areas: "stage" "effects"; }
-  .studioScreen .standardGrid.effectsClosed { grid-template-areas: "sources" "stage"; }
-  .studioScreen .standardGrid.sourcesClosed.effectsClosed { grid-template-areas: "stage"; }
+  .studioScreen .standardGrid.sourcesClosed { grid-template-areas: "stage" "effects"; grid-template-rows: minmax(0, 3fr) minmax(0, 1fr); }
+  .studioScreen .standardGrid.effectsClosed { grid-template-areas: "sources" "stage"; grid-template-rows: minmax(0, 2fr) minmax(0, 3fr); }
+  .studioScreen .standardGrid.sourcesClosed.effectsClosed { grid-template-areas: "stage"; grid-template-rows: minmax(0, 1fr); }
   .studioScreen .standardGrid .setupInspector { width: 100%; min-height: 0; max-height: none; border-left: 0; border-bottom: 1px solid #e2e8f0; }
-  .studioScreen .standardGrid .stageColumn { padding: 18px 12px 24px; }
+  .studioScreen .standardGrid .stageColumn { padding: 8px 12px 10px; }
+  .studioScreen .standardGrid .stageToolbar,
+  .studioScreen .standardGrid .stage { width: min(100%, max(160px, calc((100dvh - 470px) * 1.7778))); }
   .studioScreen .standardGrid .controlDock { width: 100%; }
+  .studioScreen .standardGrid .shortcutHint { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

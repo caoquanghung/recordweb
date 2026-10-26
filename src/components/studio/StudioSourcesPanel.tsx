@@ -1,3 +1,4 @@
+import { AudioMeterPanel } from './AudioMeterPanel';
 import { modes } from './studioConfig';
 import { StatusDot, StudioIcon } from './StudioPrimitives';
 import type { StudioController } from './useStudioController';
@@ -10,6 +11,8 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
     cameras, microphones, isConnectingSources, isConnectingSlideSource,
     sourcesConnected, requiredDevicesConnected, connectSources, connectSlideSource,
     stopAllMedia, mediaStatuses, screenStream, hasSystemAudio, tabCapture,
+    audioState, resumeAudio, microphoneLevel, microphoneLevelDb, microphoneStream,
+    systemAudioLevel, systemAudioLevelDb,
     legacyCursorTrajectory, mediaError, resolution, setResolution,
   } = studio;
   const needsSlides = mode !== 'webcam-only';
@@ -63,6 +66,15 @@ export function StudioSourcesPanel({ studio }: { studio: StudioController }) {
               ? 'Requesting access…'
               : `${requiredDevicesConnected ? 'Update' : 'Connect'} ${mode === 'screen-only' ? 'Audio' : 'Audio + Webcam'}`}
           </button>
+          {studio.session !== 'processing' && (
+            <AudioMeterPanel
+              minimal
+              state={audioState}
+              onResume={() => void resumeAudio()}
+              microphone={{ level: microphoneLevel, levelDb: microphoneLevelDb, available: Boolean(microphoneStream) }}
+              systemAudio={{ level: systemAudioLevel, levelDb: systemAudioLevelDb, available: hasSystemAudio }}
+            />
+          )}
         </section>
 
         {needsSlides && (

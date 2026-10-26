@@ -66,6 +66,36 @@
   margin-bottom: 5px;
 }
 
+.minimal {
+  width: 100%;
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: var(--panel-solid);
+}
+
+.minimalHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.minimalHeading button {
+  border: 0;
+  color: var(--primary-bright);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.minimalMeters {
+  display: grid;
+  gap: 4px;
+}
+
 .collapsed {
   width: 124px;
   padding: 5px 7px;
