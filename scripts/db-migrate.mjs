@@ -192,6 +192,15 @@ if (command === "verify") {
       IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public'
+          AND table_name = 'recordings'
+          AND column_name = 'recorded_at'
+          AND is_nullable = 'NO'
+      ) THEN
+        RAISE EXCEPTION 'Missing required column: recordings.recorded_at';
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
           AND table_name = 'studio_presets'
           AND column_name = 'user_id'
           AND is_nullable = 'NO'

@@ -67,3 +67,8 @@ ordered associations to existing finalized recordings. Project deletion removes
 only the associations; it does not delete the referenced recordings or Blob assets.
 Its ordering constraint is deferrable so the API can atomically reorder every
 segment inside one transaction.
+
+Migration `0007_recording_recorded_at.sql` separates the actual recording session
+start time (`recorded_at`) from the metadata insertion time (`created_at`). Existing
+rows are backfilled from `created_at`; library queries sort by `recorded_at` newest
+first.

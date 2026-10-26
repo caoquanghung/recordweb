@@ -303,6 +303,7 @@ Upon recording completion, the engine:
 * Repair every finalized WebM asset independently before preview, download, recovery, or upload.
 * Decode and persist 120 normalized waveform peaks independently for every available audio asset.
 * A missing optional source or a source-recorder failure produces a partial session warning without discarding a valid composite or other successful assets.
+* After successful asset finalization, keep the recoverable draft until the user supplies a required 1–120 character title in Review. Only then persist the complete titled recording to IndexedDB and delete the draft; download, upload, and starting another session remain unavailable while the title is pending.
 
 ### 5.4 Cross-Session Projects and Fast Merge
 

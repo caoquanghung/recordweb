@@ -25,6 +25,7 @@ export interface DbRecording {
   blob_pathname: string | null;  // Vercel Blob pathname (used for del())
   is_public: boolean;            // Share link toggle
   settings: Record<string, unknown>;
+  recorded_at: string;         // Actual recording session start time
   created_at: string;
   assets?: DbRecordingAsset[];
 }

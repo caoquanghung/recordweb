@@ -224,7 +224,7 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
                 <span className={styles.readyBadge}><DetailIcon name="status-check" size={14} />Sẵn sàng</span>
               </div>
               <div className={styles.metadata}>
-                <span><DetailIcon name="calendar" size={17} />{formatDate(recording.created_at)}</span>
+                <span><DetailIcon name="calendar" size={17} />{formatDate(recording.recorded_at)}</span>
                 <span><DetailIcon name="duration" size={17} />{formatDuration(Number(recording.duration_seconds))}</span>
                 <span><DetailIcon name="size" size={17} />{formatBytes(Number(recording.file_size_bytes))}</span>
                 <span><DetailIcon name="aspect" size={17} />{recording.resolution || 'Không rõ'}</span>

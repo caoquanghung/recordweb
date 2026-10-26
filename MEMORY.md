@@ -53,7 +53,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
 10. **In-App Presentation Recording**: PDF/PPTX presentation mode uses a separate self-tab capture path rather than `CanvasCompositor`. The presentation DOM will contain the rendered slide, raw webcam overlay, and baked custom cursor; `getDisplayMedia()` provides one current-tab video track, while captured tab audio and microphone audio flow through the existing Web Audio graph. Presentation files remain local in the initial implementation, and MediaPipe blur/cutout is not used in this mode.
 11. **Client-Side Recording Archives**: Composite and all available separate-source downloads are assembled into one browser-generated ZIP with `client-zip` and never proxied through a Route Handler. Each entry uses `<recording-name>-<component>.<extension>` and the archive uses `<recording-name>-assets.zip`.
 12. **Authenticated Entry Routing**: `/` is a thin server redirect to `/dashboard`, making Dashboard the first screen users encounter. The recording Studio is canonical at `/studio`; all Studio navigation, quick-start, preset, recovery, and new-recording actions must target `/studio`.
-13. **Application RBAC**: The two-role `user`/`developer` authorization layer is implemented in code. Clerk `publicMetadata.appRole` is the source of truth; signed session claims drive runtime authorization and migration `0006_user_roles` adds the webhook-maintained Neon mirror. `/api/health` requires `diagnostics:internal`, `/component/sidebar` requires `experiments:use`, and invalid/missing roles fail closed to `user`. `developer` never implies cross-user recording access. Presentation Studio is a core feature for both roles. Neon migration rollout, Clerk claim-template setup, and authenticated two-role E2E remain manual.
+13. **Application RBAC**: The two-role `user`/`developer` authorization layer is implemented in code. Clerk `publicMetadata.appRole` is the source of truth; signed session claims drive runtime authorization and applied migration `0006_user_roles` adds the webhook-maintained Neon mirror. `/api/health` requires `diagnostics:internal`, `/component/sidebar` requires `experiments:use`, and invalid/missing roles fail closed to `user`. `developer` never implies cross-user recording access. Presentation Studio is a core feature for both roles. Clerk claim-template setup and authenticated two-role E2E remain manual.
 14. **Composite-Only User Previews**: Standard recording previews in Studio/Presentation Review, Library, and Recording Details now render only the composite video with its mixed audio. Audio waveforms, microphone/system-audio visualization, cursor paths, cursor trajectory playback, and separate-source detail panels were removed from those standard previews. Auxiliary assets remain recorded, persisted, uploaded, and available to the archive pipeline; any future inspection UI must live in separate developer-only tooling.
 15. **Unified Blue UI Theme**: Dashboard and the light `AppSidebar` palette are the brand-color source of truth (`#1d4ed8`, `#2563eb`, `#1e40af` plus blue soft/border/focus variants). Shared semantic tokens in `src/app/globals.css` now drive active Studio/Presentation, Settings, Share, global media controls, Privacy, and Library/Details/Sidebar dark overrides per `docs/note-note/color-theme-standardization.md`. Semantic record/danger red, success green/teal, warning amber, and neutral colors retain their meanings; inactive legacy UI remains deferred until reuse or removal.
 
@@ -66,11 +66,11 @@ This file serves as the persistent memory bank for AI agents working on **Record
   * `DATABASE_URL`: Neon pooled Postgres connection string (`postgresql://...pooler...neon.tech/neondb?sslmode=require`).
   * Blob storage prefers `BLOB_READ_WRITE_TOKEN` in Production, Preview, and local Development. `BLOB_STORE_ID`, `VERCEL_OIDC_TOKEN`, and `BLOB_WEBHOOK_PUBLIC_KEY` are optional fallback credentials when the read-write token is unavailable.
 * **Database Schema**:
-  * `users` table (id, email, display_name, role, created_at); `role` is defined by pending migration `0006_user_roles` and is not yet live.
-  * `recordings` table (id, **user_id FK**, title, duration_seconds, file_size_bytes, resolution, fps, mime_type, local_id, storage_url, blob_pathname, **is_public**, settings, created_at).
+  * `users` table (id, email, display_name, role, created_at); `role` is live through applied migration `0006_user_roles`.
+  * `recordings` table (id, **user_id FK**, title, **recorded_at session timestamp**, duration_seconds, file_size_bytes, resolution, fps, mime_type, local_id, storage_url, blob_pathname, **is_public**, settings, created_at). `recorded_at` is live through applied migration `0007_recording_recorded_at`; existing rows were backfilled from `created_at`.
   * `recording_assets` table (id, **recording_id FK**, kind including mixed/microphone/system audio and cursor JSON, storage_url, blob_pathname, mime_type, file_size_bytes, resolution, fps, sample_rate_hz, metadata, created_at).
-  * `recording_projects` table is defined by pending migration `0005_recording_projects` (owner, title, draft/completed status, locked media profile, settings, optimistic revision, timestamps).
-  * `recording_project_segments` table is defined by pending migration `0005_recording_projects` (project-to-finalized-recording association, ordered sequence, inspected media profile). The live Neon schema has not applied `0005` yet.
+  * `recording_projects` table is live through applied migration `0005_recording_projects` (owner, title, draft/completed status, locked media profile, settings, optimistic revision, timestamps).
+  * `recording_project_segments` table is live through applied migration `0005_recording_projects` (project-to-finalized-recording association, ordered sequence, inspected media profile).
   * `studio_presets` table (id, **user_id FK**, preset_name, pip_shape, pip_size, pip_position, bg_removal_mode, filters_config, updated_at).
   * `recording_shares` table (recording_id, recipient_user_id, permission, created_at).
   * `schema_migrations` table tracks ordered `psql` migrations.
@@ -212,6 +212,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Audited active and deferred UI color usage and added `docs/note-note/color-theme-standardization.md`, defining the Dashboard/Sidebar blue palette, per-component purple-to-blue migration scope, protected boundaries, implementation order, and acceptance checks.
   - [x] Implemented the semantic blue palette across every active P0/P1 component in the color standardization spec, preserved status colors and all protected non-CSS source byte-for-byte, and verified lint, production build, three Playwright auth E2E tests, static WCAG contrast, plus public Privacy desktop/mobile screenshots. Authenticated multi-route visual QA remains pending.
   - [x] Exported editable, componentized Studio Setup and composite-only Recording Preview frames to the Figma Design file `H8NiBxcFq1hEz3bFPtnhFS`, with RecordWeb Studio variables, Be Vietnam Pro text styles, reusable Button/Status Pill components, and native vector/text/frame hierarchy; the temporary live-page capture was removed after visual comparison.
+  - [x] Added a mandatory post-finalization recording title gate in Review for standard, presentation, extension, watchdog, and recovered sessions. Titles are trimmed and limited to 120 characters; IndexedDB persistence, draft deletion, download, cloud upload, and starting another session wait for a valid title. Cloud metadata now carries the actual session `recorded_at`, and Library/Dashboard/details/share views use that timestamp with newest-first ordering. Lint and production build pass; migration `0007_recording_recorded_at` is applied and verified.
 - [ ] **Phase 8: Neon DB & Vercel Blob Integration Testing**
   - [x] Implemented authenticated direct browser-to-Vercel-Blob multipart upload followed by user-owned Neon metadata creation
   - [x] Centralize Blob authentication with read-write-token priority in every environment and OIDC-backed presigned upload fallback, including matching health checks and delete credentials
@@ -227,7 +228,7 @@ This file serves as the persistent memory bank for AI agents working on **Record
   - [x] Added authenticated project and segment Route Handlers with ownership checks, draft/completed lifecycle, optimistic revisions, atomic reordering, and non-destructive detach/delete behavior
   - [x] Added Mediabunny-based MP4/WebM finalized-segment inspection and lossless packet-copy merge with timestamp shifting, abort, progress, and explicit incompatibility errors
   - [x] Added `docs/recording_project_modules.md` and synchronized the architecture and media-pipeline specifications
-  - [ ] Apply and verify pending migration `0005_recording_projects` in the intended Neon environment
+  - [x] Applied and verified migration `0005_recording_projects` in the configured Neon environment
   - [ ] Runtime-test logical playback and lossless merge with real same-profile MP4 and WebM RecordWeb outputs before connecting project UI
 - [ ] **Phase 9: Vercel Deployment & Verification**
 - [x] **Hooks Maintainability Refactor**:
@@ -310,6 +311,6 @@ This file serves as the persistent memory bank for AI agents working on **Record
 
 ## 6. Immediate Next Steps
 
-1. Review and apply pending Neon migrations `0005_recording_projects` and `0006_user_roles`, then run `npm run db:verify`.
-2. Configure the Clerk signed-session `metadata` claim, assign one internal `developer`, refresh sessions, and run authenticated User/Developer authorization and UI E2E.
-3. Runtime-test Studio presentation mode and the extension `0.4.7` Store package in authenticated Chrome/Edge, including capture, cursor, finalization, and cleanup.
+1. Configure the Clerk signed-session `metadata` claim, assign one internal `developer`, refresh sessions, and run authenticated User/Developer authorization and UI E2E.
+2. Runtime-test Studio presentation mode and the extension `0.4.7` Store package in authenticated Chrome/Edge, including capture, cursor, finalization, and cleanup.
+3. Runtime-test logical project playback and lossless merge with real same-profile MP4 and WebM RecordWeb outputs before connecting project UI.

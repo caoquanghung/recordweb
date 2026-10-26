@@ -114,13 +114,13 @@ export function useLibraryController() {
         kind: 'cloud' as const,
         recording,
         title: recording.title,
-        createdAt: new Date(recording.created_at).getTime(),
+        createdAt: new Date(recording.recorded_at).getTime(),
       })),
       ...visibleShared.map((recording) => ({
         kind: 'shared' as const,
         recording,
         title: recording.title,
-        createdAt: new Date(recording.created_at).getTime(),
+        createdAt: new Date(recording.recorded_at).getTime(),
       })),
     ];
 

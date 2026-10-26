@@ -6,6 +6,8 @@
 }
 
 .reviewHero,
+.titleForm,
+.savedTitle,
 .reviewPreview,
 .reviewActions {
   border: 1px solid var(--line);
@@ -51,6 +53,107 @@
   margin-top: 7px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.titleForm {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.7fr) minmax(280px, 1.3fr) auto;
+  align-items: end;
+  gap: 18px;
+  padding: 18px;
+  border-color: var(--brand-primary-border);
+}
+
+.titleCopy {
+  display: grid;
+  gap: 5px;
+}
+
+.titleCopy span,
+.savedTitle span {
+  color: var(--primary-bright);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.titleCopy label {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 720;
+}
+
+.titleCopy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.titleField {
+  display: grid;
+  gap: 6px;
+}
+
+.titleField input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--panel-raised);
+  font: inherit;
+}
+
+.titleField input:focus {
+  border-color: var(--brand-primary-border);
+  outline: 3px solid var(--brand-focus-ring);
+  outline-offset: 1px;
+}
+
+.titleField input[aria-invalid='true'] { border-color: var(--red); }
+
+.titleMeta {
+  min-height: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.titleMeta strong {
+  color: var(--red);
+  font-weight: 650;
+}
+
+.titleForm button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--brand-primary-border);
+  border-radius: 10px;
+  color: white;
+  background: linear-gradient(135deg, var(--brand-primary-action), var(--brand-primary-hover));
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.titleForm button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.savedTitle {
+  display: grid;
+  gap: 5px;
+  padding: 15px 18px;
+}
+
+.savedTitle strong {
+  color: var(--text);
+  font-size: 17px;
 }
 
 .reviewPreview {
@@ -129,6 +232,7 @@
 }
 
 .sourceAssets button:hover { border-color: var(--brand-primary-border); }
+.sourceAssets button:disabled { cursor: not-allowed; opacity: 0.5; }
 .sourceAssets button:focus-visible { outline: 3px solid var(--brand-focus-ring); outline-offset: 2px; }
 .sourceAssets button svg { width: 17px; color: var(--primary-bright); }
 .sourceAssets button span { display: grid; gap: 2px; text-align: left; }
@@ -194,6 +298,8 @@
 }
 
 :global(html[data-theme='light']) .reviewHero,
+:global(html[data-theme='light']) .titleForm,
+:global(html[data-theme='light']) .savedTitle,
 :global(html[data-theme='light']) .reviewPreview,
 :global(html[data-theme='light']) .sourceAssets,
 :global(html[data-theme='light']) .reviewActions {
@@ -201,6 +307,8 @@
 }
 
 @media (max-width: 680px) {
+  .titleForm { grid-template-columns: 1fr; align-items: stretch; }
+  .titleForm button { width: 100%; }
   .reviewActions { align-items: stretch; flex-direction: column; }
   .reviewPrimary, .reviewSecondary { width: 100%; }
   .sourceAssets { align-items: stretch; flex-direction: column; }

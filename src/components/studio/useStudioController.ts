@@ -24,6 +24,7 @@ import {
   downloadRecordingArchive,
   RECORDING_ARCHIVE_KINDS,
 } from '@/lib/recordingArchive';
+import { getRecordingTitleError, normalizeRecordingTitle } from '@/lib/recordingTitle';
 import type { DbRecording, DbStudioPreset } from '@/types/database';
 import type {
   AudioFilterConfig,
@@ -95,7 +96,10 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadMessage, setUploadMessage] = useState('');
   const [cloudRecording, setCloudRecording] = useState<DbRecording | null>(null);
+  const [titleSaving, setTitleSaving] = useState(false);
+  const [titleError, setTitleError] = useState('');
   const recoveredPreviewUrlRef = useRef<string | null>(null);
+  const recoveredDraftIdRef = useRef<string | null>(null);
   const endSessionRequestedRef = useRef(false);
   const [micGain, setMicGain] = useState(1);
   const [systemVolume, setSystemVolume] = useState(1);
@@ -227,6 +231,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     pause: pauseRecording,
     resume: resumeRecording,
     stop: stopRecording,
+    saveTitle: saveCompletedRecordingTitle,
     reset: resetRecording,
   } = useRecordingSession({
     videoStream: recordingVideoStream,
@@ -241,6 +246,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   });
 
   const activeRecording = completedRecording ?? recoveredRecording;
+  const titleRequired = Boolean(activeRecording && !activeRecording.title);
   const session: SessionState = countdown !== null
     ? 'countdown'
     : activeRecording
@@ -271,6 +277,16 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     else if (!presentationWorkspace) stopScreen();
     return () => window.clearTimeout(releaseSourceCanvases);
   }, [presentationCapture, presentationWorkspace, recordingStatus, stopAllMedia, stopPresentationCapture, stopScreen]);
+
+  useEffect(() => {
+    if (!titleRequired) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = true;
+    };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [titleRequired]);
 
   const loadPresets = useCallback(async () => {
     try {
@@ -637,7 +653,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       const recording: RecordingMetadata = {
         id: draft.id,
         localId: draft.id,
-        title: `Recovered recording ${new Date(draft.startedAt).toLocaleString()}`,
+        title: '',
         durationSeconds: draft.durationMs / 1000,
         fileSizeBytes: composite.fileSizeBytes,
         resolution: composite.resolution ?? resolution,
@@ -648,17 +664,56 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         previewUrl,
         assets,
       };
-      await saveLocalRecording(recording);
-      await deleteRecordingDraft(draft.id);
+      recoveredDraftIdRef.current = draft.id;
       setRecoveredRecording(recording);
       setRecoveryDrafts((current) => current.filter((item) => item.id !== draft.id));
-      setRecoveryMessage('Recovery complete. The recording is saved locally.');
+      setTitleError('');
+      setRecoveryMessage('Recovery complete. Name the recording to save it locally.');
     } catch (error) {
       setRecoveryMessage(`Recovery failed: ${(error as Error).message}`);
     }
   };
 
+  const saveRecordingTitle = async (value: string) => {
+    const validationError = getRecordingTitleError(value);
+    if (validationError) {
+      setTitleError(validationError);
+      return false;
+    }
+    if (!activeRecording) {
+      setTitleError('The finalized recording is unavailable.');
+      return false;
+    }
+
+    setTitleSaving(true);
+    setTitleError('');
+    try {
+      const title = normalizeRecordingTitle(value);
+      if (recoveredRecording) {
+        const titledRecording = { ...recoveredRecording, title };
+        await saveLocalRecording(titledRecording);
+        const draftId = recoveredDraftIdRef.current ?? titledRecording.id;
+        await deleteRecordingDraft(draftId);
+        recoveredDraftIdRef.current = null;
+        setRecoveredRecording(titledRecording);
+      } else {
+        await saveCompletedRecordingTitle(title);
+      }
+      setRecoveryMessage('');
+      return true;
+    } catch (cause) {
+      setTitleError(`Could not save the recording title: ${(cause as Error).message}`);
+      return false;
+    } finally {
+      setTitleSaving(false);
+    }
+  };
+
   const resetReview = () => {
+    if (titleRequired) {
+      setTitleError('Name and save this recording before starting another session.');
+      return;
+    }
     if (recoveredPreviewUrlRef.current) {
       URL.revokeObjectURL(recoveredPreviewUrlRef.current);
       recoveredPreviewUrlRef.current = null;
@@ -671,10 +726,11 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     setUploadState('idle');
     setUploadProgress(0);
     setUploadMessage('');
+    setTitleError('');
   };
 
   const downloadRecordingFiles = async () => {
-    if (!activeRecording) return;
+    if (!activeRecording?.title) return;
     const recordingAssets = RECORDING_ARCHIVE_KINDS.flatMap((kind) => {
       const asset = kind === 'composite'
         ? compositeAssetFor(activeRecording)
@@ -691,7 +747,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   };
 
   const uploadRecording = async () => {
-    if (!activeRecording) return;
+    if (!activeRecording?.title) return;
     const composite = compositeAssetFor(activeRecording);
     if (!composite?.blob) return;
     setUploadState('uploading');
@@ -757,6 +813,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: activeRecording.title,
+          recorded_at: activeRecording.createdAt,
           duration_seconds: activeRecording.durationSeconds,
           file_size_bytes: activeRecording.fileSizeBytes,
           resolution: activeRecording.resolution,
@@ -925,6 +982,9 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     uploadProgress,
     uploadMessage,
     cloudRecording,
+    titleRequired,
+    titleSaving,
+    titleError,
     micGain, setMicGain,
     systemVolume, setSystemVolume,
     customAudioConfig, setCustomAudioConfig,
@@ -984,6 +1044,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     startUiTest,
     recoverLatestDraft,
     resetReview,
+    saveRecordingTitle,
     downloadRecordingFiles,
     uploadRecording,
     publishAndCopyLink,

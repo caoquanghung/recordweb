@@ -130,7 +130,7 @@ export default async function SharePage({ params }: PageProps<'/share/[recording
 
         <footer className={styles.footer}>
           <div>
-            <strong>Created {new Date(recording.created_at).toLocaleDateString('en', { dateStyle: 'medium' })}</strong>
+            <strong>Recorded {new Date(recording.recorded_at).toLocaleDateString('en', { dateStyle: 'medium' })}</strong>
             {recording.mime_type.includes('webm') && (
               <span>WebM playback support varies on older Safari and iOS versions.</span>
             )}

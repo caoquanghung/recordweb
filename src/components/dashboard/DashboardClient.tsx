@@ -197,7 +197,7 @@ export function DashboardClient() {
                   <div className={styles.cardBody}>
                     <span className={`${styles.statusBadge} ${styles.statusReady}`}><Icon src="check.svg" size={15} />Sẵn sàng xem</span>
                     <h3>{recording.title}</h3>
-                    <p>Đã quay: {new Date(recording.created_at).toLocaleDateString('vi-VN')} • Thời lượng {formatLongDuration(Number(recording.duration_seconds))}</p>
+                    <p>Đã quay: {new Date(recording.recorded_at).toLocaleDateString('vi-VN')} • Thời lượng {formatLongDuration(Number(recording.duration_seconds))}</p>
                     <div className={styles.thumbnail}>
                       <Image src={dashboardAsset('recording-ready.png')} alt={`Xem trước ${recording.title}`} fill sizes="(max-width: 720px) 100vw, 33vw" />
                     </div>

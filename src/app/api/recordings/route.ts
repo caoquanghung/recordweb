@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, isDbConfigured } from '@/lib/db';
 import { getSessionUserId, unauthorizedResponse } from '@/lib/auth';
 import { getBlobCommandCredentials } from '@/lib/blobCredentials';
+import { getRecordingTitleError, normalizeRecordingTitle } from '@/lib/recordingTitle';
 import { DbRecording, DbRecordingAsset, DbSharedRecording } from '@/types/database';
 import { del } from '@vercel/blob';
 
@@ -24,7 +25,7 @@ export async function GET() {
     const rows = await sql`
       SELECT * FROM recordings
       WHERE user_id = ${userId}
-      ORDER BY created_at DESC
+      ORDER BY recorded_at DESC, created_at DESC
       LIMIT 50;
     `;
     const sharedRows = await sql`
@@ -34,7 +35,7 @@ export async function GET() {
       JOIN recordings r ON r.id = rs.recording_id
       JOIN users u ON u.id = r.user_id
       WHERE rs.recipient_user_id = ${userId}
-      ORDER BY r.created_at DESC
+      ORDER BY r.recorded_at DESC, r.created_at DESC
       LIMIT 50;
     `;
     const assetRows = await sql`
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       title,
+      recorded_at,
       duration_seconds,
       file_size_bytes,
       resolution = '1920x1080',
@@ -106,6 +108,17 @@ export async function POST(request: NextRequest) {
       settings = {},
       assets = [],
     } = body;
+
+    const titleError = getRecordingTitleError(title);
+    if (titleError) {
+      return NextResponse.json({ error: titleError }, { status: 400 });
+    }
+    const recordedAt = typeof recorded_at === 'string' ? new Date(recorded_at) : null;
+    if (!recordedAt || Number.isNaN(recordedAt.getTime())) {
+      return NextResponse.json({ error: 'A valid recording timestamp is required.' }, { status: 400 });
+    }
+    const normalizedTitle = normalizeRecordingTitle(title);
+    const normalizedRecordedAt = recordedAt.toISOString();
 
     const validAssetKinds = new Set([
       'composite',
@@ -126,6 +139,7 @@ export async function POST(request: NextRequest) {
       INSERT INTO recordings (
         user_id,
         title,
+        recorded_at,
         duration_seconds,
         file_size_bytes,
         resolution,
@@ -138,7 +152,8 @@ export async function POST(request: NextRequest) {
         settings
       ) VALUES (
         ${userId},
-        ${title},
+        ${normalizedTitle},
+        ${normalizedRecordedAt},
         ${duration_seconds},
         ${file_size_bytes},
         ${resolution},

@@ -13,6 +13,7 @@ import {
 } from '@/lib/recordingAssets';
 import { createRecordingClock } from '@/lib/recordingClock';
 import { finalizeRecordingAssets } from '@/lib/recordingFinalization';
+import { getRecordingTitleError, normalizeRecordingTitle } from '@/lib/recordingTitle';
 import type {
   CursorCaptureController,
   CursorTrajectory,
@@ -46,6 +47,7 @@ export interface RecordingSessionResult {
   pause: () => void;
   resume: () => void;
   stop: () => void;
+  saveTitle: (title: string) => Promise<RecordingMetadata>;
   reset: () => void;
 }
 
@@ -145,7 +147,7 @@ export function useRecordingSession({
       const result: RecordingMetadata = {
         id,
         localId: id,
-        title: `Recording ${new Date(startedAt).toLocaleString()}`,
+        title: '',
         durationSeconds: durationMs / 1000,
         fileSizeBytes: composite.fileSizeBytes,
         resolution,
@@ -157,9 +159,7 @@ export function useRecordingSession({
         assets,
       };
 
-      await saveLocalRecording(result);
       await draftWriteRef.current.catch(() => undefined);
-      await deleteRecordingDraft(id);
       setRecording(result);
       setStatus('ready');
 
@@ -171,6 +171,19 @@ export function useRecordingSession({
       setStatus('error');
     }
   }, [clearTimer, clock, fps, requestCursorStop, resolution]);
+
+  const saveTitle = useCallback(async (value: string) => {
+    const titleError = getRecordingTitleError(value);
+    if (titleError) throw new Error(titleError);
+    if (!recording) throw new Error('The finalized recording is unavailable.');
+
+    const titledRecording = { ...recording, title: normalizeRecordingTitle(value) };
+    await draftWriteRef.current.catch(() => undefined);
+    await saveLocalRecording(titledRecording);
+    await deleteRecordingDraft(titledRecording.id);
+    setRecording(titledRecording);
+    return titledRecording;
+  }, [recording]);
 
   const markAssetStopped = useCallback((kind: RecordingAssetKind) => {
     stoppedAssetsRef.current.add(kind);
@@ -385,5 +398,5 @@ export function useRecordingSession({
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
   }, [clearTimer, clock]);
 
-  return { status, elapsedMs, warning, error, recording, start, pause, resume, stop, reset };
+  return { status, elapsedMs, warning, error, recording, start, pause, resume, stop, saveTitle, reset };
 }

@@ -109,7 +109,7 @@ function CloudRecordingCard({
         </div>
         <div className={styles.cardMeta}>
           <span>{recording.is_public ? 'Liên kết công khai' : recording.resolution}</span>
-          <time>{formatLibraryDate(recording.created_at)}</time>
+          <time>{formatLibraryDate(recording.recorded_at)}</time>
         </div>
         <div className={styles.cardActions}>
           <Link className={styles.primaryCardButton} href={`/library/${recording.id}`}><LibraryIcon name="play" />Xem lại</Link>
@@ -152,7 +152,7 @@ function SharedRecordingCard({
         </div>
         <div className={styles.cardMeta}>
           <span>{canDownload ? 'Được xem và tải' : 'Chỉ được xem'}</span>
-          <time>{formatLibraryDate(recording.created_at)}</time>
+          <time>{formatLibraryDate(recording.recorded_at)}</time>
         </div>
         <div className={styles.cardActions}>
           <Link className={styles.primaryCardButton} href={`/library/${recording.id}`}><LibraryIcon name="play" />Xem lại</Link>
