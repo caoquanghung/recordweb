@@ -1,24 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { deleteLocalRecording, getAllLocalRecordings } from '@/lib/idb';
-import {
-  downloadRecordingArchive,
-  RECORDING_ARCHIVE_KINDS,
-} from '@/lib/recordingArchive';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { downloadRecordingArchive } from '@/lib/recordingArchive';
 import type {
   DbRecording,
   DbRecordingAsset,
   DbRecordingShare,
   DbSharedRecording,
 } from '@/types/database';
-import type { RecordingMetadata } from '@/types/recording';
 import type { RecordingInspectionData } from '@/components/review/recordingInspection';
 
-export type LibraryTab = 'mine' | 'shared' | 'local' | 'cloud';
+export type LibraryTab = 'mine' | 'shared';
 export type LibrarySort = 'newest' | 'oldest';
 export type LibraryEntry =
-  | { kind: 'local'; recording: RecordingMetadata; title: string; createdAt: number }
   | { kind: 'cloud'; recording: DbRecording; title: string; createdAt: number }
   | { kind: 'shared'; recording: DbSharedRecording; title: string; createdAt: number };
 
@@ -44,7 +38,6 @@ export function useLibraryController() {
   const [page, setPage] = useState(1);
   const [cloud, setCloud] = useState<DbRecording[]>([]);
   const [shared, setShared] = useState<DbSharedRecording[]>([]);
-  const [local, setLocal] = useState<RecordingMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState<RecordingPreview | null>(null);
@@ -54,31 +47,20 @@ export function useLibraryController() {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [permission, setPermission] = useState<'viewer' | 'viewer_download'>('viewer');
   const [shareBusy, setShareBusy] = useState(false);
-  const localUrlsRef = useRef<string[]>([]);
 
   const loadLibrary = useCallback(async () => {
     setLoading(true);
     setMessage('');
     try {
-      const [response, localRecordings] = await Promise.all([
-        fetch('/api/recordings', { cache: 'no-store' }),
-        getAllLocalRecordings(),
-      ]);
+      const response = await fetch('/api/recordings', { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? 'Could not load cloud recordings.');
 
-      localUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      localUrlsRef.current = [];
-      const hydratedLocal = localRecordings.map((recording) => {
-        if (!recording.blob) return recording;
-        const previewUrl = URL.createObjectURL(recording.blob);
-        localUrlsRef.current.push(previewUrl);
-        return { ...recording, previewUrl };
-      });
-
-      setCloud(data.recordings ?? []);
-      setShared(data.sharedRecordings ?? []);
-      setLocal(hydratedLocal);
+      const hasCloudVideo = (recording: DbRecording) => Boolean(
+        recording.storage_url || recording.assets?.some((asset) => asset.kind === 'composite'),
+      );
+      setCloud(((data.recordings ?? []) as DbRecording[]).filter(hasCloudVideo));
+      setShared(((data.sharedRecordings ?? []) as DbSharedRecording[]).filter(hasCloudVideo));
     } catch (error) {
       setMessage((error as Error).message);
     } finally {
@@ -91,27 +73,11 @@ export function useLibraryController() {
     return () => window.clearTimeout(initialLoad);
   }, [loadLibrary]);
 
-  useEffect(() => () => {
-    localUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-  }, []);
-
-  const localOnly = useMemo(() => {
-    const uploadedLocalIds = new Set(cloud.map((recording) => recording.local_id).filter(Boolean));
-    return local.filter((recording) => !uploadedLocalIds.has(recording.localId ?? recording.id));
-  }, [cloud, local]);
-
   const filteredEntries = useMemo<LibraryEntry[]>(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('vi');
-    const visibleLocal = tab === 'mine' || tab === 'local' ? localOnly : [];
-    const visibleCloud = tab === 'mine' || tab === 'cloud' ? cloud : [];
+    const visibleCloud = tab === 'mine' ? cloud : [];
     const visibleShared = tab === 'shared' ? shared : [];
     const entries: LibraryEntry[] = [
-      ...visibleLocal.map((recording) => ({
-        kind: 'local' as const,
-        recording,
-        title: recording.title,
-        createdAt: new Date(recording.createdAt).getTime(),
-      })),
       ...visibleCloud.map((recording) => ({
         kind: 'cloud' as const,
         recording,
@@ -129,7 +95,7 @@ export function useLibraryController() {
     return entries
       .filter((entry) => !normalizedQuery || entry.title.toLocaleLowerCase('vi').includes(normalizedQuery))
       .sort((left, right) => sort === 'newest' ? right.createdAt - left.createdAt : left.createdAt - right.createdAt);
-  }, [cloud, localOnly, query, shared, sort, tab]);
+  }, [cloud, query, shared, sort, tab]);
 
   const visibleCount = filteredEntries.length;
   const pageCount = Math.max(1, Math.ceil(visibleCount / LIBRARY_PAGE_SIZE));
@@ -141,14 +107,7 @@ export function useLibraryController() {
   const cloudBytes = cloud.reduce((total, recording) => total + Number(recording.file_size_bytes || 0), 0);
   const cloudGigabytes = cloudBytes / 1024 / 1024 / 1024;
   const storagePercent = Math.min(100, (cloudBytes / CLOUD_ALLOWANCE_BYTES) * 100);
-  const totalCount = cloud.length + localOnly.length + shared.length;
-
-  const removeLocal = async (recording: RecordingMetadata) => {
-    if (!window.confirm('Delete this recording from this browser? Cloud copies are not affected.')) return;
-    await deleteLocalRecording(recording.id);
-    setLocal((current) => current.filter((item) => item.id !== recording.id));
-    setMessage('Local recording deleted.');
-  };
+  const totalCount = cloud.length + shared.length;
 
   const openCloudCursor = async (title: string, asset: DbRecordingAsset) => {
     setMessage('Loading cursor trajectory…');
@@ -157,22 +116,6 @@ export function useLibraryController() {
       if (!response.ok) throw new Error(`Could not load cursor trajectory (${response.status}).`);
       setCursorPreview({ title, blob: await response.blob() });
       setMessage('');
-    } catch (error) {
-      setMessage((error as Error).message);
-    }
-  };
-
-  const downloadLocalFiles = async (recording: RecordingMetadata) => {
-    const assets = RECORDING_ARCHIVE_KINDS.flatMap((kind) => {
-      const asset = recording.assets?.[kind];
-      const blob = asset?.blob ?? (kind === 'composite' ? recording.blob : undefined);
-      const mimeType = asset?.mimeType ?? (kind === 'composite' ? recording.mimeType : '');
-      return blob ? [{ kind, mimeType, blob }] : [];
-    });
-    setMessage('Preparing recording ZIP…');
-    try {
-      await downloadRecordingArchive(recording.title, assets);
-      setMessage(`${assets.length} recording files downloaded as one ZIP.`);
     } catch (error) {
       setMessage((error as Error).message);
     }
@@ -316,7 +259,6 @@ export function useLibraryController() {
     setPage,
     cloud,
     shared,
-    localOnly,
     loading,
     message,
     preview,
@@ -339,9 +281,7 @@ export function useLibraryController() {
     cloudGigabytes,
     storagePercent,
     totalCount,
-    removeLocal,
     openCloudCursor,
-    downloadLocalFiles,
     downloadCloudFiles,
     togglePublic,
     copyShareLink,

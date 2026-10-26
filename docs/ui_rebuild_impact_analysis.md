@@ -97,7 +97,7 @@ Lưu ý: Studio dùng `AppNavigation` nhưng có shell/layout riêng; Dashboard,
 | `src/components/dashboard/DashboardClient.tsx` | Stats, recovery banner, quick start, recent recordings, presets | Fetch `/api/recordings`, `/api/presets`; đọc IDB; xóa preset; ghi `recordweb-quick-start` và `recordweb-pending-preset` vào `localStorage` |
 | `src/components/dashboard/DashboardClient.module.css` | Card/grid/list và responsive Dashboard | Có thể redesign presentation |
 | `src/app/library/page.tsx` | Route wrapper cho Library | Giữ render `LibraryClient` |
-| `src/components/library/LibraryClient.tsx` | Bộ lọc local/cloud/shared, preview, download, delete, public link và recipient sharing | IDB, `/api/recordings`, `/api/shares`, Blob URLs, quyền owner/viewer/download |
+| `src/components/library/LibraryClient.tsx` | Danh sách cloud sở hữu/được chia sẻ, preview, download, delete, public link và recipient sharing | `/api/recordings`, `/api/shares`, Blob URLs, quyền owner/viewer/download; IndexedDB vẫn dùng cho khôi phục ngoài Library |
 | `src/components/library/LibraryClient.module.css` | Grid recording, modal preview/share và responsive | Có thể redesign presentation; phải giữ overlay/modal usable |
 | `src/app/settings/page.tsx` | Route wrapper cho Settings | Giữ render `SettingsClient` |
 | `src/components/settings/SettingsClient.tsx` | Theme selection, local storage stats, health check và privacy explanation | `recordweb-theme`, DOM `data-theme`, IDB, `/api/health` |
@@ -213,7 +213,7 @@ Nếu thiết kế mới thực sự đòi thay đổi một trong các phần t
 | Dashboard → Studio | `recordweb-quick-start`, `recordweb-pending-preset` và navigation về `/` |
 | Recovery | Draft banner, recover latest, reset review và download repaired assets |
 | Upload | Client upload trực tiếp với `@vercel/blob/client`; không chuyển file media qua API body |
-| Library | Local/cloud/shared filters; preview/download/delete/share; xác nhận destructive action |
+| Library | Bộ lọc bài giảng sở hữu/được chia sẻ từ cloud; preview/download/delete/share; xác nhận destructive action |
 | Share page | Request-time auth/query, `canDownload`, private-by-default và không lộ metadata khi unauthorized |
 | Media control | Dừng đúng từng source/all; drag, keyboard move, clamp viewport và persisted position |
 
@@ -290,7 +290,7 @@ Nếu thiết kế mới thực sự đòi thay đổi một trong các phần t
 | Audio | Meter, mute, gain, DSP preset, system audio state, không glitch |
 | Recovery | Draft detection, recover latest, local download và cleanup |
 | Upload | Direct Blob upload, metadata save, progress/error/retry và share link |
-| Library | Local/cloud/shared filters, preview, waveform/cursor, delete scope, permissions |
+| Library | Bộ lọc bài giảng sở hữu/được chia sẻ từ cloud, preview, waveform/cursor, delete scope, permissions |
 | Accessibility | Tab order, focus-visible, labels, live announcements và shortcut conflict |
 | Cleanup | Track stop khi disconnect/unmount; không để camera/mic/tab capture tiếp tục ngoài ý muốn |
 

@@ -20,7 +20,7 @@ export function LibraryClient() {
   const library = useLibraryController();
   const {
     tab, setTab, query, setQuery, sort, setSort, page, setPage,
-    cloud, shared, localOnly, loading, message,
+    cloud, shared, loading, message,
     preview, setPreview,
     sharingRecording, setSharingRecording, shares,
     recipientEmail, setRecipientEmail, permission, setPermission, shareBusy,
@@ -29,10 +29,8 @@ export function LibraryClient() {
   } = library;
 
   const tabs: Array<[LibraryTab, string, number]> = [
-    ['mine', 'Tất cả bài giảng', cloud.length + localOnly.length],
+    ['mine', 'Tất cả bài giảng', cloud.length],
     ['shared', 'Được chia sẻ', shared.length],
-    ['local', 'Chỉ trên máy', localOnly.length],
-    ['cloud', 'Đã lưu đám mây', cloud.length],
   ];
 
   return (
@@ -60,7 +58,7 @@ export function LibraryClient() {
                 <div className={styles.progressTrack} aria-hidden="true">
                   <span style={{ width: `${Math.max(storagePercent, cloudBytes > 0 ? 2 : 0)}%` }} />
                 </div>
-                <small>Đã tự động sao lưu an toàn vào máy chủ trường</small>
+                <small>Dung lượng các bản ghi trong thư viện</small>
               </div>
               <button className={styles.syncButton} type="button" onClick={() => void loadLibrary()} disabled={loading}>
                 <LibraryIcon name="sync" />{loading ? 'Đang đồng bộ' : 'Đồng bộ ngay'}
@@ -114,7 +112,7 @@ export function LibraryClient() {
               <strong>Chưa có bài giảng trong mục này</strong>
               <span>{query
                 ? 'Thử một từ khoá khác hoặc xoá bộ lọc tìm kiếm.'
-                : 'Quay bài giảng trong Studio hoặc chọn một bộ lọc khác.'}</span>
+                : 'Quay bài giảng trong Studio hoặc xem mục Được chia sẻ.'}</span>
               {!query && <Link href="/studio">Ghi bài giảng mới</Link>}
             </div>
           )}
@@ -123,9 +121,7 @@ export function LibraryClient() {
             <LibraryRecordingGrid
               entries={paginatedEntries}
               setPreview={setPreview}
-              downloadLocalFiles={library.downloadLocalFiles}
               downloadCloudFiles={library.downloadCloudFiles}
-              removeLocal={library.removeLocal}
               removeCloud={library.removeCloud}
               openSharing={library.openSharing}
               togglePublic={library.togglePublic}
@@ -135,7 +131,7 @@ export function LibraryClient() {
           {!loading && visibleCount > 0 && (
             <footer className={styles.libraryFooter}>
               <p>
-                <span aria-hidden="true" />Tất cả bài giảng đã được đồng bộ an toàn • Hiển thị{' '}
+                <span aria-hidden="true" />Hiển thị{' '}
                 {(page - 1) * LIBRARY_PAGE_SIZE + 1} – {Math.min(page * LIBRARY_PAGE_SIZE, visibleCount)}{' '}
                 trên tổng số {visibleCount} bài giảng
               </p>
