@@ -737,12 +737,12 @@
 :global(html[data-theme='dark']) .shell {
   --ink: #eef2f8;
   --muted: #94a1b5;
-  --brand: #9aabff;
-  --brand-dark: #6479e6;
+  --brand: var(--brand-primary);
+  --brand-dark: var(--brand-primary-action);
   --line: #2a3650;
   --panel: #151d2d;
   --panel-raised: #111a2a;
-  --primary-bright: #8da2ff;
+  --primary-bright: var(--brand-primary);
   --green: #43d3ae;
   --text: #eef2f8;
   background:
@@ -791,18 +791,18 @@
 :global(html[data-theme='dark']) .railIcon,
 :global(html[data-theme='dark']) .stateIcon { background: #1e2c52; }
 :global(html[data-theme='dark']) .secondaryButton { color: #d9e1ed; border-color: #34415a; background: #1b2538; }
-:global(html[data-theme='dark']) .notice { color: #c6d2ff; border-color: #40558f; background: #1e2c52; }
+:global(html[data-theme='dark']) .notice { color: var(--brand-primary); border-color: var(--brand-primary-border); background: var(--brand-primary-soft); }
 :global(html[data-theme='dark']) .emptyInline,
 :global(html[data-theme='dark']) .sourceItem,
 :global(html[data-theme='dark']) .chapterList button { color: #dce3ee; border-color: #2a3650; background: #111a2a; }
 :global(html[data-theme='dark']) .disclosure { color: #eef2f8; background: #151d2d; }
 :global(html[data-theme='dark']) .sourceItem > span,
 :global(html[data-theme='dark']) .chapterNumber,
-:global(html[data-theme='dark']) .railHeader > span { color: #b5c2ff; background: #1e2c52; }
+:global(html[data-theme='dark']) .railHeader > span { color: var(--brand-primary); background: var(--brand-primary-soft); }
 :global(html[data-theme='dark']) .shareCard {
   background:
     radial-gradient(circle at 100% 0, rgba(89, 113, 195, 0.18), transparent 13rem),
     #151d2d;
 }
-:global(html[data-theme='dark']) .shareCard button { color: #c5d0ff; border-color: #40558f; background: #1e2c52; }
+:global(html[data-theme='dark']) .shareCard button { color: var(--brand-primary); border-color: var(--brand-primary-border); background: var(--brand-primary-soft); }
 :global(html[data-theme='dark']) .chapterList button:hover { border-color: #526aa9; background: #1b2945; }

@@ -25,7 +25,7 @@
 }
 
 .dragging {
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(155, 140, 255, 0.22);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48), 0 0 0 1px var(--brand-primary-border);
 }
 
 .heading {
@@ -58,7 +58,7 @@
 
 .dragHandle:focus-visible {
   border-radius: 7px;
-  outline: 2px solid #9b8cff;
+  outline: 2px solid var(--brand-primary-border-strong);
   outline-offset: 3px;
 }
 
@@ -108,7 +108,7 @@
 
 .resetPosition:hover:not(:disabled) {
   color: #ffffff;
-  background: rgba(155, 140, 255, 0.18);
+  background: var(--brand-primary-soft);
 }
 
 .resetPosition:disabled {
@@ -117,7 +117,7 @@
 }
 
 .resetPosition:focus-visible {
-  outline: 2px solid #9b8cff;
+  outline: 2px solid var(--brand-primary-border-strong);
   outline-offset: 2px;
 }
 
@@ -164,7 +164,7 @@
 .sourceButton svg {
   width: 15px;
   height: 15px;
-  color: #9b8cff;
+  color: var(--brand-primary);
 }
 
 .sourceButton:hover {
@@ -198,7 +198,7 @@
 
 .sourceButton:focus-visible,
 .disconnectAll:focus-visible {
-  outline: 2px solid #9b8cff;
+  outline: 2px solid var(--brand-primary-border-strong);
   outline-offset: 2px;
 }
 

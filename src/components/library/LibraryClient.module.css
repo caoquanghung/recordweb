@@ -317,9 +317,9 @@
 }
 
 :global(html[data-theme='dark']) .libraryShell {
-  --library-blue: #8da2ff;
-  --library-blue-bright: #6479e6;
-  --library-blue-soft: #1e2c52;
+  --library-blue: var(--brand-primary);
+  --library-blue-bright: var(--brand-primary-action);
+  --library-blue-soft: var(--brand-primary-soft);
   --library-ink: #eef2f8;
   --library-body: #aeb9ca;
   --library-muted: #8f9caf;
@@ -342,7 +342,7 @@
 :global(html[data-theme='dark']) .cardActions button,
 :global(html[data-theme='dark']) .cardActions a { color: #c4cedd; border-color: #2a3650; background: #222d41; }
 :global(html[data-theme='dark']) .eyebrow,
-:global(html[data-theme='dark']) .cardActions .primaryCardButton { color: #b5c2ff; border-color: #40558f; background: #1e2c52; }
+:global(html[data-theme='dark']) .cardActions .primaryCardButton { color: var(--brand-primary); border-color: var(--brand-primary-border); background: var(--brand-primary-soft); }
 :global(html[data-theme='dark']) .searchField,
 :global(html[data-theme='dark']) .sortField,
 :global(html[data-theme='dark']) .grantForm input,

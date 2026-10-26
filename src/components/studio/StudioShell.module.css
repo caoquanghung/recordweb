@@ -5,8 +5,8 @@
   --panel-raised: #171d2b;
   --line: rgba(255, 255, 255, 0.075);
   --line-strong: rgba(255, 255, 255, 0.13);
-  --primary: #7c6df2;
-  --primary-bright: #9b8cff;
+  --primary: var(--brand-primary-action);
+  --primary-bright: var(--brand-primary);
   --cyan: #46d6e7;
   --green: #48d7a1;
   --red: #ff5263;
@@ -19,7 +19,7 @@
   grid-template-columns: 72px minmax(0, 1fr);
   color: var(--text);
   background:
-    radial-gradient(circle at 58% -20%, rgba(124, 109, 242, 0.1), transparent 42rem),
+    radial-gradient(circle at 58% -20%, color-mix(in srgb, var(--brand-primary-action) 10%, transparent), transparent 42rem),
     var(--studio-bg);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
@@ -105,13 +105,13 @@
 }
 
 .themeButton:hover {
-  border-color: rgba(124, 109, 242, 0.45);
-  background: rgba(124, 109, 242, 0.08);
+  border-color: var(--brand-primary-border);
+  background: color-mix(in srgb, var(--brand-primary-action) 8%, transparent);
 }
 
 .secondaryButton:hover {
-  border-color: rgba(124, 109, 242, 0.45);
-  background: rgba(124, 109, 242, 0.08);
+  border-color: var(--brand-primary-border);
+  background: color-mix(in srgb, var(--brand-primary-action) 8%, transparent);
 }
 
 .secondaryButton:disabled {
@@ -223,9 +223,9 @@
 
 .modeButtonActive {
   color: var(--text);
-  border-color: rgba(124, 109, 242, 0.42);
-  background: linear-gradient(110deg, rgba(124, 109, 242, 0.14), rgba(124, 109, 242, 0.035));
-  box-shadow: inset 0 0 0 1px rgba(124, 109, 242, 0.06);
+  border-color: var(--brand-primary-border);
+  background: linear-gradient(110deg, color-mix(in srgb, var(--brand-primary-action) 14%, transparent), color-mix(in srgb, var(--brand-primary-action) 3.5%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-primary-action) 6%, transparent);
 }
 
 .modeIcon {
@@ -234,8 +234,8 @@
   display: grid;
   place-items: center;
   border-radius: 9px;
-  color: #aaa0ff;
-  background: rgba(124, 109, 242, 0.12);
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary-action) 12%, transparent);
 }
 
 .modeIcon .icon {
@@ -268,7 +268,7 @@
 
 .modeButtonActive .radioMark {
   border: 3px solid var(--primary);
-  box-shadow: 0 0 0 2px rgba(124, 109, 242, 0.12);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary-action) 12%, transparent);
 }
 
 .fieldLabel {
@@ -297,8 +297,8 @@
 
 .fieldLabel select:focus,
 .textInput:focus {
-  border-color: rgba(124, 109, 242, 0.55);
-  box-shadow: 0 0 0 3px rgba(124, 109, 242, 0.08);
+  border-color: var(--brand-primary-border-strong);
+  box-shadow: 0 0 0 3px var(--brand-focus-ring);
 }
 
 .sourceStatus {
@@ -321,10 +321,10 @@
 .sourceStopButton {
   flex: 1;
   height: 34px;
-  border: 1px solid rgba(124, 109, 242, 0.4);
+  border: 1px solid var(--brand-primary-border);
   border-radius: 8px;
   color: var(--text);
-  background: rgba(124, 109, 242, 0.12);
+  background: color-mix(in srgb, var(--brand-primary-action) 12%, transparent);
   font-size: 9px;
   font-weight: 650;
   cursor: pointer;
@@ -499,7 +499,7 @@
 
 .compositorCanvas:focus-visible {
   border-color: var(--primary-bright);
-  box-shadow: 0 0 0 3px rgba(124, 109, 242, 0.28), 0 18px 45px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 3px var(--brand-focus-ring), 0 18px 45px rgba(0, 0, 0, 0.35);
 }
 
 .presentationSurface {
@@ -612,7 +612,7 @@
 
 .presentationPdfInteractionLayer [data-pdf-text-layer] ::selection {
   color: transparent;
-  background: rgba(83, 103, 222, 0.42);
+  background: color-mix(in srgb, var(--brand-primary-action) 42%, transparent);
 }
 
 .presentationPdfInteractionLayer [data-pdf-link-layer] {
@@ -648,7 +648,7 @@
   padding: clamp(24px, 6vw, 72px);
   text-align: center;
   background:
-    radial-gradient(circle at 70% 20%, rgba(124, 109, 242, 0.22), transparent 34%),
+    radial-gradient(circle at 70% 20%, color-mix(in srgb, var(--brand-primary-action) 22%, transparent), transparent 34%),
     linear-gradient(145deg, #171c2a, #090c13 78%);
 }
 
@@ -673,11 +673,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid rgba(124, 109, 242, 0.46);
+  border: 1px solid var(--brand-primary-border);
   border-radius: 10px;
   color: white;
-  background: linear-gradient(135deg, #7867ec, #5f4ccb);
-  box-shadow: 0 8px 24px rgba(95, 76, 203, 0.24);
+  background: linear-gradient(135deg, var(--brand-primary-action), var(--brand-primary-hover));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--brand-primary-action) 24%, transparent);
   font-size: 11px;
   font-weight: 650;
   cursor: pointer;
@@ -845,10 +845,10 @@
   gap: 10px;
   margin-top: 8px;
   padding: 9px 12px;
-  border: 1px solid rgba(124, 109, 242, 0.28);
+  border: 1px solid var(--brand-primary-border);
   border-radius: 10px;
   color: var(--muted);
-  background: rgba(124, 109, 242, 0.07);
+  background: color-mix(in srgb, var(--brand-primary-action) 7%, transparent);
   font-size: 10px;
 }
 
@@ -925,13 +925,13 @@
   padding: 8% 10%;
   color: #1d2431;
   background:
-    radial-gradient(circle at 85% 30%, rgba(97, 83, 205, 0.16), transparent 25%),
+    radial-gradient(circle at 85% 30%, color-mix(in srgb, var(--brand-primary-action) 16%, transparent), transparent 25%),
     linear-gradient(135deg, rgba(255,255,255,.86), rgba(237,239,247,.82));
 }
 
 .mockKicker {
   margin-bottom: 8px;
-  color: #685ad3;
+  color: var(--brand-primary-action);
   font-size: clamp(6px, .52vw, 9px);
   font-weight: 800;
   letter-spacing: 0.16em;
@@ -984,8 +984,8 @@
   border-radius: 14px;
   color: white;
   background:
-    radial-gradient(circle at 50% 15%, rgba(155, 140, 255, .28), transparent 40%),
-    linear-gradient(145deg, #353248, #171a25);
+    radial-gradient(circle at 50% 15%, color-mix(in srgb, var(--brand-primary) 28%, transparent), transparent 40%),
+    linear-gradient(145deg, #2a3552, #171a25);
   box-shadow: 0 15px 35px rgba(0,0,0,.4), 0 0 0 4px rgba(10,13,20,.28);
 }
 
@@ -998,8 +998,8 @@
 
 .cameracutout {
   border-style: dashed;
-  border-color: rgba(155, 140, 255, 0.8);
-  background: linear-gradient(145deg, rgba(124,109,242,.3), rgba(16,19,29,.75));
+  border-color: var(--brand-primary-border-strong);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--brand-primary-action) 30%, transparent), rgba(16,19,29,.75));
 }
 
 .avatarShape {
@@ -1008,8 +1008,8 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  color: #dedaff;
-  background: linear-gradient(145deg, #7c6df2, #4c3ca4);
+  color: var(--brand-primary-tint);
+  background: linear-gradient(145deg, var(--brand-primary-action), var(--brand-primary-hover));
   font-size: clamp(8px, .8vw, 12px);
   font-weight: 720;
 }
@@ -1054,11 +1054,11 @@
   height: 92px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(155, 140, 255, 0.6);
+  border: 1px solid var(--brand-primary-border-strong);
   border-radius: 50%;
   color: white;
-  background: rgba(124, 109, 242, 0.18);
-  box-shadow: 0 0 42px rgba(124, 109, 242, 0.25);
+  background: color-mix(in srgb, var(--brand-primary-action) 18%, transparent);
+  box-shadow: 0 0 42px color-mix(in srgb, var(--brand-primary-action) 25%, transparent);
   font: 500 42px/1 var(--font-geist-mono), monospace;
 }
 
@@ -1161,18 +1161,18 @@
 .recordButton {
   gap: 8px;
   padding: 0 15px;
-  border-color: rgba(124, 109, 242, .46);
+  border-color: var(--brand-primary-border);
   border-radius: 10px;
   color: white;
-  background: linear-gradient(135deg, #7867ec, #5f4ccb);
-  box-shadow: 0 8px 24px rgba(95, 76, 203, .24);
+  background: linear-gradient(135deg, var(--brand-primary-action), var(--brand-primary-hover));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--brand-primary-action) 24%, transparent);
   font-size: 10px;
   font-weight: 650;
 }
 
 .recordButton:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 28px rgba(95, 76, 203, .34);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--brand-primary-action) 34%, transparent);
 }
 
 .recordButton:disabled {
@@ -1219,8 +1219,8 @@
 
 .choiceGrid .choiceActive {
   color: white;
-  border-color: rgba(124,109,242,.46);
-  box-shadow: 0 0 0 2px rgba(124,109,242,.07);
+  border-color: var(--brand-primary-border);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary-action) 7%, transparent);
 }
 
 .positionGrid {
@@ -1240,8 +1240,8 @@
 
 .positionGrid .positionActive {
   color: var(--primary-bright);
-  border-color: rgba(124, 109, 242, 0.4);
-  background: rgba(124, 109, 242, 0.12);
+  border-color: var(--brand-primary-border);
+  background: color-mix(in srgb, var(--brand-primary-action) 12%, transparent);
 }
 
 .compositorHint,
@@ -1280,7 +1280,7 @@
 
 .previewblur { filter: saturate(.65); }
 .previewblur::before { content: ''; position: absolute; inset: 0; background: rgba(158,176,205,.18); backdrop-filter: blur(4px); }
-.previewcutout { background: linear-gradient(145deg, #6b5adb, #2d2852); }
+.previewcutout { background: linear-gradient(145deg, var(--brand-primary-action), var(--brand-primary-hover)); }
 
 .audioModes {
   display: grid;
@@ -1307,9 +1307,9 @@
 }
 
 .audioModes .audioModeActive {
-  color: #ddd9ff;
-  border-color: rgba(124,109,242,.22);
-  background: rgba(124,109,242,.1);
+  color: var(--brand-primary);
+  border-color: var(--brand-primary-border);
+  background: color-mix(in srgb, var(--brand-primary-action) 10%, transparent);
 }
 
 .audioModes .icon {
@@ -1380,10 +1380,10 @@
 .savePresetButton {
   width: 100%;
   height: 34px;
-  border: 1px solid rgba(124,109,242,.34);
+  border: 1px solid var(--brand-primary-border);
   border-radius: 8px;
-  color: #ddd9ff;
-  background: rgba(124,109,242,.1);
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary-action) 10%, transparent);
   font-size: 9px;
   font-weight: 620;
   cursor: pointer;
@@ -1436,8 +1436,8 @@
   --panel-raised: #f4f6fa;
   --line: rgba(30, 39, 58, 0.1);
   --line-strong: rgba(30, 39, 58, 0.17);
-  --primary: #6756d9;
-  --primary-bright: #6654db;
+  --primary: var(--brand-primary-action);
+  --primary-bright: var(--brand-primary);
   --cyan: #147f91;
   --green: #13835c;
   --red: #d83a4c;
@@ -1446,7 +1446,7 @@
   --muted: #5f697b;
   --dim: #8790a0;
   background:
-    radial-gradient(circle at 58% -20%, rgba(124, 109, 242, 0.14), transparent 42rem),
+    radial-gradient(circle at 58% -20%, color-mix(in srgb, var(--brand-primary-action) 14%, transparent), transparent 42rem),
     var(--studio-bg);
 }
 
@@ -1534,8 +1534,8 @@
 .drawerButton:hover,
 .drawerButtonActive {
   color: var(--text);
-  border-color: rgba(124, 109, 242, 0.42);
-  background: rgba(124, 109, 242, 0.1);
+  border-color: var(--brand-primary-border);
+  background: color-mix(in srgb, var(--brand-primary-action) 10%, transparent);
 }
 
 .drawerButton .icon {
@@ -1672,7 +1672,7 @@
 
 .effectTabs .effectTabActive {
   color: var(--text);
-  background: rgba(124, 109, 242, 0.13);
+  background: color-mix(in srgb, var(--brand-primary-action) 13%, transparent);
 }
 
 .sessionNotice {
@@ -1804,8 +1804,8 @@
   --panel-raised: #1c2740;
   --line: rgba(204, 214, 235, 0.12);
   --line-strong: rgba(204, 214, 235, 0.22);
-  --primary: #5367de;
-  --primary-bright: #7d8df0;
+  --primary: var(--brand-primary-action);
+  --primary-bright: var(--brand-primary);
   --cyan: #2cc8bd;
   --green: #2cc8a6;
   --red: #e95368;
@@ -1852,18 +1852,18 @@
   height: 42px;
   border-radius: 999px;
   background: currentColor;
-  box-shadow: 0 0 14px rgba(125, 141, 240, 0.42);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--brand-primary) 42%, transparent);
 }
 
 .studioNavigationEdge:hover,
 .studioNavigationEdge:focus-visible {
   width: 25px;
-  color: #dbe3ff;
-  background: linear-gradient(90deg, rgba(83, 103, 222, 0.68), transparent);
+  color: var(--brand-primary);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--brand-primary-action) 68%, transparent), transparent);
 }
 
 .studioNavigationEdge:focus-visible {
-  outline: 3px solid rgba(125, 141, 240, 0.5);
+  outline: 3px solid var(--brand-focus-ring);
   outline-offset: 3px;
 }
 
@@ -1897,7 +1897,7 @@
   min-height: 100vh;
   padding: 0 8px 28px;
   background:
-    radial-gradient(circle at 50% -30%, rgba(83, 103, 222, 0.16), transparent 42rem),
+    radial-gradient(circle at 50% -30%, color-mix(in srgb, var(--brand-primary-action) 16%, transparent), transparent 42rem),
     var(--studio-bg);
 }
 
@@ -1926,8 +1926,8 @@
   place-items: center;
   border-radius: 10px;
   color: white;
-  background: linear-gradient(145deg, #5367de, #3547a8);
-  box-shadow: 0 6px 18px rgba(83, 103, 222, 0.28);
+  background: linear-gradient(145deg, var(--brand-primary-action), var(--brand-primary-hover));
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--brand-primary-action) 28%, transparent);
 }
 
 .studioBrandMark .icon { width: 17px; }
@@ -1969,19 +1969,19 @@
   display: inline-flex;
   align-items: center;
   padding: 0 12px;
-  border: 1px solid rgba(125, 141, 240, 0.38);
+  border: 1px solid var(--brand-primary-border);
   border-radius: 9px;
-  color: #dce3ff;
-  background: rgba(83, 103, 222, 0.12);
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary-action) 12%, transparent);
   font: inherit;
   font-size: 11px;
   font-weight: 650;
   cursor: pointer;
 }
 
-.studioBackButton:hover:not(:disabled) { background: rgba(83, 103, 222, 0.22); }
+.studioBackButton:hover:not(:disabled) { background: color-mix(in srgb, var(--brand-primary-action) 22%, transparent); }
 .studioBackButton:disabled { cursor: not-allowed; opacity: 0.48; }
-.studioBackButton:focus-visible { outline: 3px solid rgba(125, 141, 240, 0.42); outline-offset: 2px; }
+.studioBackButton:focus-visible { outline: 3px solid var(--brand-focus-ring); outline-offset: 2px; }
 
 .studioScreen .themeButton,
 .studioScreen .secondaryButton {
@@ -2018,11 +2018,11 @@
   align-items: center;
   gap: 7px;
   padding: 0 11px;
-  border: 1px solid rgba(125, 141, 240, 0.48);
+  border: 1px solid var(--brand-primary-border);
   border-radius: 8px;
-  color: #eef1ff;
-  background: linear-gradient(135deg, rgba(83, 103, 222, 0.88), rgba(53, 71, 168, 0.92));
-  box-shadow: 0 5px 14px rgba(34, 49, 127, 0.22);
+  color: white;
+  background: linear-gradient(135deg, var(--brand-primary-action), var(--brand-primary-hover));
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--brand-primary-action) 22%, transparent);
   font: inherit;
   font-size: 10px;
   font-weight: 750;
@@ -2031,12 +2031,12 @@
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 .presentationModeButton .icon { width: 14px; }
-.presentationModeButton:hover:not(:disabled) { border-color: rgba(171, 183, 255, 0.72); box-shadow: 0 7px 18px rgba(34, 49, 127, 0.3); transform: translateY(-1px); }
+.presentationModeButton:hover:not(:disabled) { border-color: var(--brand-primary-border-strong); box-shadow: 0 7px 18px color-mix(in srgb, var(--brand-primary-action) 30%, transparent); transform: translateY(-1px); }
 .presentationModeButton:disabled { cursor: not-allowed; opacity: 0.48; }
-.presentationModeButton:focus-visible { outline: 3px solid rgba(125, 141, 240, 0.42); outline-offset: 2px; }
+.presentationModeButton:focus-visible { outline: 3px solid var(--brand-focus-ring); outline-offset: 2px; }
 .studioScreen .drawerButton { height: 30px; padding: 0 10px; border-radius: 8px; font-size: 10px; }
 .studioScreen .drawerButton:hover,
-.studioScreen .drawerButtonActive { border-color: rgba(125, 141, 240, 0.46); background: rgba(83, 103, 222, 0.16); }
+.studioScreen .drawerButtonActive { border-color: var(--brand-primary-border); background: color-mix(in srgb, var(--brand-primary-action) 16%, transparent); }
 .studioScreen .liveSummary { font-size: 10px; }
 
 .studioScreen .studioGrid,
@@ -2122,7 +2122,7 @@
   padding: 12% 9% 8%;
   color: #1a2841;
   background:
-    radial-gradient(circle at 84% 34%, rgba(83, 103, 222, .08), transparent 24%),
+    radial-gradient(circle at 84% 34%, color-mix(in srgb, var(--brand-primary-action) 8%, transparent), transparent 24%),
     linear-gradient(145deg, #fff, #f8faff);
 }
 
@@ -2160,12 +2160,12 @@
   border: 3px solid #fff;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 50% 23%, rgba(125, 141, 240, .48), transparent 35%),
+    radial-gradient(circle at 50% 23%, color-mix(in srgb, var(--brand-primary) 48%, transparent), transparent 35%),
     linear-gradient(145deg, #2a3552, #12192b);
-  box-shadow: 0 10px 28px rgba(15, 23, 42, .35), 0 0 0 1px rgba(83, 103, 222, .2);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .35), 0 0 0 1px color-mix(in srgb, var(--brand-primary-action) 20%, transparent);
 }
 
-.studioScreen .avatarShape { background: linear-gradient(145deg, #5367de, #0f9488); }
+.studioScreen .avatarShape { background: linear-gradient(145deg, var(--brand-primary-action), #0f9488); }
 .studioScreen .stageCorner { left: auto; right: 12px; color: rgba(255, 255, 255, .5); }
 
 .studioScreen .controlDock {
@@ -2257,8 +2257,8 @@
   --panel-raised: #f5f7fb;
   --line: rgba(30, 52, 88, 0.11);
   --line-strong: rgba(30, 52, 88, 0.2);
-  --primary: #4055c5;
-  --primary-bright: #3347b9;
+  --primary: var(--brand-primary-action);
+  --primary-bright: var(--brand-primary);
   --cyan: #0f9488;
   --green: #0f9f83;
   --red: #df415b;
@@ -2271,7 +2271,7 @@
 
 :global(html[data-theme='light']) .studioScreen .workspace {
   background:
-    radial-gradient(circle at 50% -30%, rgba(64, 85, 197, 0.11), transparent 42rem),
+    radial-gradient(circle at 50% -30%, color-mix(in srgb, var(--brand-primary-action) 11%, transparent), transparent 42rem),
     var(--studio-bg);
 }
 

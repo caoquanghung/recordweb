@@ -85,16 +85,22 @@
   gap: 8px;
   margin-top: auto;
   padding: 0 15px;
-  border: 1px solid rgba(124, 109, 242, 0.5);
+  border: 1px solid var(--brand-primary-border);
   border-radius: 10px;
   color: white;
-  background: linear-gradient(135deg, #7867ec, #5f4ccb);
+  background: linear-gradient(135deg, var(--brand-primary-action), var(--brand-primary-hover));
   font-size: 12px;
   font-weight: 650;
   cursor: pointer;
 }
 
 .diagnosticsRefresh:disabled { cursor: wait; opacity: 0.6; }
+
+.diagnosticsHeader > button:focus-visible,
+.diagnosticsRefresh:focus-visible {
+  outline: 3px solid var(--brand-focus-ring);
+  outline-offset: 2px;
+}
 
 :global(html[data-theme='light']) .diagnosticsList > div {
   background-color: rgba(255, 255, 255, 0.82);

@@ -5,8 +5,8 @@
   --panel-raised: #171d2b;
   --line: rgba(255, 255, 255, 0.075);
   --line-strong: rgba(255, 255, 255, 0.13);
-  --primary: #7c6df2;
-  --primary-bright: #9b8cff;
+  --primary: var(--brand-primary-action);
+  --primary-bright: var(--brand-primary);
   --green: #48d7a1;
   --red: #ff5263;
   --amber: #f6b84a;
@@ -17,7 +17,7 @@
   display: grid;
   grid-template-columns: 288px minmax(0, 1fr);
   color: var(--text);
-  background: radial-gradient(circle at 58% -20%, rgba(124, 109, 242, 0.12), transparent 42rem), var(--page-bg);
+  background: radial-gradient(circle at 58% -20%, color-mix(in srgb, var(--brand-primary-action) 12%, transparent), transparent 42rem), var(--page-bg);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
@@ -72,15 +72,15 @@
   --panel-raised: #f8f9fd;
   --line: rgba(22, 31, 49, 0.09);
   --line-strong: rgba(22, 31, 49, 0.16);
-  --primary: #6553da;
-  --primary-bright: #5e4fd1;
+  --primary: var(--brand-primary-action);
+  --primary-bright: var(--brand-primary);
   --green: #168865;
   --red: #d33d4d;
   --amber: #a96e10;
   --text: #171c27;
   --muted: #626d80;
   --dim: #8a94a5;
-  background: radial-gradient(circle at 58% -20%, rgba(101, 83, 218, 0.1), transparent 42rem), var(--page-bg);
+  background: radial-gradient(circle at 58% -20%, color-mix(in srgb, var(--brand-primary-action) 10%, transparent), transparent 42rem), var(--page-bg);
 }
 
 @media (max-width: 840px) {
