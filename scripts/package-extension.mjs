@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { constants, existsSync } from 'node:fs';
+import { copyFile, cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 
@@ -69,13 +70,20 @@ async function main() {
   await mkdir(outputDirectory, { recursive: true });
   const packageName = `recordweb-presentation-cursor-${storeManifest.version}.zip`;
   const outputPath = join(outputDirectory, packageName);
+  const releaseBackupPath = join(extensionRoot, 'releases', packageName);
+  if (existsSync(outputPath) || existsSync(releaseBackupPath)) {
+    throw new Error(`Publication ZIP for ${storeManifest.version} already exists. Keep that backup and increment the manifest version for a new release.`);
+  }
   const temporaryDirectory = await mkdtemp(join(tmpdir(), 'recordweb-extension-'));
+  const temporaryPackageRoot = join(temporaryDirectory, 'package');
+  const temporaryZip = join(temporaryDirectory, packageName);
 
   try {
-    await copyPackageFiles(temporaryDirectory, storeManifest);
-    await rm(outputPath, { force: true });
-    execFileSync('zip', ['-q', '-r', outputPath, '.'], { cwd: temporaryDirectory });
-    execFileSync('unzip', ['-tq', outputPath], { stdio: 'inherit' });
+    await mkdir(temporaryPackageRoot);
+    await copyPackageFiles(temporaryPackageRoot, storeManifest);
+    execFileSync('zip', ['-q', '-r', temporaryZip, '.'], { cwd: temporaryPackageRoot });
+    execFileSync('unzip', ['-tq', temporaryZip], { stdio: 'inherit' });
+    await copyFile(temporaryZip, outputPath, constants.COPYFILE_EXCL);
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true });
   }

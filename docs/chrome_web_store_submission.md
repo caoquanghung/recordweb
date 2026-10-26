@@ -16,6 +16,8 @@ The command creates:
 artifacts/chrome-web-store/recordweb-presentation-cursor-<version>.zip
 ```
 
+The package command will not overwrite an existing ZIP for the same version. Version `0.4.8` is backed up in `extension/releases/`; copy each future ZIP there and commit or tag the matching source revision. For localhost testing, run `npm run extension:dev` and load `artifacts/extension-development/` in a separate browser profile; that build is never submitted to the Store.
+
 The generated Store manifest is normalized from `extension/manifest.json`:
 
 - It derives the canonical HTTPS RecordWeb origin from `homepage_url`.

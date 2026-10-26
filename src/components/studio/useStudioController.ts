@@ -99,6 +99,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const [titleError, setTitleError] = useState('');
   const recoveredPreviewUrlRef = useRef<string | null>(null);
   const recoveredDraftIdRef = useRef<string | null>(null);
+  const uploadStartedForRef = useRef<string | null>(null);
   const endSessionRequestedRef = useRef(false);
   const [micGain, setMicGain] = useState(1);
   const [systemVolume, setSystemVolume] = useState(1);
@@ -670,7 +671,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       setRecoveredRecording(recording);
       setRecoveryDrafts((current) => current.filter((item) => item.id !== draft.id));
       setTitleError('');
-      setRecoveryMessage('Recovery complete. Name the recording to save it locally.');
+      setRecoveryMessage('Recovery complete. Your recording is being saved.');
     } catch (error) {
       setRecoveryMessage(`Recovery failed: ${(error as Error).message}`);
     }
@@ -686,11 +687,25 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       setTitleError('The finalized recording is unavailable.');
       return false;
     }
+    if (!cloudRecording || uploadState !== 'ready') {
+      setTitleError('Wait for the recording to finish saving, then try again.');
+      return false;
+    }
 
     setTitleSaving(true);
     setTitleError('');
     try {
       const title = normalizeRecordingTitle(value);
+      const response = await fetch('/api/recordings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: cloudRecording.id, title }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.recording) {
+        throw new Error(data.error ?? 'Could not update the recording.');
+      }
+      setCloudRecording((current) => current ? { ...current, ...data.recording } : current);
       if (recoveredRecording) {
         const titledRecording = { ...recoveredRecording, title };
         await saveLocalRecording(titledRecording);
@@ -702,6 +717,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         await saveCompletedRecordingTitle(title);
       }
       setRecoveryMessage('');
+      setUploadMessage('Recording ready.');
       return true;
     } catch (cause) {
       setTitleError(`Could not save the recording title: ${(cause as Error).message}`);
@@ -709,26 +725,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     } finally {
       setTitleSaving(false);
     }
-  };
-
-  const resetReview = () => {
-    if (titleRequired) {
-      setTitleError('Name and save this recording before starting another session.');
-      return;
-    }
-    if (recoveredPreviewUrlRef.current) {
-      URL.revokeObjectURL(recoveredPreviewUrlRef.current);
-      recoveredPreviewUrlRef.current = null;
-    }
-    if (workspace === 'presentation') presentationDeck.clear();
-    setRecoveredRecording(null);
-    setSourceCaptureEnabled(false);
-    resetRecording();
-    setCloudRecording(null);
-    setUploadState('idle');
-    setUploadProgress(0);
-    setUploadMessage('');
-    setTitleError('');
   };
 
   const downloadRecordingFiles = async () => {
@@ -748,13 +744,13 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     }
   };
 
-  const uploadRecording = async () => {
-    if (!activeRecording?.title) return;
+  const uploadRecording = useCallback(async () => {
+    if (!activeRecording) return;
     const composite = compositeAssetFor(activeRecording);
     if (!composite?.blob) return;
     setUploadState('uploading');
     setUploadProgress(0);
-    setUploadMessage('Uploading composite and source assets directly to Vercel Blob…');
+    setUploadMessage('Saving your recording…');
     try {
       const uploadConfigResponse = await fetch('/api/upload', { cache: 'no-store' });
       const uploadConfig = await uploadConfigResponse.json() as { uploadMethod?: string; error?: string };
@@ -809,12 +805,12 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       const uploadedComposite = uploadedAssets.find((asset) => asset.kind === 'composite');
       if (!uploadedComposite) throw new Error('The composite upload did not complete.');
       setUploadState('saving');
-      setUploadMessage('Uploads complete. Saving asset metadata to Neon…');
+      setUploadMessage('Finishing your recording…');
       const response = await fetch('/api/recordings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: activeRecording.title,
+          title: `Recording ${activeRecording.id}`,
           recorded_at: activeRecording.createdAt,
           duration_seconds: activeRecording.durationSeconds,
           file_size_bytes: activeRecording.fileSizeBytes,
@@ -844,16 +840,28 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       setCloudRecording(data.recording);
       setUploadState('ready');
       setUploadProgress(100);
-      setUploadMessage(`${uploadedAssets.length} assets stored in Vercel Blob and indexed in Neon. Sharing is private by default.`);
+      setUploadMessage('Recording saved. Add a title to continue.');
     } catch (error) {
+      console.error('Recording save failed', error);
       setUploadState('error');
-      setUploadMessage(`Cloud save failed: ${(error as Error).message}`);
+      setUploadMessage('Could not save the recording. Check your connection and try again.');
     }
+  }, [activeRecording, audioMode, background, mode, pipPosition, pipShape, pipSize]);
+
+  useEffect(() => {
+    if (!activeRecording || uploadStartedForRef.current === activeRecording.id) return;
+    uploadStartedForRef.current = activeRecording.id;
+    void uploadRecording();
+  }, [activeRecording, uploadRecording]);
+
+  const retryRecordingSave = () => {
+    if (!activeRecording || uploadState !== 'error') return;
+    void uploadRecording();
   };
 
   const publishAndCopyLink = async () => {
-    if (!cloudRecording) return;
-    setUploadMessage('Enabling the public share link…');
+    if (!cloudRecording || titleRequired) return;
+    setUploadMessage('Preparing share link…');
     try {
       const response = await fetch('/api/recordings', {
         method: 'PATCH',
@@ -865,7 +873,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       setCloudRecording(data.recording);
       const shareUrl = `${window.location.origin}/share/${cloudRecording.id}`;
       await navigator.clipboard.writeText(shareUrl);
-      setUploadMessage('Public share link copied to the clipboard.');
+      setUploadMessage('Share link copied to the clipboard.');
     } catch (error) {
       setUploadMessage(`Could not publish: ${(error as Error).message}`);
     }
@@ -1046,10 +1054,9 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     connectSlideSource,
     startUiTest,
     recoverLatestDraft,
-    resetReview,
     saveRecordingTitle,
     downloadRecordingFiles,
-    uploadRecording,
+    retryRecordingSave,
     publishAndCopyLink,
     runSystemCheck,
     runDevicePreflight,

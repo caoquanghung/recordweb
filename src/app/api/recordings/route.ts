@@ -134,6 +134,20 @@ export async function POST(request: NextRequest) {
     }
 
     const sql = getDb();
+    // Retrying after a lost response must not create another recording row.
+    if (typeof local_id === 'string' && local_id) {
+      const existing = await sql`
+        SELECT * FROM recordings WHERE user_id = ${userId} AND local_id = ${local_id}
+        ORDER BY created_at DESC LIMIT 1;
+      `;
+      if (existing.length) {
+        const existingAssets = await sql`
+          SELECT * FROM recording_assets WHERE recording_id = ${existing[0].id}
+          ORDER BY created_at ASC;
+        `;
+        return NextResponse.json({ recording: { ...existing[0], assets: existingAssets } });
+      }
+    }
     // §2.8 / §2.9 — Insert with user_id FK and is_public column
     const result = await sql`
       INSERT INTO recordings (
@@ -216,7 +230,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** PATCH /api/recordings — Toggle is_public for a specific recording (share link). */
+/** PATCH /api/recordings — Update an owned recording title or sharing state. */
 export async function PATCH(request: NextRequest) {
   // §2.9 — Auth gate
   const userId = await getSessionUserId();
@@ -227,15 +241,28 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const { id, is_public } = await request.json();
+    const { id, is_public, title } = await request.json();
+    if (typeof id !== 'string' || !id) {
+      return NextResponse.json({ error: 'A recording id is required.' }, { status: 400 });
+    }
+    const updatesTitle = title !== undefined;
+    if (updatesTitle) {
+      const titleError = getRecordingTitleError(title);
+      if (titleError) return NextResponse.json({ error: titleError }, { status: 400 });
+    } else if (typeof is_public !== 'boolean') {
+      return NextResponse.json({ error: 'A title or sharing state is required.' }, { status: 400 });
+    }
     const sql = getDb();
     // §2.9 — Only allow update on the user's own recordings (user_id guard)
-    const result = await sql`
-      UPDATE recordings
-      SET is_public = ${is_public}
-      WHERE id = ${id} AND user_id = ${userId}
-      RETURNING *;
-    `;
+    const result = updatesTitle
+      ? await sql`
+          UPDATE recordings SET title = ${normalizeRecordingTitle(title)}
+          WHERE id = ${id} AND user_id = ${userId} RETURNING *;
+        `
+      : await sql`
+          UPDATE recordings SET is_public = ${is_public}
+          WHERE id = ${id} AND user_id = ${userId} RETURNING *;
+        `;
 
     if (result.length === 0) {
       return NextResponse.json(

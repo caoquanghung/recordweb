@@ -2,11 +2,21 @@
 
 This unpacked Chromium Manifest V3 extension automatically prepares 24 Hz cursor tracking for the Google Slides tab opened by RecordWeb. Native browser screen sharing supplies tab video and audio.
 
-## Local installation
+## Local development
+
+1. Run `npm run extension:dev` from the repository root. This creates an unpacked development build in `artifacts/extension-development/` with `http://localhost:3000/` as its only RecordWeb origin.
+2. Start the website with `npm run dev` and open `http://localhost:3000` (not `127.0.0.1`).
+3. In `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `artifacts/extension-development/`. Its name includes **(Development)**.
+4. Reload any already-open localhost and Google Slides tabs after installing or rebuilding the extension. Use Chrome's **Reload** button for the unpacked extension after each rebuild.
+5. Use a separate browser profile for development, or disable the publication extension while testing. Both variants inject a Slides tracker and cannot safely track the same Slides tab at once.
+
+The publication source remains `extension/manifest.json`. The development build is generated and ignored by Git; rebuild it after changing extension code. Its toolbar button opens localhost.
+
+## Publication installation
 
 1. Open `chrome://extensions` (or the equivalent extension page in Arc/Edge).
 2. Enable **Developer mode**.
-3. Choose **Load unpacked** and select this `extension/` directory.
+3. Choose **Load unpacked** and select this `extension/` directory (or a directory extracted from the Store ZIP).
 4. Open the canonical production URL declared by `homepage_url` in `manifest.json`.
 5. Reload an already-open RecordWeb tab after installing or reloading the extension so its bridge can connect.
 6. Configure and connect the camera and microphone in RecordWeb.
@@ -16,7 +26,7 @@ This unpacked Chromium Manifest V3 extension automatically prepares 24 Hz cursor
 
 ## Chrome Web Store package
 
-Run `npm run extension:package` from the repository root. The command creates a validated ZIP under `artifacts/chrome-web-store/` whose application origin is derived from `homepage_url`; localhost, loopback, broad Vercel wildcard access, tests, development documentation, and the editable SVG icon are excluded. Store listing copy, permission explanations, reviewer notes, privacy disclosures, and the remaining publisher steps are maintained in `docs/chrome_web_store_submission.md`.
+Run `npm run extension:package` from the repository root. The command creates a versioned, validated publication ZIP under `artifacts/chrome-web-store/` whose application origin is derived from `homepage_url`; localhost, loopback, broad Vercel wildcard access, tests, development documentation, and the editable SVG icon are excluded. Version `0.4.8` is also backed up in `extension/releases/` so it can be committed with the source. For later releases, copy the ZIP there and commit or tag the corresponding source revision. The package command refuses to replace a ZIP for an existing version. Store listing copy, permission explanations, reviewer notes, privacy disclosures, and the remaining publisher steps are maintained in `docs/chrome_web_store_submission.md`.
 
 The extension's static content script initializes cursor tracking automatically on supported Google Slides URLs. No toolbar click or extension shortcut is needed per recording session. Chrome still requires explicit confirmation in its native share picker for every new screen-share stream.
 The default Studio UI does not request or store a Slides URL. Its Connect action opens Chrome's picker directly and resolves the selected tab through Capture Handle. The extension still retains its URL-based lookup/opening module for future or non-UI workflows: when explicitly invoked, it can compare presentation IDs, reuse a matching tab, normalize editable URLs to `/present`, or create a background tab while preserving published presentation URLs.
