@@ -122,7 +122,7 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
             <div className={styles.cardCopy}>
               <span className={styles.sectionLabel}>Instant download</span>
               <h3>Your recording files</h3>
-              <p>Get the final video and available sources together.</p>
+              <p>Get the final video and synchronized source files, including cursor data when available, for HCI analysis.</p>
             </div>
             <button className={styles.secondaryButton} type="button" onClick={() => void downloadRecordingFiles()}
               disabled={!readyToContinue || titleSaving || sourceFiles.length === 0}>Download All Sources (ZIP)</button>

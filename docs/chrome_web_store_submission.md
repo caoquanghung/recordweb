@@ -16,7 +16,7 @@ The command creates:
 artifacts/chrome-web-store/recordweb-presentation-cursor-<version>.zip
 ```
 
-The package command will not overwrite an existing ZIP for the same version. Version `0.4.8` is backed up in `extension/releases/`; copy each future ZIP there and commit or tag the matching source revision. For localhost testing, run `npm run extension:dev` and load `artifacts/extension-development/` in a separate browser profile; that build is never submitted to the Store.
+The package command will not overwrite an existing ZIP for the same version. Version `0.4.9` is backed up in `extension/releases/`; copy each future ZIP there and commit or tag the matching source revision. For localhost testing, run `npm run extension:dev` and load `artifacts/extension-development/` in a separate browser profile; that build is never submitted to the Store.
 
 The generated Store manifest is normalized from `extension/manifest.json`:
 
@@ -38,7 +38,7 @@ RecordWeb Presentation Cursor
 ### Summary
 
 ```text
-Track the presenter cursor in the Google Slides tab explicitly shared with RecordWeb.
+Capture a time-aligned presenter cursor from a Google Slides tab shared with RecordWeb.
 ```
 
 ### Detailed description
@@ -46,15 +46,16 @@ Track the presenter cursor in the Google Slides tab explicitly shared with Recor
 ```text
 RecordWeb Presentation Cursor connects a Google Slides tab to the RecordWeb browser recording studio.
 
-After you select a Google Slides tab in Chrome's native share picker, the extension verifies that exact tab and records normalized cursor movement with active-recording timestamps. This lets RecordWeb reconstruct the presenter's cursor alongside the finished recording.
+After you select a Google Slides tab in Chrome's native share picker, the extension verifies that exact tab and records normalized cursor movement with active-recording timestamps. RecordWeb saves the cursor as a separate, synchronized asset alongside the recorded video and audio. This supports cursor playback and combining those sources for human-computer interaction (HCI) research.
 
 Features:
 - One-time installation with no extension click required for each session
 - Exact shared-tab verification using Chrome Capture Handle
 - Cursor movement capture with active-recording timestamps
+- A separate cursor trajectory that can be combined with screen, camera, and audio recordings for HCI analysis
 - Start, pause, resume, microphone, camera, and end-session controls in the selected Slides tab
 - Support for Google Slides browser fullscreen presentation
-- Local-first processing; cloud upload occurs only when the user chooses to upload the recording
+- Local browser backup and an automatic cloud-save attempt after a recording finishes
 
 Chrome still requires the user to select and confirm the shared tab for each new display-capture stream.
 ```
@@ -70,7 +71,7 @@ Choose the primary language used by the Store listing. English is the safest fir
 ## Single purpose
 
 ```text
-Track pointer positions in the Google Slides tab explicitly shared with RecordWeb so the cursor can be reconstructed in the corresponding recording.
+Capture time-aligned pointer positions in the Google Slides tab explicitly shared with RecordWeb so its cursor trajectory can be synchronized with that session's media for playback and HCI analysis.
 ```
 
 ## Permission justifications
@@ -78,13 +79,13 @@ Track pointer positions in the Google Slides tab explicitly shared with RecordWe
 ### `https://docs.google.com/presentation/*`
 
 ```text
-Required to publish an opaque Capture Handle, verify the Google Slides tab explicitly selected in Chrome's share picker, track pointer coordinates during an active RecordWeb recording, and display session controls in that selected presentation tab. The extension does not read slide text, credentials, cookies, or unrelated browsing activity.
+Required to publish an opaque Capture Handle, verify the Google Slides tab explicitly selected in Chrome's share picker, track time-aligned pointer coordinates during an active RecordWeb recording, and display session controls in that selected presentation tab. The resulting cursor asset can be synchronized with the recorded media for playback and HCI analysis. The extension does not read slide text, credentials, cookies, or unrelated browsing activity.
 ```
 
-### Canonical RecordWeb production origin
+### `https://recordweb-nine.vercel.app/*`
 
 ```text
-Required to connect the RecordWeb Studio page to the extension. The bridge receives user-initiated recording commands and returns target-tab status and cursor samples. The production Store package does not request access to localhost, Vercel Preview deployments, or unrelated websites.
+Required to connect the RecordWeb Studio page to the extension. The bridge receives user-initiated recording commands and returns target-tab status and cursor samples. The Store package does not request access to localhost, other Vercel deployments, or unrelated websites.
 ```
 
 ### Remote code
@@ -105,11 +106,13 @@ All executable extension JavaScript is included in the uploaded package. The ext
 
 Complete the dashboard fields truthfully using these facts:
 
-- Cursor coordinates and active-recording timestamps are handled for the user-facing recording feature.
+- Cursor coordinates and active-recording timestamps are handled to create a separate trajectory synchronized with RecordWeb media for playback and HCI analysis.
 - The selected Google Slides URL or presentation identifier and an opaque Capture Handle are used only to pair the chosen tab.
 - Cursor samples are sent to the RecordWeb page in the same browser through Chrome extension messaging.
 - A finalized cursor trajectory is stored locally with the recording.
-- It is uploaded with the recording only when the user explicitly chooses cloud upload.
+- After recording finalization, RecordWeb automatically attempts to upload the recording and available assets, including cursor JSON, to Vercel Blob and saves metadata in Neon Postgres.
+- Participants can export the synchronized source files and choose to send them to the research team; researchers may inspect the raw cursor, screen, camera, and audio files for HCI analysis. RecordWeb does not automatically transfer files to the team. The study collects written participant consent outside RecordWeb.
+- Uploaded assets currently use public Blob URLs; RecordWeb page authorization does not prevent access by someone who has an asset URL.
 - The extension does not sell data or use it for advertising, credit assessment, or unrelated analytics.
 - The extension does not read slide text, passwords, form entries, or authentication cookies.
 
@@ -119,7 +122,7 @@ Privacy policy URL:
 https://recordweb-nine.vercel.app/privacy
 ```
 
-The production deployment must contain the new `/privacy` route before submission.
+The deployed site must serve this updated `/privacy` page before submission. Its cloud-upload and participant-export statements must match the Store listing and Privacy practices answers. Confirm that the separate written consent covers researcher access to the raw cursor, screen, camera, and audio files before the team inspects them; the current app has no in-app research consent flow.
 
 ## Reviewer notes
 
@@ -127,7 +130,7 @@ The production deployment must contain the new `/privacy` route before submissio
 Test prerequisites:
 1. Use Chrome 116 or newer.
 2. Open https://recordweb-nine.vercel.app/ and sign in.
-3. Open any Google Slides presentation in another tab.
+3. Open a Google Slides presentation that you can access in another tab.
 4. In RecordWeb Studio, connect camera and microphone, then choose Connect Google Slides.
 5. Select the open Slides tab in Chrome's native share picker and click Share.
 6. Confirm that the Studio preview remains connected.
@@ -138,12 +141,15 @@ Expected behavior:
 - Cursor capture starts only after RecordWeb starts recording.
 - During recording, the Slides tab displays a compact session toolbar.
 - End session finalizes cursor samples before disconnecting media.
+- RecordWeb automatically attempts to save the finished recording and cursor asset to the cloud; local recovery remains available if that upload fails.
 - Browser display-sharing permission is never bypassed or persisted.
 
 The extension has no popup. Clicking its toolbar icon opens or focuses the RecordWeb website.
 ```
 
-Provide the reviewer with a dedicated test account if the production app requires authentication. Do not place a real password in this repository.
+In the Chrome Web Store **Test instructions** tab, provide a dedicated `user` account's sign-in email, password, and any verification-code instructions. Test those instructions from a clean Chrome profile. If this deployment still uses Clerk Development, a `+clerk_test` email can use Clerk's `424242` email code when email-code verification is enabled. Do not place a real password in this repository. A Development instance is for testing and should be replaced with Clerk Production and an owned domain before a public launch; that domain change requires a new extension version and package.
+
+The Store's Private/trusted-tester setting controls who can install the extension. It does not create a RecordWeb account for the reviewer.
 
 ## Required graphical assets
 
@@ -168,9 +174,9 @@ Use 1280×800 PNG or JPEG images with square corners and no outer padding. Uploa
 
 1. Register and verify a Chrome Web Store developer account.
 2. Set the publisher name and support email.
-3. Deploy the `/privacy` page to the production URL.
-4. Runtime-test the generated Store package by loading its unpacked contents or a clean equivalent build.
-5. Run `npm run extension:package` and upload the generated ZIP as a new item.
+3. Deploy the updated `/privacy` page and functional Studio to the canonical RecordWeb URL in the manifest.
+4. Run `npm run extension:package`, then runtime-test that exact ZIP unpacked in a clean Chrome profile against the canonical site.
+5. Upload the tested ZIP as a new Store item.
 6. Add the listing text, icon, screenshots, privacy declarations, and reviewer notes above.
 7. Start with `Private` visibility and add individual trusted tester accounts.
 8. Submit for review.

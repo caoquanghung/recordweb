@@ -53,6 +53,21 @@ function validateStoreManifest(manifest) {
   for (const size of ['16', '32', '48', '128']) {
     if (!manifest.icons?.[size]) throw new Error(`Store manifest is missing the ${size}px icon.`);
   }
+
+  const appMatch = `${new URL(manifest.homepage_url).origin}/*`;
+  const slidesMatch = 'https://docs.google.com/presentation/*';
+  if (JSON.stringify(manifest.host_permissions) !== JSON.stringify([appMatch, slidesMatch])) {
+    throw new Error('Store host permissions must include only the canonical RecordWeb and Google Slides presentation origins.');
+  }
+  const appBridge = manifest.content_scripts.find((script) => script.js.includes('recordweb-bridge.js'));
+  if (JSON.stringify(appBridge?.matches) !== JSON.stringify([appMatch])) {
+    throw new Error('The RecordWeb bridge must match only the canonical application origin.');
+  }
+  for (const script of manifest.content_scripts.filter((item) => item !== appBridge)) {
+    if (JSON.stringify(script.matches) !== JSON.stringify([slidesMatch])) {
+      throw new Error('Google Slides content scripts must match only presentation pages.');
+    }
+  }
 }
 
 async function copyPackageFiles(packageRoot, manifest) {

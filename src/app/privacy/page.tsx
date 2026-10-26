@@ -43,9 +43,10 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2>How the data is used</h2>
           <p>
-            The data is used only to reconstruct the presenter&apos;s cursor in the corresponding recording, verify the
-            selected Google Slides tab, focus that tab when recording starts, and provide recording controls inside
-            the selected presentation tab.
+            The extension uses tab identity and the Capture Handle to verify the selected Google Slides tab, focus
+            it when recording starts, and provide in-tab recording controls. RecordWeb uses the time-aligned cursor
+            trajectory for playback and to synchronize it with the session&apos;s video and audio sources. Participants
+            can export these sources and send them to a research team for human-computer interaction (HCI) analysis.
           </p>
         </section>
 
@@ -56,9 +57,21 @@ export default function PrivacyPolicyPage() {
             The extension itself does not sell the data, use it for advertising, or send it to analytics providers.
           </p>
           <p>
-            RecordWeb stores a completed cursor trajectory locally with the recording. If the user explicitly uploads
-            that recording to RecordWeb cloud storage, the cursor trajectory may be uploaded with the recording to
-            Vercel Blob, while associated recording metadata is stored in Neon Postgres. Network transfers use HTTPS.
+            RecordWeb stores a completed cursor trajectory locally with the recording. When recording finishes,
+            RecordWeb automatically attempts to upload the recording and available source assets, including the
+            cursor trajectory, to Vercel Blob. Associated recording metadata is stored in Neon Postgres. If the
+            upload fails, the local recording remains available for recovery. Network transfers use HTTPS.
+          </p>
+          <p>
+            Uploaded files use Vercel Blob public URLs. RecordWeb limits access to recording pages through account
+            permissions, but anyone who obtains a file URL may be able to access that file directly.
+          </p>
+          <p>
+            RecordWeb does not automatically send recordings to the research team. When a participant exports and
+            sends recording files to the team, researchers may inspect the raw cursor, screen, camera, and audio
+            data contained in those files for the study. That handoff is separate from RecordWeb&apos;s automatic
+            cloud save. The study obtains written participant consent separately; RecordWeb does not collect or
+            store that consent form.
           </p>
         </section>
 
@@ -67,8 +80,8 @@ export default function PrivacyPolicyPage() {
           <p>
             Temporary tab mappings, Capture Handles, and live cursor samples are held only for the active browser
             session and are cleared when the session is disconnected, the tab closes, or the extension service worker
-            is reset. Users can delete locally stored recordings from RecordWeb&apos;s Library and can delete uploaded
-            recordings using the cloud recording controls.
+            is reset. Local recording backups remain in browser storage until removed or the browser&apos;s site data
+            is cleared. Users can delete uploaded recordings using RecordWeb&apos;s cloud recording controls.
           </p>
         </section>
 
@@ -84,9 +97,10 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2>Third parties and limited use</h2>
           <p>
-            Data is used only to provide and maintain the user-facing recording feature described above. It is not
-            transferred for advertising, credit assessment, surveillance, or sale. Service providers process data only
-            when required to operate storage selected by the user.
+            Data is used to provide the synchronized recording and HCI analysis workflow described above. It is not
+            transferred for advertising, credit assessment, surveillance, or sale. Service providers process data
+            for RecordWeb authentication, recording storage, and metadata persistence. Participants may separately
+            send exported files to the research team for the disclosed study purpose.
           </p>
           <p>
             RecordWeb&apos;s use and transfer of information handled by the extension adheres to the Chrome Web Store
