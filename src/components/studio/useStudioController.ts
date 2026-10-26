@@ -41,7 +41,6 @@ import {
 import {
   audioModes,
   audioPresetByLabel,
-  backgrounds,
   compositeAssetFor,
   extensionForMimeType,
   getBlobContentType,
@@ -65,7 +64,7 @@ interface UseStudioControllerOptions {
 export function useStudioController({ workspace = 'studio' }: UseStudioControllerOptions = {}) {
   const presentationWorkspace = workspace === 'presentation';
   const [mode, setMode] = useState<RecordingMode>('screen-pip');
-  const [background, setBackground] = useState<BackgroundRemovalMode>('blur');
+  const [background, setBackground] = useState<BackgroundRemovalMode>('original');
   const [pipShape, setPipShape] = useState<PipShape>('rounded');
   const [pipSize, setPipSize] = useState<PipSize>('medium');
   const [audioMode, setAudioMode] = useState('Voice clarity');
@@ -266,6 +265,9 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const visualSourcesConnected = Boolean(screenStream || cameraStream);
   const requiredDevicesConnected = mediaStatuses.microphone === 'ready'
     && (mode === 'screen-only' || mediaStatuses.camera === 'ready');
+  const recordingReady = requiredDevicesConnected && (mode === 'webcam-only' || Boolean(
+    screenStream?.getVideoTracks().some((track) => track.readyState === 'live') && tabCapture.connected,
+  ));
 
   useEffect(() => {
     if (recordingStatus !== 'ready' && recordingStatus !== 'error') return;
@@ -322,7 +324,8 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
             audioMode?: string;
           };
           if (configuration.mode && modes.some((item) => item.value === configuration.mode)) setMode(configuration.mode);
-          if (configuration.background && backgrounds.some((item) => item.value === configuration.background)) setBackground(configuration.background);
+          // Standard Studio now exposes only the original camera feed.
+          setBackground('original');
           if (configuration.audioMode && audioModes.includes(configuration.audioMode)) setAudioMode(configuration.audioMode);
           localStorage.removeItem('recordweb-quick-start');
         }
@@ -330,9 +333,9 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         const pendingPreset = localStorage.getItem('recordweb-pending-preset');
         if (pendingPreset) {
           const preset = JSON.parse(pendingPreset) as DbStudioPreset;
-          setPipShape(preset.pip_shape as PipShape);
+          setPipShape(preset.pip_shape === 'cutout' ? 'circle' : preset.pip_shape as PipShape);
           setPipSize(preset.pip_size as PipSize);
-          setBackground(preset.bg_removal_mode as BackgroundRemovalMode);
+          setBackground('original');
           const filters = preset.filters_config as { mode?: string; resolution?: string };
           if (filters.mode) setAudioMode(filters.mode);
           if (filters.resolution) setResolution(filters.resolution);
@@ -378,7 +381,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       else await acquireCamera(selectedCameraId || undefined);
 
       await acquireMicrophone(selectedMicrophoneId || undefined);
-      if (workspace === 'presentation' || mode === 'webcam-only') setSourcesOpen(false);
+      if (workspace === 'presentation') setSourcesOpen(false);
     } finally {
       setIsConnectingSources(false);
     }
@@ -438,7 +441,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         return;
       }
       focusRecordWebApp();
-      setSourcesOpen(false);
     } finally {
       setIsConnectingSlideSource(false);
     }
@@ -932,9 +934,9 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   };
 
   const applyPreset = (preset: DbStudioPreset) => {
-    setPipShape(preset.pip_shape as PipShape);
+    setPipShape(preset.pip_shape === 'cutout' ? 'circle' : preset.pip_shape as PipShape);
     setPipSize(preset.pip_size as PipSize);
-    setBackground(preset.bg_removal_mode as BackgroundRemovalMode);
+    setBackground('original');
     const filters = preset.filters_config as { mode?: string; resolution?: string };
     if (filters.mode) setAudioMode(filters.mode);
     if (filters.resolution) setResolution(filters.resolution);
@@ -1037,6 +1039,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     sourcesConnected,
     visualSourcesConnected,
     requiredDevicesConnected,
+    recordingReady,
     sessionLabel,
     toggleTheme,
     connectSources,

@@ -1,5 +1,5 @@
 import type { AudioFilterConfig, PipShape, PipSize } from '@/types/media';
-import { audioModes, backgrounds } from './studioConfig';
+import { audioModes } from './studioConfig';
 import { StudioIcon } from './StudioPrimitives';
 import type { StudioController } from './useStudioController';
 import styles from './StudioShell.module.css';
@@ -10,17 +10,12 @@ export function StudioEffectsPanel({ studio }: { studio: StudioController }) {
     effectsTab,
     setEffectsTab,
     mode,
-    background,
-    setBackground,
     pipShape,
     setPipShape,
     pipPosition,
     setPipPosition,
     compositorRunning,
     compositorWarning,
-    segmentationError,
-    segmentationState,
-    inferenceFps,
     pipSize,
     setPipSize,
     audioState,
@@ -63,18 +58,10 @@ export function StudioEffectsPanel({ studio }: { studio: StudioController }) {
       {workspace === 'studio' && effectsTab === 'camera' && (
         <section className={styles.inspectorSection}>
           <div className={styles.inspectorTitle}><div><StudioIcon name="spark" /><h2>Camera style</h2></div><span>Live</span></div>
-          <label className={styles.fieldLabel}>Background</label>
-          <div className={styles.choiceGrid}>
-            {backgrounds.map((item) => (
-              <button key={item.value} className={background === item.value ? styles.choiceActive : ''} onClick={() => setBackground(item.value)}>
-                <span className={`${styles.choicePreview} ${styles[`preview${item.value}`]}`} />
-                {item.label}
-              </button>
-            ))}
-          </div>
+          <p className={styles.compositorHint}>Original camera video is used for this Studio setup.</p>
           <label className={styles.fieldLabel}>Frame</label>
           <div className={styles.segmented}>
-            {(['circle', 'rounded', 'cutout'] as PipShape[]).map((shape) => (
+            {(['circle', 'rounded'] as PipShape[]).map((shape) => (
               <button key={shape} onClick={() => setPipShape(shape)} className={pipShape === shape ? styles.segmentActive : ''}>{shape}</button>
             ))}
           </div>
@@ -99,11 +86,6 @@ export function StudioEffectsPanel({ studio }: { studio: StudioController }) {
           </div>
           {compositorRunning && <p className={styles.compositorHint}>Drag the camera on the canvas, or focus it and use arrow keys. Hold Shift for larger steps.</p>}
           {compositorWarning && <p className={styles.compositorWarning}>{compositorWarning}</p>}
-          {background !== 'original' && (
-            <p className={segmentationError ? styles.compositorWarning : styles.compositorHint}>
-              AI background: {segmentationError ?? (segmentationState === 'running' ? `${inferenceFps || '—'} inference FPS` : segmentationState)}
-            </p>
-          )}
           <label className={styles.fieldLabel}>Size</label>
           <div className={styles.segmented}>
             {(['small', 'medium', 'large'] as PipSize[]).map((size) => (

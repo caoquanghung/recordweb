@@ -14,6 +14,7 @@ export function StudioStage({ studio }: { studio: StudioController }) {
     compositorRunning,
     compositorFps,
     visualSourcesConnected,
+    recordingReady,
     canvasRef,
     compositorResolution,
     canvasPointerHandlers,
@@ -52,7 +53,7 @@ export function StudioStage({ studio }: { studio: StudioController }) {
   return (
     <section className={styles.stageColumn}>
       <div className={styles.stageToolbar}>
-        <div className={styles.stageMode}><StatusDot ok={session === 'recording'} /> {sessionLabel}</div>
+        <div className={styles.stageMode}><StatusDot ok={recordingReady || session === 'recording'} /> {session === 'setup' ? (recordingReady ? 'Preview ready' : 'Live preview') : sessionLabel}</div>
         <div className={styles.stageTags}><span>{activeMode.label}</span><span>{resolution}</span><span>{compositorRunning ? `${compositorFps || '—'} FPS` : '30 FPS target'}</span></div>
       </div>
 
@@ -103,28 +104,9 @@ export function StudioStage({ studio }: { studio: StudioController }) {
         <div className={styles.stageCorner}>Xem trước · {activeMode.detail}{compositeStream ? ' · luồng tổng hợp đã sẵn sàng' : ''}</div>
       </div>
 
-      {session !== 'processing' && (
-        <AudioMeterPanel
-          key={session === 'setup' ? 'setup-meters' : 'recording-meters'}
-          compact={session !== 'setup'}
-          state={audioState}
-          onResume={() => void resumeAudio()}
-          microphone={{
-            level: microphoneLevel,
-            levelDb: microphoneLevelDb,
-            available: Boolean(microphoneStream),
-          }}
-          systemAudio={{
-            level: systemAudioLevel,
-            levelDb: systemAudioLevelDb,
-            available: hasSystemAudio,
-          }}
-        />
-      )}
-
       {session === 'setup' && startRecordingAttention > 0 && (
         <div className={styles.startRecordingPrompt} role="status">
-          Almost there — click Start recording to choose this Slides tab in Chrome&apos;s share picker.
+          Your Slides tab is connected. Click Start recording to begin the countdown.
         </div>
       )}
       <div className={styles.controlDock} aria-label="Recording controls">
@@ -138,6 +120,8 @@ export function StudioStage({ studio }: { studio: StudioController }) {
             ref={startButtonRef}
             className={`${styles.recordButton} ${startRecordingAttention > 0 ? styles.recordButtonAttention : ''}`}
             onClick={() => void startUiTest()}
+            disabled={!recordingReady || session !== 'setup'}
+            title={!recordingReady ? mode === 'webcam-only' ? 'Connect the camera and microphone before recording' : 'Connect the required devices and Google Slides before recording' : undefined}
           >
             <StudioIcon name="record" /> Start recording
           </button>
@@ -160,6 +144,24 @@ export function StudioStage({ studio }: { studio: StudioController }) {
         <button className={`${styles.roundControl} ${micMuted ? styles.controlOff : ''}`} onClick={() => setMicMuted((value) => !value)} aria-label="Toggle microphone"><StudioIcon name="mic" /></button>
         <button className={`${styles.roundControl} ${!cameraVisible ? styles.controlOff : ''}`} onClick={() => setCameraVisible((value) => !value)} aria-label="Toggle camera"><StudioIcon name="camera" /></button>
       </div>
+      {session !== 'processing' && (
+        <AudioMeterPanel
+          key={session === 'setup' ? 'setup-meters' : 'recording-meters'}
+          compact={session !== 'setup'}
+          state={audioState}
+          onResume={() => void resumeAudio()}
+          microphone={{
+            level: microphoneLevel,
+            levelDb: microphoneLevelDb,
+            available: Boolean(microphoneStream),
+          }}
+          systemAudio={{
+            level: systemAudioLevel,
+            levelDb: systemAudioLevelDb,
+            available: hasSystemAudio,
+          }}
+        />
+      )}
       <div className={styles.shortcutHint}>Space pause/resume · Alt+S finish · video is checkpointed to IndexedDB</div>
     </section>
   );

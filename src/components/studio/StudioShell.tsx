@@ -19,7 +19,7 @@ function RecordingWorkspace({ onOpenPresentation }: { onOpenPresentation: () => 
   const studio = useStudioController();
 
   return (
-    <section className={styles.workspace}>
+    <section className={`${styles.workspace} ${studio.session === 'review' ? '' : styles.standardWorkspace}`}>
       <StudioHeader studio={studio} />
       <StudioToolbar studio={studio} onOpenPresentation={onOpenPresentation} />
       <StudioSessionNotice studio={studio} />
@@ -27,7 +27,7 @@ function RecordingWorkspace({ onOpenPresentation }: { onOpenPresentation: () => 
       {studio.session === 'review' ? (
         <StudioReviewWorkspace studio={studio} />
       ) : (
-        <div className={`${styles.studioGrid} ${!studio.sourcesOpen ? styles.sourcesClosed : ''} ${!studio.effectsOpen ? styles.effectsClosed : ''}`}>
+        <div className={`${styles.studioGrid} ${styles.standardGrid} ${!studio.sourcesOpen ? styles.sourcesClosed : ''} ${!studio.effectsOpen ? styles.effectsClosed : ''}`}>
           {studio.sourcesOpen && <StudioSourcesPanel studio={studio} />}
           <StudioStage studio={studio} />
           {studio.effectsOpen && <StudioEffectsPanel studio={studio} />}
@@ -35,7 +35,11 @@ function RecordingWorkspace({ onOpenPresentation }: { onOpenPresentation: () => 
       )}
 
       <StudioDiagnosticsDrawer studio={studio} />
-      <div className={styles.srOnly} aria-live="polite">Session status: {studio.sessionLabel}</div>
+      <div className={styles.srOnly} aria-live="polite">
+        Session status: {studio.session === 'setup'
+          ? (studio.recordingReady ? 'Ready' : 'Setup needed')
+          : studio.sessionLabel}
+      </div>
     </section>
   );
 }

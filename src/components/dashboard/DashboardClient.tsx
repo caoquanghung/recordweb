@@ -10,11 +10,11 @@ import type { DbRecording, DbStudioPreset } from '@/types/database';
 import styles from './DashboardClient.module.css';
 
 const quickStarts = [
-  { title: 'Trình chiếu bài giảng', detail: 'Màn hình, camera và giọng nói rõ ràng', mode: 'screen-pip', background: 'blur', audioMode: 'Voice clarity' },
+  { title: 'Trình chiếu bài giảng', detail: 'Màn hình, camera và giọng nói rõ ràng', mode: 'screen-pip', background: 'original', audioMode: 'Voice clarity' },
   { title: 'Hướng dẫn thực hành', detail: 'Ưu tiên màn hình với camera thu gọn', mode: 'screen-pip', background: 'original', audioMode: 'Natural' },
-  { title: 'Lời nhắn qua camera', detail: 'Chỉ dùng camera với nền gọn gàng', mode: 'webcam-only', background: 'blur', audioMode: 'Voice clarity' },
-  { title: 'Giới thiệu sản phẩm', detail: 'Màn hình và người trình bày tách nền', mode: 'screen-pip', background: 'cutout', audioMode: 'Podcast' },
-  { title: 'Bài giảng trực tuyến', detail: 'Ghi màn hình với lọc tiếng ồn', mode: 'screen-pip', background: 'blur', audioMode: 'Noise reduction' },
+  { title: 'Lời nhắn qua camera', detail: 'Chỉ dùng camera với hình ảnh gốc', mode: 'webcam-only', background: 'original', audioMode: 'Voice clarity' },
+  { title: 'Giới thiệu sản phẩm', detail: 'Màn hình và người trình bày', mode: 'screen-pip', background: 'original', audioMode: 'Podcast' },
+  { title: 'Bài giảng trực tuyến', detail: 'Ghi màn hình với lọc tiếng ồn', mode: 'screen-pip', background: 'original', audioMode: 'Noise reduction' },
 ];
 
 const dashboardAsset = (name: string) => `/figma/dashboard/${name}`;

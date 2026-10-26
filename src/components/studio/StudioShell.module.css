@@ -2349,3 +2349,284 @@
     transition: none;
   }
 }
+
+/* Standard Studio setup: live stage beside a persistent, actionable source rail. */
+.studioScreen .standardWorkspace {
+  --studio-bg: #f8fafc;
+  --panel: #fff;
+  --panel-solid: #fff;
+  --panel-raised: #f8fafc;
+  --line: rgba(148, 163, 184, .24);
+  --line-strong: rgba(148, 163, 184, .4);
+  --text: #0f172a;
+  --muted: #475569;
+  --dim: #64748b;
+  --green: #059669;
+  --red: #dc2626;
+  color: var(--text);
+  background: var(--studio-bg);
+}
+
+.studioScreen .standardWorkspace .studioTopbar,
+.studioScreen .standardWorkspace .studioSessionBar {
+  background: #fff;
+  box-shadow: none;
+}
+
+.studioScreen .standardWorkspace .studioReady {
+  color: #047857;
+  background: #dff8eb;
+}
+
+.studioScreen .standardWorkspace .studioNotReady {
+  color: #64748b;
+  background: #e2e8f0;
+}
+
+.studioScreen .standardWorkspace .studioReady.studioNotReady {
+  color: #64748b;
+  background: #e2e8f0;
+}
+
+.studioScreen .standardWorkspace .studioNotReady i { background: #94a3b8; box-shadow: none; }
+
+.studioScreen .standardGrid,
+.studioScreen .standardGrid.sourcesClosed,
+.studioScreen .standardGrid.effectsClosed,
+.studioScreen .standardGrid.sourcesClosed.effectsClosed {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas:
+    "stage sources"
+    "stage effects";
+  gap: 0;
+  min-height: calc(100dvh - 114px);
+  padding: 0;
+  align-items: stretch;
+  background: #fff;
+}
+
+.studioScreen .standardGrid.effectsClosed { grid-template-areas: "stage sources"; }
+.studioScreen .standardGrid.sourcesClosed { grid-template-areas: "stage effects"; }
+.studioScreen .standardGrid.sourcesClosed.effectsClosed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "stage";
+}
+
+.studioScreen .standardGrid .stageColumn {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px clamp(16px, 2vw, 32px) 24px;
+  background: linear-gradient(126deg, #f8fafc, #eff6ff 58%, #f0f9ff);
+}
+
+.studioScreen .standardGrid .stageToolbar {
+  width: min(100%, 960px, 98dvh);
+  margin-inline: auto;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px 12px 0 0;
+  color: #334155;
+  background: #f8fafc;
+}
+
+.studioScreen .standardGrid .stageTags span { color: #475569; }
+
+.studioScreen .standardGrid .stage {
+  width: min(100%, 960px, 98dvh);
+  margin-inline: auto;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 0 0 22px 22px;
+  background: #eaf3ff;
+  box-shadow: 0 0 0 10px #eaf3ff, 0 20px 45px -12px rgba(37, 99, 235, .16);
+}
+
+.studioScreen .standardGrid .screenMock,
+.studioScreen .standardGrid .compositorCanvas {
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .12);
+}
+
+.studioScreen .standardGrid .controlDock {
+  width: min(100%, 650px);
+  margin-top: 16px;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  color: #0f172a;
+  background: #fff;
+  box-shadow: 0 16px 28px rgba(15, 23, 42, .12);
+}
+
+.studioScreen .standardGrid .timerBlock strong { color: #0f172a; }
+.studioScreen .standardGrid .recordButton {
+  min-width: 170px;
+  height: 48px;
+  padding-inline: 18px;
+  border-color: #dc2626;
+  border-radius: 14px;
+  background: #dc2626;
+  box-shadow: 0 5px 12px rgba(220, 38, 38, .28);
+}
+.studioScreen .standardGrid .recordButton:hover:not(:disabled) { box-shadow: 0 7px 18px rgba(220, 38, 38, .38); }
+.studioScreen .standardGrid .recordButton:disabled { border-color: #cbd5e1; color: #64748b; background: #e2e8f0; box-shadow: none; opacity: 1; }
+.studioScreen .standardGrid .roundControl { border-color: #e2e8f0; color: #334155; background: #f8fafc; }
+.studioScreen .standardGrid .stopControl { border-color: #fecaca; color: #dc2626; background: #fef2f2; }
+.studioScreen .standardGrid .shortcutHint { color: #64748b; font-size: 11px; }
+
+.studioScreen .standardGrid .setupInspector {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  max-height: calc(100dvh - 114px);
+  min-height: 640px;
+  overflow: hidden;
+  border: 0;
+  border-left: 1px solid #e2e8f0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: -4px 0 20px rgba(15, 23, 42, .03);
+}
+
+.inspectorHeader {
+  flex: 0 0 57px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.inspectorHeader > div { display: flex; align-items: center; gap: 8px; }
+.inspectorHeader .icon { width: 18px; color: #2563eb; }
+.inspectorHeader h2 { font-size: 16px; font-weight: 700; letter-spacing: -.025em; }
+.inspectorReady,
+.inspectorPending { padding: 4px 8px; border-radius: 999px; font: 700 11px/1 var(--font-geist-mono), monospace; }
+.inspectorReady { color: #059669; background: #dff8eb; }
+.inspectorPending { color: #64748b; background: #f1f5f9; }
+.inspectorBody { min-height: 0; flex: 1 1 auto; overflow-y: auto; padding: 12px; scrollbar-width: thin; }
+.inspectorKicker { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; color: #64748b; font-size: 11px; letter-spacing: .04em; }
+.inspectorKicker strong { padding: 3px 8px; border-radius: 999px; color: #059669; background: #ecfdf5; font: 700 11px/1.2 var(--font-geist-mono), monospace; letter-spacing: 0; }
+.connectionCard { margin-bottom: 16px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 16px; background: #f8fafc; box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+.connectionCardReady { border-color: #b8e8d1; }
+.connectionCardTitle { display: flex; align-items: center; gap: 12px; }
+.connectionCardTitle > div { min-width: 0; flex: 1; }
+.connectionCardTitle small { display: block; color: #64748b; font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+.connectionCardTitle h3 { margin-top: 2px; font-size: 13px; font-weight: 750; }
+.connectionCardTitle > .statusDotOk,
+.connectionCardTitle > .statusDotIdle { flex: 0 0 8px; width: 8px; height: 8px; }
+.connectionIcon { flex: 0 0 40px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; color: #2563eb; background: #eff6ff; }
+.connectionIcon .icon { width: 19px; }
+.slidesIcon { color: #d97706; background: #fffbeb; }
+.connectionDetail { margin-top: 12px; color: #475569; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.connectionChips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.connectionChips span { padding: 5px 7px; border-radius: 7px; color: #475569; background: #fff; font: 500 10px/1.3 var(--font-geist-mono), monospace; }
+.connectPrimary,
+.connectSecondary { width: 100%; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; padding: 8px 10px; border: 1px solid transparent; border-radius: 12px; font-family: inherit; font-size: 13px; font-weight: 650; line-height: 1.25; cursor: pointer; }
+.connectPrimary { color: #fff; background: #2563eb; }
+.connectSecondary { color: #0f172a; border-color: #dbe3ee; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+.connectPrimary .icon,
+.connectSecondary .icon { width: 16px; }
+.connectPrimary:hover:not(:disabled) { background: #1d4ed8; }
+.connectSecondary:hover:not(:disabled) { border-color: #93c5fd; background: #eff6ff; }
+.connectPrimary:disabled,
+.connectSecondary:disabled { color: #94a3b8; border-color: #e2e8f0; background: #e2e8f0; box-shadow: none; cursor: not-allowed; }
+.connectionHint { margin-top: 8px; color: #64748b; font-size: 11px; line-height: 1.45; }
+.inspectorTip { display: flex; gap: 9px; margin-bottom: 16px; padding: 14px; border: 1px solid #dbeafe; border-radius: 16px; color: #475569; background: #f8fbff; }
+.inspectorTip .icon { width: 16px; color: #2563eb; }
+.inspectorTip p { flex: 1; font-size: 11px; line-height: 1.45; }
+.setupDetails { margin: 0 0 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.setupDetails summary { padding: 12px; color: #2563eb; cursor: pointer; font-size: 12px; font-weight: 700; }
+.setupDetailsBody { padding: 0 12px 12px; }
+.setupDetailsBody .modeList { display: grid; grid-template-columns: 1fr; }
+.setupDetailsBody .modeButton { grid-template-columns: 30px minmax(0, 1fr) 12px; }
+.setupDetailsBody .modeButton small,
+.setupDetailsBody .modeButton .radioMark { display: block; }
+.setupDetailsBody .fieldLabel { color: #475569; }
+.setupDetailsBody .fieldLabel select { color: #0f172a; border-color: #cbd5e1; background: #fff; }
+.setupDetailsBody .modeButton { color: #475569; border-color: #e2e8f0; background: #fff; }
+.setupDetailsBody .modeButtonActive { color: #0f172a; border-color: #93c5fd; background: #eff6ff; }
+.setupDetailsBody .modeButton small { color: #64748b; }
+.setupDetailsBody .segmented button { color: #475569; }
+.setupDetailsBody .segmentActive { color: #1d4ed8; }
+.disconnectButton { width: 100%; margin-top: 16px; padding: 9px; border: 1px solid #fecaca; border-radius: 8px; color: #b91c1c; background: #fff; cursor: pointer; }
+.inspectorFooter { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; min-height: 39px; padding: 0 12px; border-top: 1px solid #e2e8f0; color: #475569; background: #f8fafc; font-size: 11px; }
+.inspectorFooter .icon { width: 14px; color: #2563eb; }
+
+:global(html[data-theme='dark']) .studioScreen .standardWorkspace {
+  --studio-bg: #0b1220;
+  --panel: #111c2c;
+  --panel-solid: #111c2c;
+  --panel-raised: #18263a;
+  --line: rgba(148, 163, 184, .2);
+  --line-strong: rgba(148, 163, 184, .35);
+  --text: #f1f5f9;
+  --muted: #cbd5e1;
+  --dim: #94a3b8;
+  background: var(--studio-bg);
+}
+:global(html[data-theme='dark']) .studioScreen .standardWorkspace .studioTopbar,
+:global(html[data-theme='dark']) .studioScreen .standardWorkspace .studioSessionBar,
+:global(html[data-theme='dark']) .studioScreen .standardGrid,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupInspector,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .controlDock { background: #111c2c; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .stageColumn { background: linear-gradient(126deg, #0b1220, #12213a 58%, #101d2f); }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .stageToolbar { color: #cbd5e1; background: #18263a; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .stageTags span,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .shortcutHint { color: #94a3b8; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .stage { background: #1a2b45; box-shadow: 0 0 0 10px #1a2b45, 0 20px 45px -12px rgba(0, 0, 0, .45); }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .controlDock { border-color: #2e4058; color: #f1f5f9; box-shadow: 0 16px 28px rgba(0, 0, 0, .35); }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .timerBlock strong { color: #f1f5f9; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .roundControl { border-color: #344761; color: #e2e8f0; background: #1c2c42; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupInspector { border-color: #2e4058; box-shadow: -4px 0 20px rgba(0, 0, 0, .1); }
+:global(html[data-theme='dark']) .studioScreen .standardWorkspace .studioReady { color: #6ee7b7; background: #124638; }
+:global(html[data-theme='dark']) .studioScreen .standardWorkspace .studioReady.studioNotReady { color: #cbd5e1; background: #243348; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorHeader,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorFooter { border-color: #2e4058; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorPending,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorFooter { color: #cbd5e1; background: #18263a; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorKicker,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionCardTitle small,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionDetail,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionHint,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorTip,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupDetailsBody .fieldLabel { color: #cbd5e1; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionCard,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupDetails { border-color: #334761; background: #18263a; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionCardReady { border-color: #2a846d; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionChips span,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectSecondary,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupDetailsBody .fieldLabel select,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupDetailsBody .modeButton { color: #e2e8f0; border-color: #344761; background: #1c2c42; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectSecondary:hover:not(:disabled),
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupDetailsBody .modeButtonActive { border-color: #60a5fa; background: #203b60; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectPrimary:disabled,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectSecondary:disabled,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .recordButton:disabled { color: #94a3b8; border-color: #334761; background: #26364b; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorTip { border-color: #344761; background: #14243a; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .disconnectButton { color: #fca5a5; border-color: #7f3e4a; background: #1c2c42; }
+
+@media (max-width: 760px) {
+  .studioScreen .standardGrid,
+  .studioScreen .standardGrid.sourcesClosed,
+  .studioScreen .standardGrid.effectsClosed,
+  .studioScreen .standardGrid.sourcesClosed.effectsClosed {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "sources" "stage" "effects";
+  }
+  .studioScreen .standardGrid.sourcesClosed { grid-template-areas: "stage" "effects"; }
+  .studioScreen .standardGrid.effectsClosed { grid-template-areas: "sources" "stage"; }
+  .studioScreen .standardGrid.sourcesClosed.effectsClosed { grid-template-areas: "stage"; }
+  .studioScreen .standardGrid .setupInspector { width: 100%; min-height: 0; max-height: none; border-left: 0; border-bottom: 1px solid #e2e8f0; }
+  .studioScreen .standardGrid .stageColumn { padding: 18px 12px 24px; }
+  .studioScreen .standardGrid .controlDock { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connectPrimary,
+  .connectSecondary { transition: none; }
+}

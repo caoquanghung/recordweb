@@ -29,6 +29,10 @@ export function StudioHeader({
     runSystemCheck,
     setDiagnosticsOpen,
   } = studio;
+  const standardReady = studio.recordingReady;
+  const standardStatus = studio.session === 'setup'
+    ? standardReady ? 'Ready' : 'Setup needed'
+    : studio.session === 'review' ? 'Recording complete' : studio.sessionLabel;
 
   if (studio.workspace === 'studio' || integratedPresentation) {
     return (
@@ -41,7 +45,9 @@ export function StudioHeader({
           </span>
         </Link>
         <div className={styles.topbarActions}>
-          <span className={styles.studioReady}><i /> Sẵn sàng ghi hình</span>
+          <span className={`${styles.studioReady} ${!integratedPresentation && studio.session === 'setup' && !standardReady ? styles.studioNotReady : ''}`}>
+            <i /> {integratedPresentation ? 'Sẵn sàng ghi hình' : standardStatus}
+          </span>
           {integratedPresentation && (
             <button
               className={styles.studioBackButton}
@@ -164,15 +170,17 @@ export function StudioToolbar({
             </button>
           )}
           <div className={styles.liveSummary}>
-            <span className={sourcesConnected ? styles.summaryReady : styles.summaryIdle} />
-            {sourcesConnected ? connectedLabel : idleLabel}
+            <span className={(integratedPresentation ? sourcesConnected : studio.recordingReady) ? styles.summaryReady : styles.summaryIdle} />
+            {integratedPresentation
+              ? sourcesConnected ? connectedLabel : idleLabel
+              : studio.recordingReady ? 'Ready to record' : sourcesConnected ? 'Continue setup' : idleLabel}
           </div>
           <div className={styles.drawerActions} aria-label="Workspace panels">
             <button
               className={`${styles.drawerButton} ${sourcesOpen ? styles.drawerButtonActive : ''}`}
               onClick={() => {
                 setSourcesOpen((value) => !value);
-                if (!sourcesOpen && window.innerWidth < 1120) setEffectsOpen(false);
+                if (!sourcesOpen && window.innerWidth < 760) setEffectsOpen(false);
               }}
               aria-pressed={sourcesOpen}
             >
@@ -182,7 +190,7 @@ export function StudioToolbar({
               className={`${styles.drawerButton} ${effectsOpen ? styles.drawerButtonActive : ''}`}
               onClick={() => {
                 setEffectsOpen((value) => !value);
-                if (!effectsOpen && window.innerWidth < 1120) setSourcesOpen(false);
+                if (!effectsOpen && window.innerWidth < 760) setSourcesOpen(false);
               }}
               aria-pressed={effectsOpen}
             >
