@@ -70,8 +70,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const [audioMode, setAudioMode] = useState('Voice clarity');
   const [resolution, setResolution] = useState('1920x1080');
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [micMuted, setMicMuted] = useState(false);
-  const [cameraVisible, setCameraVisible] = useState(true);
   const [healthState, setHealthState] = useState<CheckState>('idle');
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [capabilities, setCapabilities] = useState<BrowserCapabilities | null>(null);
@@ -131,6 +129,10 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     stopCamera,
     clearError: clearMediaError,
     tabCapture,
+    micMuted,
+    setMicMuted,
+    cameraVisible,
+    setCameraVisible,
   } = useMediaSession();
   const tabCaptureConnected = tabCapture.connected;
   const focusRecordWebApp = tabCapture.focusApp;
@@ -478,7 +480,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [diagnosticsOpen, pauseRecording, resumeRecording, session, stopRecording]);
+  }, [diagnosticsOpen, pauseRecording, resumeRecording, session, setCameraVisible, setMicMuted, stopRecording]);
 
   useEffect(() => {
     if (countdown === null) return;
@@ -606,7 +608,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     return () => {
       window.removeEventListener(RECORDWEB_PRESENTATION_COMMAND_EVENT, handlePresentationCommand);
     };
-  }, [pauseRecording, resumeRecording, session, startUiTest, stopRecording, workspace]);
+  }, [pauseRecording, resumeRecording, session, setCameraVisible, setMicMuted, startUiTest, stopRecording, workspace]);
 
   const recoverLatestDraft = async () => {
     const draft = recoveryDrafts[0];

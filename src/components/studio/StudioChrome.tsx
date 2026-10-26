@@ -59,7 +59,7 @@ export function StudioHeader({
               ← Ghi màn hình
             </button>
           )}
-          <Link className={styles.studioDashboardLink} href="/dashboard">Bảng điều khiển</Link>
+          {/* <Link className={styles.studioDashboardLink} href="/dashboard">Bảng điều khiển</Link> */}
           <button
             className={styles.themeButton}
             type="button"
@@ -70,18 +70,20 @@ export function StudioHeader({
             <StudioIcon name={theme === 'dark' ? 'sun' : 'moon'} />
             <span>{theme === 'dark' ? 'Sáng' : 'Tối'}</span>
           </button>
-          <button
-            className={styles.secondaryButton}
-            onClick={() => {
-              setDiagnosticsOpen(true);
-              if (healthState === 'idle') {
-                if (canViewInternalDiagnostics) void runSystemCheck();
-                else runDevicePreflight();
-              }
-            }}
-          >
-            <StudioIcon name="shield" /> Kiểm tra
-          </button>
+          {canViewInternalDiagnostics && (
+            <button
+              className={styles.secondaryButton}
+              onClick={() => {
+                setDiagnosticsOpen(true);
+                if (healthState === 'idle') {
+                  if (canViewInternalDiagnostics) void runSystemCheck();
+                  else runDevicePreflight();
+                }
+              }}
+            >
+              <StudioIcon name="shield" /> Kiểm tra
+            </button>
+          )}
           <UserButton />
         </div>
       </header>
@@ -106,19 +108,21 @@ export function StudioHeader({
           <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
         <div className={styles.privacyPill}><StudioIcon name="shield" /> Local until you upload</div>
-        <button
-          className={styles.secondaryButton}
-          onClick={() => {
-            setDiagnosticsOpen(true);
-            if (healthState === 'idle') {
-              if (canViewInternalDiagnostics) void runSystemCheck();
-              else runDevicePreflight();
-            }
-          }}
-        >
-          <StudioIcon name="shield" />
-          Diagnostics
-        </button>
+        {canViewInternalDiagnostics && (
+          <button
+            className={styles.secondaryButton}
+            onClick={() => {
+              setDiagnosticsOpen(true);
+              if (healthState === 'idle') {
+                if (canViewInternalDiagnostics) void runSystemCheck();
+                else runDevicePreflight();
+              }
+            }}
+          >
+            <StudioIcon name="shield" />
+            Diagnostics
+          </button>
+        )}
       </div>
     </header>
   );

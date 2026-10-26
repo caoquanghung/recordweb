@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { formatDuration } from './studioConfig';
 import { StatusDot, StudioIcon } from './StudioPrimitives';
+import { StudioMediaToggles } from './StudioMediaToggles';
 import type { StudioController } from './useStudioController';
 import styles from './StudioShell.module.css';
 
@@ -29,9 +30,6 @@ export function StudioStage({ studio }: { studio: StudioController }) {
     resumeRecording,
     pauseRecording,
     stopRecording,
-    micMuted,
-    setMicMuted,
-    setCameraVisible,
   } = studio;
   const startButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -83,12 +81,12 @@ export function StudioStage({ studio }: { studio: StudioController }) {
           </div>
         )}
 
-        {!visualSourcesConnected && mode !== 'screen-only' && cameraVisible && (
+        {/* {!visualSourcesConnected && mode !== 'screen-only' && cameraVisible && (
           <div className={`${styles.cameraMock} ${styles[`camera${pipShape}`]}`}>
             <div className={styles.avatarShape}><span>RW</span></div>
             <div><strong>Camera preview</strong><small>{background}</small></div>
           </div>
-        )}
+        )} */}
 
         {session === 'countdown' && countdown !== null && <div className={styles.countdownOverlay}><span>{countdown}</span><small>Get ready</small></div>}
 
@@ -132,10 +130,9 @@ export function StudioStage({ studio }: { studio: StudioController }) {
           </>
         )}
         <div className={styles.controlDivider} />
-        <button className={`${styles.roundControl} ${micMuted ? styles.controlOff : ''}`} onClick={() => setMicMuted((value) => !value)} aria-label="Toggle microphone"><StudioIcon name="mic" /></button>
-        <button className={`${styles.roundControl} ${!cameraVisible ? styles.controlOff : ''}`} onClick={() => setCameraVisible((value) => !value)} aria-label="Toggle camera"><StudioIcon name="camera" /></button>
+        <StudioMediaToggles studio={studio} />
       </div>
-      <div className={styles.shortcutHint}>Space pause/resume · Alt+S finish · video is checkpointed to IndexedDB</div>
+      {/* <div className={styles.shortcutHint}>Space pause/resume · Alt+S finish · video is checkpointed to IndexedDB</div> */}
     </section>
   );
 }

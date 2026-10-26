@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'reac
 import { AudioMeterPanel } from './AudioMeterPanel';
 import { formatDuration } from './studioConfig';
 import { StatusDot, StudioIcon } from './StudioPrimitives';
+import { StudioMediaToggles } from './StudioMediaToggles';
 import type { StudioController } from './useStudioController';
 import styles from './StudioShell.module.css';
 
@@ -62,9 +63,6 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
     resumeRecording,
     pauseRecording,
     stopRecording,
-    micMuted,
-    setMicMuted,
-    setCameraVisible,
   } = studio;
   const cursor = presentationSource.cursor;
   const cleanTabCapture = presentationSource.capture?.scope === 'tab';
@@ -285,8 +283,7 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
           </>
         )}
         <div className={styles.controlDivider} />
-        <button className={`${styles.roundControl} ${micMuted ? styles.controlOff : ''}`} onClick={() => setMicMuted((value) => !value)} aria-label="Toggle microphone"><StudioIcon name="mic" /></button>
-        <button className={`${styles.roundControl} ${!cameraVisible ? styles.controlOff : ''}`} onClick={() => setCameraVisible((value) => !value)} aria-label="Toggle camera"><StudioIcon name="camera" /></button>
+        <StudioMediaToggles studio={studio} />
       </div>
       <div className={styles.shortcutHint}>Arrow keys change slides · Shift+F full screen · Alt+R replace material · Space pause/resume · Alt+S finish</div>
     </section>

@@ -8,12 +8,13 @@ import styles from './GlobalMediaControl.module.css';
 
 const POSITION_STORAGE_KEY = 'recordweb-device-control-position';
 
-function SourceIcon({ source }: { source: MediaSource }) {
+function SourceIcon({ source, inactive = false }: { source: MediaSource; inactive?: boolean }) {
   if (source === 'microphone') {
     return (
       <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="8" y="3" width="8" height="12" rx="4" />
         <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" />
+        {inactive && <path d="M2 2l20 20" />}
       </svg>
     );
   }
@@ -23,6 +24,7 @@ function SourceIcon({ source }: { source: MediaSource }) {
       <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="6" width="13" height="12" rx="3" />
         <path d="m16 10 5-3v10l-5-3" />
+        {inactive && <path d="M2 2l20 20" />}
       </svg>
     );
   }
@@ -44,12 +46,14 @@ export function GlobalMediaControl() {
     stopCamera,
     stopMicrophone,
     stopAll,
+    micMuted,
+    cameraVisible,
   } = useMediaSession();
 
   const sources = [
-    { source: 'screen' as const, label: 'Screen', stream: screenStream, stop: stopScreen },
-    { source: 'camera' as const, label: 'Camera', stream: cameraStream, stop: stopCamera },
-    { source: 'microphone' as const, label: 'Mic', stream: microphoneStream, stop: stopMicrophone },
+    { source: 'screen' as const, label: 'Screen', stream: screenStream, stop: stopScreen, inactive: false },
+    { source: 'camera' as const, label: cameraVisible ? 'Camera' : 'Camera off', stream: cameraStream, stop: stopCamera, inactive: !cameraVisible },
+    { source: 'microphone' as const, label: micMuted ? 'Mic muted' : 'Mic', stream: microphoneStream, stop: stopMicrophone, inactive: micMuted },
   ].filter(({ stream }) => Boolean(stream));
   const {
     panelRef,
@@ -110,16 +114,16 @@ export function GlobalMediaControl() {
         </button>
       </div>
       <div className={styles.sources}>
-        {sources.map(({ source, label, stop }) => (
+        {sources.map(({ source, label, stop, inactive }) => (
           <button
             className={styles.sourceButton}
             key={source}
             type="button"
             onClick={stop}
-            aria-label={`Disconnect ${label.toLowerCase()}`}
-            title={`Disconnect ${label.toLowerCase()}`}
+            aria-label={`Disconnect ${source}`}
+            title={`Disconnect ${source}`}
           >
-            <SourceIcon source={source} />
+            <SourceIcon source={source} inactive={inactive} />
             <span>{label}</span>
             <span className={styles.close} aria-hidden="true">×</span>
           </button>

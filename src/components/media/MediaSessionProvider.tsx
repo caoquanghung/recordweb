@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { useMediaDevices, type UseMediaDevicesResult } from '@/hooks/useMediaDevices';
 import {
   useTabCaptureExtension,
@@ -9,6 +9,10 @@ import {
 
 export interface MediaSessionContextValue extends UseMediaDevicesResult {
   tabCapture: TabCaptureExtensionResult;
+  micMuted: boolean;
+  setMicMuted: Dispatch<SetStateAction<boolean>>;
+  cameraVisible: boolean;
+  setCameraVisible: Dispatch<SetStateAction<boolean>>;
 }
 
 const MediaSessionContext = createContext<MediaSessionContextValue | null>(null);
@@ -19,9 +23,13 @@ interface MediaSessionProviderProps {
 }
 
 export function MediaSessionProvider({ children }: MediaSessionProviderProps) {
+  const [micMuted, setMicMuted] = useState(false);
+  const [cameraVisible, setCameraVisible] = useState(true);
   const mediaSession = useMediaDevices();
   const {
     stopAll: stopAllOwned,
+    microphoneStream,
+    cameraStream,
   } = mediaSession;
   const tabCapture = useTabCaptureExtension();
   const disconnectTabCapture = tabCapture.disconnect;
@@ -29,11 +37,40 @@ export function MediaSessionProvider({ children }: MediaSessionProviderProps) {
     disconnectTabCapture();
     stopAllOwned();
   }, [disconnectTabCapture, stopAllOwned]);
+
+  useEffect(() => {
+    const tracks = microphoneStream?.getAudioTracks() ?? [];
+    if (!micMuted) {
+      tracks.forEach((track) => {
+        track.enabled = true;
+      });
+      return;
+    }
+
+    // Let the DSP gain reach silence before disabling the shared raw track.
+    const disableTracks = window.setTimeout(() => {
+      tracks.forEach((track) => {
+        if (track.readyState === 'live') track.enabled = false;
+      });
+    }, 60);
+    return () => window.clearTimeout(disableTracks);
+  }, [microphoneStream, micMuted]);
+
+  useEffect(() => {
+    cameraStream?.getVideoTracks().forEach((track) => {
+      track.enabled = cameraVisible;
+    });
+  }, [cameraStream, cameraVisible]);
+
   const value = useMemo<MediaSessionContextValue>(() => ({
     ...mediaSession,
     stopAll,
     tabCapture,
-  }), [mediaSession, stopAll, tabCapture]);
+    micMuted,
+    setMicMuted,
+    cameraVisible,
+    setCameraVisible,
+  }), [mediaSession, stopAll, tabCapture, micMuted, cameraVisible]);
 
   return (
     <MediaSessionContext.Provider value={value}>

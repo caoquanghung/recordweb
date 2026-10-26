@@ -21,7 +21,7 @@ function RecordingWorkspace({ onOpenPresentation }: { onOpenPresentation: () => 
   return (
     <section className={`${styles.workspace} ${studio.session === 'review' ? '' : styles.standardWorkspace}`}>
       <StudioHeader studio={studio} />
-      <StudioToolbar studio={studio} onOpenPresentation={onOpenPresentation} />
+      {/* <StudioToolbar studio={studio} onOpenPresentation={onOpenPresentation} /> */}
       <StudioSessionNotice studio={studio} />
 
       {studio.session === 'review' ? (

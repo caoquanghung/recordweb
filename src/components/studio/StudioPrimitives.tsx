@@ -6,7 +6,9 @@ export type StudioIconName =
   | 'spark'
   | 'screen'
   | 'camera'
+  | 'cameraOff'
   | 'mic'
+  | 'micOff'
   | 'pause'
   | 'stop'
   | 'play'
@@ -23,7 +25,9 @@ export function StudioIcon({ name }: { name: StudioIconName }) {
     spark: <><path d="m12 3 1.2 4.1L17 9l-3.8 1.9L12 15l-1.2-4.1L7 9l3.8-1.9L12 3Z"/><path d="m5 14 .7 2.3L8 17.5l-2.3 1.2L5 21l-.7-2.3L2 17.5l2.3-1.2L5 14ZM19 13l.5 1.7 1.5.8-1.5.8L19 18l-.5-1.7-1.5-.8 1.5-.8L19 13Z"/></>,
     screen: <><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></>,
     camera: <><path d="M15 8h4l2-2v12l-2-2h-4"/><rect x="3" y="6" width="12" height="12" rx="2"/></>,
+    cameraOff: <><path d="M15 8h4l2-2v12l-2-2h-4"/><rect x="3" y="6" width="12" height="12" rx="2"/><path d="M2 2l20 20"/></>,
     mic: <><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/></>,
+    micOff: <><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6M2 2l20 20"/></>,
     pause: <><path d="M8 5v14M16 5v14"/></>,
     stop: <rect x="6" y="6" width="12" height="12" rx="2"/>,
     play: <path d="m8 5 11 7-11 7V5Z"/>,

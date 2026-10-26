@@ -13,7 +13,7 @@ interface AudioMeterReading {
 
 interface AudioMeterPanelProps {
   microphone: AudioMeterReading;
-  systemAudio: AudioMeterReading;
+  systemAudio?: AudioMeterReading;
   state: AudioDspState;
   compact?: boolean;
   minimal?: boolean;
@@ -29,7 +29,7 @@ export function AudioMeterPanel({
   onResume,
 }: AudioMeterPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const combinedLevel = Math.max(microphone.level, systemAudio.level);
+  const combinedLevel = Math.max(microphone.level, systemAudio?.level ?? 0);
   const percentage = Math.round(combinedLevel * 100);
   const meters = (
     <>
@@ -43,24 +43,26 @@ export function AudioMeterPanel({
         minimal={minimal}
         tone="microphone"
       />
-      <AudioLevelMeter
-        label="System audio"
-        level={systemAudio.level}
-        levelDb={systemAudio.levelDb}
-        state={state}
-        hasInput={systemAudio.available}
-        compact={compact}
-        minimal={minimal}
-        tone="system"
-      />
+      {systemAudio && (
+        <AudioLevelMeter
+          label="System audio"
+          level={systemAudio.level}
+          levelDb={systemAudio.levelDb}
+          state={state}
+          hasInput={systemAudio.available}
+          compact={compact}
+          minimal={minimal}
+          tone="system"
+        />
+      )}
     </>
   );
 
   if (minimal) {
     return (
-      <section className={`${styles.panel} ${styles.minimal}`} aria-label="Live audio levels">
+      <section className={`${styles.panel} ${styles.minimal}`} aria-label={systemAudio ? 'Live audio levels' : 'Live microphone level'}>
         <div className={styles.minimalHeading}>
-          <strong>Audio activity</strong>
+          <strong>{systemAudio ? 'Audio activity' : 'Microphone activity'}</strong>
           {state === 'suspended' && onResume && <button type="button" onClick={onResume}>Start audio</button>}
         </div>
         <div className={styles.minimalMeters}>{meters}</div>
