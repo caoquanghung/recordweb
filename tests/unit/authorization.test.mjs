@@ -42,6 +42,7 @@ test('invalid claims never elevate permissions', () => {
 test('user has only the core recording permission', () => {
   assert.deepEqual(getPermissions('user'), ['recording:use']);
   assert.equal(hasPermission('user', 'recording:use'), true);
+  assert.equal(hasPermission('user', 'recording-assets:inspect'), false);
   assert.equal(hasPermission('user', 'diagnostics:internal'), false);
   assert.equal(hasPermission('user', 'experiments:use'), false);
   assert.equal(hasPermission('user', 'users:manage'), false);
@@ -49,6 +50,7 @@ test('user has only the core recording permission', () => {
 
 test('developer has every declared application permission', () => {
   assert.equal(hasPermission('developer', 'recording:use'), true);
+  assert.equal(hasPermission('developer', 'recording-assets:inspect'), true);
   assert.equal(hasPermission('developer', 'diagnostics:internal'), true);
   assert.equal(hasPermission('developer', 'telemetry:read'), true);
   assert.equal(hasPermission('developer', 'experiments:use'), true);

@@ -13,6 +13,7 @@ import type {
   DbSharedRecording,
 } from '@/types/database';
 import type { RecordingMetadata } from '@/types/recording';
+import type { RecordingInspectionData } from '@/components/review/recordingInspection';
 
 export type LibraryTab = 'mine' | 'shared' | 'local' | 'cloud';
 export type LibrarySort = 'newest' | 'oldest';
@@ -25,6 +26,7 @@ export type RecordingPreview = {
   title: string;
   url: string;
   canDownload: boolean;
+  inspection?: RecordingInspectionData;
 };
 
 export type CursorPreview = {

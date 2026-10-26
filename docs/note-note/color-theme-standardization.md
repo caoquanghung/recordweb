@@ -111,7 +111,7 @@ Các giá trị dark theme ở trên là đề xuất và phải được kiểm
 
 | ID | Component | File | Trạng thái | Hướng xử lý |
 | --- | --- | --- | --- | --- |
-| `COLOR-REVIEW-TOOLS-01` | `RecordedAudioWaveform`, `RecordedCursorTrajectory` | `src/components/review/RecordedAudioWaveform.module.css`, `src/components/review/RecordedCursorTrajectory.module.css` | **Deferred**: đã bị loại khỏi standard user preview; có thể quay lại trong developer-only tooling | Nếu giữ lại, đổi icon, waveform fill, plot grid và inherited primary sang blue tokens trước khi expose lại. Không cần ưu tiên ở lần chuẩn hoá đầu. |
+| `COLOR-REVIEW-TOOLS-01` | `RecordedAudioWaveform`, `RecordedCursorTrajectory` | `src/components/review/RecordedAudioWaveform.module.css`, `src/components/review/RecordedCursorTrajectory.module.css` | **Implemented**: đã tái kích hoạt trong `RecordingDeveloperInspection`; không xuất hiện với User | Icon, waveform fill, plot grid và SVG path đã dùng semantic blue inherited từ developer inspection wrapper. |
 | `COLOR-LEGACY-NAV-01` | `AppNavigation` | `src/components/app/AppNavigation.module.css` | **Deferred**: legacy navigation, không còn là navigation chính của route hiện tại | Không dành effort chỉ để recolor code chết. Nếu tái sử dụng thì phải chuyển brand gradient, active item và status glow sang xanh trước khi mount. Nếu chắc chắn không dùng nữa, tạo task xoá riêng. |
 
 ## 4. Mapping theo nhóm selector của Studio
@@ -176,6 +176,7 @@ Yêu cầu “tím sang xanh” chỉ áp dụng cho **brand và trạng thái t
 - [x] `COLOR-SIDEBAR-DARK-01`: Sidebar dark không còn periwinkle palette riêng.
 - [x] `COLOR-LIBRARY-DARK-01` và `COLOR-DETAILS-DARK-01`: Library/Details dark dùng cùng hue xanh chuẩn.
 - [x] `COLOR-PRIVACY-01`: Privacy brand/link accent dùng xanh.
+- [x] `COLOR-REVIEW-TOOLS-01`: Developer waveform/cursor inspection dùng semantic blue, không tái đưa màu tím vào active UI.
 - [x] Focus-visible dùng semantic focus ring; các cặp màu brand/CTA chính đạt WCAG AA theo contrast check tĩnh.
 - [x] Red/green/amber semantic states giữ nguyên ý nghĩa và độ phân biệt.
 - [x] Không có thay đổi trong hooks, media pipeline, API, RBAC, persistence hoặc upload.

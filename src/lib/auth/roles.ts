@@ -4,6 +4,7 @@ export type AppRole = (typeof APP_ROLES)[number];
 
 export const APP_PERMISSIONS = [
   'recording:use',
+  'recording-assets:inspect',
   'diagnostics:internal',
   'telemetry:read',
   'experiments:use',

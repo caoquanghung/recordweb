@@ -33,7 +33,7 @@
   place-items: center;
   border-radius: 11px;
   color: var(--primary-bright);
-  background: rgba(124, 109, 242, 0.12);
+  background: color-mix(in srgb, var(--primary-bright) 12%, transparent);
 }
 
 .icon svg {
@@ -80,7 +80,7 @@
   border-radius: 13px;
   color: inherit;
   background:
-    linear-gradient(180deg, rgba(124, 109, 242, 0.08), transparent),
+    linear-gradient(180deg, color-mix(in srgb, var(--primary-bright) 8%, transparent), transparent),
     var(--panel-raised);
   cursor: pointer;
 }

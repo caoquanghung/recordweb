@@ -26,7 +26,7 @@ Quy tắc này áp dụng cho:
 
 Các asset audio, cursor và clean source vẫn có thể được ghi, lưu và upload theo pipeline hiện tại. Yêu cầu này chỉ thay đổi presentation layer. Việc có tiếp tục cho tải ZIP chứa separate-source assets hay không là quyết định riêng, chưa thay đổi trong tài liệu này.
 
-Nếu Developer cần waveform, cursor trajectory hoặc source inspection, các công cụ đó phải nằm trong developer-only tooling/diagnostics riêng, không render bên trong user preview mặc định.
+Developer có thêm `RecordingDeveloperInspection`, được gate bằng `recording-assets:inspect`, sau composite preview tại Studio/Presentation Review, Library preview dialog và Recording Details. Panel hiển thị source-asset inventory, waveform và cursor trajectory khi asset tồn tại; nó không thay đổi ownership/share guard.
 
 ## 2. Component dùng chung
 
@@ -44,10 +44,10 @@ Nếu Developer cần waveform, cursor trajectory hoặc source inspection, các
 | --- | --- | --- | --- |
 | `/` | `Home` | Không có UI; redirect `/dashboard` | Không cần |
 | `/dashboard` | `DashboardClient` | `AppSidebar`; recovery banner; hero; recent cards; statistics; quick-start; preset list | User và Developer đều thấy; statistics toàn hệ thống trong tương lai mới dành cho Developer |
-| `/studio` | `StudioShell` → `RecordingWorkspace` | `AppSidebar`, `StudioHeader`, `StudioToolbar`, `StudioSessionNotice`, `StudioSourcesPanel`, `StudioStage`, `StudioEffectsPanel`, `StudioReviewWorkspace`, `StudioDiagnosticsDrawer` | User review trong `StudioReviewWorkspace` chỉ hiển thị composite video; internal diagnostics chỉ Developer |
-| `/presentation` | `StudioShell(initialWorkspace="presentation")` → `PresentationWorkspace` | `AppSidebar`, `StudioHeader`, `StudioToolbar`, `PresentationSourcesPanel`, `PresentationStage`, `StudioEffectsPanel`, `StudioReviewWorkspace`, `StudioDiagnosticsDrawer` | User review chỉ hiển thị composite video; internal diagnostics chỉ Developer |
-| `/library` | `LibraryClient` | `AppSidebar`, `LibraryRecordingGrid`, `LocalRecordingCard`, `CloudRecordingCard`, `SharedRecordingCard`, `RecordingPreviewDialog`, `SharingDialog` | Cards/preview chỉ hiển thị composite; không waveform/cursor UI; action vẫn dựa trên owner/`viewer`/`viewer_download` |
-| `/library/[recordingId]` | `RecordingDetailsClient` | `AppSidebar`, `StatusPage`, composite video player, share card, chapters, file info | Không waveform, cursor path hoặc separate-source detail trong user view; Developer không tự động xem recording của user khác |
+| `/studio` | `StudioShell` → `RecordingWorkspace` | `AppSidebar`, `StudioHeader`, `StudioToolbar`, `StudioSessionNotice`, `StudioSourcesPanel`, `StudioStage`, `StudioEffectsPanel`, `StudioReviewWorkspace`, `RecordingDeveloperInspection`, `StudioDiagnosticsDrawer` | User review chỉ có composite; Developer có thêm asset inspection; internal diagnostics chỉ Developer |
+| `/presentation` | `StudioShell(initialWorkspace="presentation")` → `PresentationWorkspace` | `AppSidebar`, `StudioHeader`, `StudioToolbar`, `PresentationSourcesPanel`, `PresentationStage`, `StudioEffectsPanel`, `StudioReviewWorkspace`, `RecordingDeveloperInspection`, `StudioDiagnosticsDrawer` | User review chỉ có composite; Developer có thêm asset inspection; internal diagnostics chỉ Developer |
+| `/library` | `LibraryClient` | `AppSidebar`, `LibraryRecordingGrid`, `LocalRecordingCard`, `CloudRecordingCard`, `SharedRecordingCard`, `RecordingPreviewDialog`, `RecordingDeveloperInspection`, `SharingDialog` | User preview chỉ có composite; Developer inspection dùng recording đã qua owner/share guard; action vẫn dựa trên owner/`viewer`/`viewer_download` |
+| `/library/[recordingId]` | `RecordingDetailsClient` | `AppSidebar`, `StatusPage`, composite video player, `RecordingDeveloperInspection`, share card, chapters, file info | User view không có auxiliary visualization; Developer có thêm inspection nhưng không tự động xem recording của user khác |
 | `/settings` | `SettingsClient` | `WorkspaceShell`, `AppSidebar`, theme card, local storage card, cloud diagnostics card, privacy card | Theme/storage/privacy cho cả hai; cloud/internal diagnostics chỉ Developer |
 | `/share/[recordingId]` | `SharePage` | Video, metadata, `RecordingArchiveDownloadButton` | Không dựa trên app role; dùng public/owner/`viewer`/`viewer_download` |
 | `/sign-in/[[...sign-in]]` | `SignInPage` | Clerk `SignIn` | Public; chưa có role |
@@ -60,11 +60,11 @@ Nếu Developer cần waveform, cursor trajectory hoặc source inspection, các
 | Parent | Component con |
 | --- | --- |
 | `StudioStage`, `PresentationStage` | `AudioMeterPanel` → `AudioLevelMeter` |
-| `StudioReviewWorkspace` | Chỉ render composite preview; waveform và cursor trajectory đã được bỏ khỏi standard review |
+| `StudioReviewWorkspace` | Composite preview cho mọi role; mount `RecordingDeveloperInspection` sau preview và để wrapper tự gate permission |
 | `LibraryRecordingGrid` | Local, Cloud và Shared card variants |
 | `CloudRecordingWaveform` | Không còn được render từ user-facing Library cards |
 | `CursorPreviewDialog` | Không còn được render từ user-facing Library |
-| `RecordingDetailsClient` | Chỉ giữ composite video trong media preview; waveform và source list đã được bỏ |
+| `RecordingDetailsClient` | Composite video cho mọi role; Developer có thêm `RecordingDeveloperInspection` |
 
 Audio waveform và cursor components không xuất hiện trong user preview. Nếu giữ lại cho Developer, role check phải nằm ở developer-only UI wrapper; không đặt role logic vào các visualization component hoặc media hooks.
 
@@ -75,9 +75,9 @@ Audio waveform và cursor components không xuất hiện trong user preview. N�
 | 1 | `AppSidebar` | Ẩn/hiện developer menu theo permission |
 | 2 | `StudioDiagnosticsDrawer` | Tách device preflight khỏi internal diagnostics |
 | 3 | `SettingsClient` | Chỉ render cloud/internal diagnostics cho Developer |
-| 4 | `StudioReviewWorkspace` | User chỉ thấy composite video; bỏ waveform, cursor player và source-detail preview |
-| 5 | `LibraryRecordingGrid` / `LibraryClient` | Bỏ waveform và cursor actions/dialog khỏi user Library |
-| 6 | `RecordingDetailsClient` | Chỉ giữ composite video trong media preview; bỏ waveform và source-detail panel khỏi user view |
+| 4 | `StudioReviewWorkspace` | User chỉ thấy composite; mount developer inspection bằng permission wrapper |
+| 5 | `LibraryRecordingGrid` / `LibraryClient` | User chỉ thấy composite; truyền inspection data vào preview dialog cho Developer |
+| 6 | `RecordingDetailsClient` | User chỉ thấy composite; mount developer inspection sau media card |
 | 7 | Developer management screen mới | Chưa tồn tại; chỉ tạo sau khi API quản trị được bảo vệ |
 | 8 | `StudioHeader` / `StudioToolbar` | Chỉ sửa nếu thêm nút mở developer tools |
 
@@ -91,7 +91,7 @@ Không thêm role checks vào media hooks, canvas compositor, audio DSP, recordi
 | Recording/Presentation Studio | x | x |
 | Library/Recording Details | x | x |
 | Composite recording preview | x | x |
-| Waveform/cursor/source inspection trong standard preview |  |  |
+| Waveform/cursor/source inspection |  | x |
 | Theme, local storage, privacy settings | x | x |
 | Device/browser preflight | x | x |
 | Internal diagnostics |  | x |
@@ -101,7 +101,7 @@ Không thêm role checks vào media hooks, canvas compositor, audio DSP, recordi
 
 Ẩn component chỉ phục vụ UX. API và server page tương ứng vẫn phải kiểm tra permission ở server.
 
-Waveform/cursor/source inspection có thể được thêm lại cho Developer dưới một developer-only screen riêng; mặc định không xuất hiện trong các preview chuẩn của cả hai role.
+Waveform/cursor/source inspection được mount trong developer-only panel sau composite preview; mặc định không xuất hiện với role `user`.
 
 ## 7. Source cũ không thuộc screen hiện tại
 
@@ -116,6 +116,6 @@ Waveform/cursor/source inspection có thể được thêm lại cho Developer d
 - `AppSidebar` hỗ trợ `requiredPermission` cho menu đặc quyền.
 - Studio device preflight khả dụng cho cả hai role; Clerk/Neon/Blob diagnostics chỉ render và gọi API cho Developer.
 - Settings cloud diagnostics chỉ render cho Developer.
-- Studio/Presentation Review, Library cards/dialog và Recording Details hiện dùng composite-only preview.
+- Studio/Presentation Review, Library preview dialog và Recording Details dùng composite-only preview cho User, đồng thời mount developer-only asset inspection.
 - Presentation Studio được phân loại là core cho cả User và Developer.
-- Developer management screen và developer-only source inspection tool chưa nằm trong scope hiện tại.
+- Developer management screen chưa nằm trong scope hiện tại.

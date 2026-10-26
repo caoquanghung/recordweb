@@ -4,6 +4,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppSidebar } from '@/components/app/AppSidebar';
+import { RecordingDeveloperInspection } from '@/components/review/RecordingDeveloperInspection';
+import { getCloudRecordingInspection } from '@/components/review/recordingInspection';
 import { downloadRecordingArchive } from '@/lib/recordingArchive';
 import type { DbRecording, DbSharedRecording } from '@/types/database';
 import styles from './RecordingDetailsClient.module.css';
@@ -139,6 +141,10 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
     && (recording.storage_url || recording.assets?.length),
   );
   const chapters = useMemo(() => recording ? getChapters(recording.settings) : [], [recording]);
+  const developerInspection = useMemo(
+    () => recording ? getCloudRecordingInspection(recording) : undefined,
+    [recording],
+  );
 
   const copyShareLink = async () => {
     if (!recording) return;
@@ -259,6 +265,8 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
                   )}
                 </div>
               </section>
+
+              {developerInspection && <RecordingDeveloperInspection {...developerInspection} />}
 
             </div>
 

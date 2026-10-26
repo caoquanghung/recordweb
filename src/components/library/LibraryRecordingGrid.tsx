@@ -1,4 +1,8 @@
 import Link from 'next/link';
+import {
+  getCloudRecordingInspection,
+  getLocalRecordingInspection,
+} from '@/components/review/recordingInspection';
 import { RECORDING_ARCHIVE_KINDS } from '@/lib/recordingArchive';
 import type { DbRecording, DbSharedRecording } from '@/types/database';
 import type { RecordingMetadata } from '@/types/recording';
@@ -47,6 +51,7 @@ function LocalRecordingCard({
           title: recording.title,
           url: recording.previewUrl,
           canDownload: true,
+          inspection: getLocalRecordingInspection(recording),
         })}
       />
       <div className={styles.cardBody}>
@@ -64,6 +69,7 @@ function LocalRecordingCard({
               title: recording.title,
               url: recording.previewUrl!,
               canDownload: true,
+              inspection: getLocalRecordingInspection(recording),
             })}>
               <LibraryIcon name="play" />Xem lại
             </button>
@@ -98,6 +104,7 @@ function CloudRecordingCard({
           title: recording.title,
           url: recording.storage_url,
           canDownload: true,
+          inspection: getCloudRecordingInspection(recording),
         })}
       />
       <div className={styles.cardBody}>
@@ -143,6 +150,7 @@ function SharedRecordingCard({
           title: recording.title,
           url: recording.storage_url,
           canDownload,
+          inspection: getCloudRecordingInspection(recording),
         })}
       />
       <div className={styles.cardBody}>

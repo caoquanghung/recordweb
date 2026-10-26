@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { RecordingDeveloperInspection } from '@/components/review/RecordingDeveloperInspection';
+import { getLocalRecordingInspection } from '@/components/review/recordingInspection';
 import { RECORDING_ARCHIVE_KINDS } from '@/lib/recordingArchive';
 import { MAX_RECORDING_TITLE_LENGTH } from '@/lib/recordingTitle';
 import { formatDuration } from './studioConfig';
@@ -28,6 +30,9 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
   const recordingFileCount = RECORDING_ARCHIVE_KINDS.filter(
     (kind) => Boolean(activeRecording?.assets?.[kind]?.blob || (kind === 'composite' && activeRecording?.blob)),
   ).length;
+  const developerInspection = activeRecording
+    ? getLocalRecordingInspection(activeRecording)
+    : undefined;
 
   return (
     <section className={styles.reviewWorkspace}>
@@ -95,6 +100,7 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
           <><div><StudioIcon name="play" /></div><strong>Preparing preview…</strong></>
         )}
       </div>
+      {developerInspection && <RecordingDeveloperInspection {...developerInspection} />}
       {recordingFileCount > 0 && (
         <div className={styles.sourceAssets}>
           <div>

@@ -1,0 +1,115 @@
+.inspection {
+  --surface: var(--panel-raised);
+  --primary: var(--brand-primary-action);
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--brand-primary-border);
+  border-radius: 18px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel) 94%, var(--brand-primary-soft));
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.heading span {
+  color: var(--primary-bright);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.heading h2 {
+  font-size: 18px;
+}
+
+.heading > strong {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid var(--brand-primary-border);
+  border-radius: 999px;
+  color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.assetSection {
+  display: grid;
+  gap: 8px;
+}
+
+.assetSection h3 {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.assetGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.assetCard {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.assetCard strong {
+  color: var(--text);
+  font-size: 11px;
+}
+
+.assetCard span,
+.assetCard code {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assetCard code {
+  color: var(--primary-bright);
+}
+
+.status,
+.error {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 11px;
+}
+
+.error {
+  color: #b91c1c;
+  border-color: rgb(239 68 68 / 28%);
+  background: rgb(239 68 68 / 8%);
+}
+
+@media (max-width: 640px) {
+  .inspection { padding: 12px; }
+  .heading { align-items: flex-start; flex-direction: column; }
+}

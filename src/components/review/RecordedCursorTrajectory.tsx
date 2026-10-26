@@ -196,8 +196,8 @@ export function RecordedCursorTrajectory({ blob }: Props) {
       <div className={styles.plot}>
         <svg viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} role="img" aria-label={`Cursor position at ${formatTimestamp(currentTimeMs)}`}>
           <defs>
-            <linearGradient id="cursor-path-gradient"><stop stopColor="#7c6df2"/><stop offset="1" stopColor="#42d6a4"/></linearGradient>
-            <linearGradient id="cursor-trail-gradient"><stop stopColor="#7c6df2"/><stop offset="1" stopColor="#61f3bd"/></linearGradient>
+            <linearGradient id="cursor-path-gradient"><stop stopColor="var(--primary-bright)"/><stop offset="1" stopColor="#42d6a4"/></linearGradient>
+            <linearGradient id="cursor-trail-gradient"><stop stopColor="var(--primary-bright)"/><stop offset="1" stopColor="#61f3bd"/></linearGradient>
           </defs>
           {allSegments.map((path, index) => <path className={styles.fullPath} key={`full-${index}-${path.length}`} d={path} />)}
           {activeSegments.map((path, index) => <path className={styles.activePath} key={`active-${index}-${path.length}`} d={path} />)}

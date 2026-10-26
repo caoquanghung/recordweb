@@ -225,6 +225,7 @@
 .shareModal { width: min(840px, 100%); max-height: calc(100vh - 40px); overflow: auto; color: var(--library-ink); border: 1px solid var(--library-line); border-radius: 18px; background: #fff; box-shadow: 0 30px 100px rgb(15 23 42 / 35%); }
 .previewModal video { width: 100%; display: block; aspect-ratio: 16 / 9; background: #020617; }
 .cursorModalBody { padding: 18px; }
+.inspectionModalBody { padding: 18px; }
 .modalHeader { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 18px; border-bottom: 1px solid var(--library-line); }
 .modalHeader div { min-width: 0; display: grid; gap: 4px; }
 .modalHeader span { color: var(--library-blue); font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }

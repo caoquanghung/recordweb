@@ -92,6 +92,7 @@ Permission dự kiến:
 | Permission | User | Developer |
 | --- | :---: | :---: |
 | `recording:use` | x | x |
+| `recording-assets:inspect` |  | x |
 | `diagnostics:internal` |  | x |
 | `telemetry:read` |  | x |
 | `experiments:use` |  | x |
@@ -202,6 +203,7 @@ UI layer dự kiến gồm:
 | `StudioHeader` | Tách device preflight khỏi trigger internal diagnostics |
 | `StudioDiagnosticsDrawer` | Chỉ hiển thị dữ liệu vận hành nội bộ cho `developer` |
 | `SettingsClient` | Gate Cloud & Services diagnostics bằng `diagnostics:internal` |
+| `RecordingDeveloperInspection` | Gate waveform, cursor trajectory và source-asset inventory bằng `recording-assets:inspect` |
 | `StudioToolbar` | Presentation là core; không gate theo role |
 | `SidebarShowcase` | Không tự quyết định quyền; server page `/component/sidebar` phải bảo vệ route |
 | `/admin` components | Chỉ nhận dữ liệu sau server check `users:manage` |
@@ -210,15 +212,17 @@ UI layer dự kiến gồm:
 
 ### 6.2. Chính sách preview recording
 
-Preview tiêu chuẩn tại Studio/Presentation Review, Library và Recording Details chỉ hiển thị composite canvas video với mixed audio cho cả `user` và `developer`.
+Preview tiêu chuẩn tại Studio/Presentation Review, Library và Recording Details luôn hiển thị composite canvas video với mixed audio cho cả `user` và `developer`.
 
-Không render trong preview tiêu chuẩn:
+Với `user`, không render thêm:
 
 - audio waveform hoặc mic/system-audio visualization;
 - cursor path hoặc cursor trajectory player;
 - panel chi tiết cho webcam, screen hay source-audio asset riêng.
 
-Các auxiliary asset vẫn có thể được record, persist và upload theo pipeline hiện tại; quyết định có đưa chúng vào archive download hay không là một chính sách riêng, không phải app role. Nếu developer cần inspect waveform, cursor hoặc source riêng, tạo một developer-only tool tách biệt và bảo vệ bằng permission phù hợp; không làm preview tiêu chuẩn thay đổi theo role.
+Các auxiliary asset vẫn được record, persist và upload theo pipeline hiện tại. Với `developer`, container của từng screen mount thêm `RecordingDeveloperInspection` sau composite preview khi có `recording-assets:inspect`. Panel này hiển thị danh sách source assets, mixed/microphone/system-audio waveform và cursor trajectory nếu dữ liệu tương ứng tồn tại.
+
+Permission này chỉ mở công cụ visualization sau khi recording đã vượt qua ownership/share/public guard hiện hữu; nó không cấp quyền xem recording của user khác. Quyết định có đưa auxiliary assets vào archive download vẫn là chính sách resource permission riêng, không phải app role.
 
 Các component cần loại bỏ hoặc tách phần visualization khỏi user-facing preview khi triển khai UI:
 
@@ -271,7 +275,7 @@ Yêu cầu UI:
 - Thêm `usePermission()` và `<Can>`.
 - Tách device preflight khỏi internal diagnostics tại `StudioHeader`, `StudioDiagnosticsDrawer` và `SettingsClient`.
 - Gate menu và trigger tại `AppSidebar`/`StudioToolbar`, đồng thời giữ server page là lớp bảo vệ chính.
-- Chuẩn hóa Studio/Presentation Review, Library và Recording Details thành composite-only preview.
+- Giữ user preview composite-only; mount developer asset-inspection panel tại Studio/Presentation Review, Library preview và Recording Details.
 - Chỉ hiển thị experimental features cho role phù hợp.
 - Tạo `/admin` cho developer sau khi API quản trị đã được bảo vệ server-side bằng `users:manage`.
 
@@ -293,7 +297,7 @@ Yêu cầu UI:
 - API quản trị yêu cầu `users:manage`; chỉ role `developer` có permission này.
 - User mở trực tiếp `/component/sidebar` bị từ chối hoặc route không tồn tại trong production.
 - Presentation Studio được phân loại core và truy cập được bởi cả hai role.
-- Preview tiêu chuẩn của cả hai role chỉ có composite video và mixed audio; developer inspection nằm ở tool riêng.
+- User preview chỉ có composite video và mixed audio; Developer có thêm asset inventory, waveform và cursor trajectory trong panel được gate bằng `recording-assets:inspect`.
 - Ẩn UI đặc quyền không phải cách duy nhất bảo vệ chức năng.
 - Direct API call không thể bypass server authorization.
 - Các ownership guard của recording, preset, share và project vẫn hoạt động như trước.
@@ -320,7 +324,7 @@ Yêu cầu UI:
 | `viewer` tải source assets | Bị từ chối |
 | `viewer_download` tải source assets | Thành công |
 | User xem Review/Library/Recording Details | Chỉ composite video + mixed audio |
-| Developer xem preview tiêu chuẩn | Vẫn chỉ composite; inspection dùng tool riêng |
+| Developer xem Review/Library/Recording Details | Composite + panel source inventory/waveform/cursor khi asset tồn tại |
 
 Sau khi triển khai, cần chạy `npm run lint`, `npm run build`, các test API authorization và Playwright E2E cho từng role.
 
@@ -335,6 +339,7 @@ Sau khi triển khai, cần chạy `npm run lint`, `npm run build`, các test AP
 - `PermissionProvider`, `usePermission()` và `<Can>` cho client UI;
 - tách device preflight khỏi internal diagnostics;
 - composite-only preview tại Review, Library và Recording Details;
+- developer-only recording asset inspection tại Review, Library preview và Recording Details;
 - authorization unit tests, anonymous E2E checks, lint và production build.
 
 Rollout còn phải thực hiện:
