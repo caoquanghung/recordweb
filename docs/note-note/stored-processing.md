@@ -8,6 +8,8 @@ I think the current implementation do not save for the uploading session (upload
 
 ## Implementation audit — October 29, 2026
 
+> Historical snapshot before the implementation below. The current full-backup, cancellation, and Dashboard recovery behavior is documented in **Implemented recovery flow** at the end of this file.
+
 The application has a local media recovery mechanism, but no durable upload-session recovery. An IndexedDB recording draft is not a resumable Blob upload or a pending Neon transaction.
 
 ### Current save order
@@ -52,3 +54,29 @@ The backup/upload conclusions above are based on static inspection of `useRecord
 Validation: production build and four leave-warning policy tests pass. Lint has zero errors and one pre-existing unused `onOpenPresentation` warning. An isolated Chromium fixture rendering the real warning component passed link cancel/confirm, Escape, default focus, same-document Back cancel/confirm, save-completion dismissal, reload cancellation, and full-document departure without a duplicate prompt; the modal screenshot was visually inspected. This does not constitute a live authenticated Studio/Blob/Neon interruption test.
 
 Future persistence work should first save every finalized asset, especially cursor JSON, before upload; then persist an upload manifest and completed asset URLs, add durable reconciliation/cleanup, and make Neon recording/asset creation transactional with a unique owner/local-ID key. These changes are outside this UX implementation.
+
+## Implemented recovery flow — October 29, 2026
+
+1. Finalization now waits for pending raw checkpoints, then atomically saves the complete recording (composite, available source video/audio, waveforms, cursor JSON) and a lightweight recovery index in IndexedDB. The temporary preview URL is excluded. Upload cannot start unless a full backup write succeeds.
+2. Review creates an authenticated upload attempt. Its exact file manifest and unique Blob namespace are stored in Neon. Each retry uses a new attempt ID; retries first check whether the recording was already committed, so a lost response does not cause another upload.
+3. Upload runs directly from the browser to Blob with an AbortSignal. Tokens are limited to the attempt's exact paths, MIME types, and file sizes. Tokens cannot be issued for another user's attempt or a cancelled/expired attempt.
+4. After every asset finishes, the server checks actual Blob metadata. One atomic SQL statement claims the upload and inserts both recording and asset rows. The unique owner/local-ID index prevents duplicate recordings. A failed asset insert rolls back the entire operation.
+5. Confirming **Leave anyway** aborts the uploads and submits cancellation before navigation (up to a five-second request timeout). Merely opening the warning or choosing **Stay** does not cancel anything. Actual page departure also sends a cancellation beacon. A cancellation tombstone prevents a delayed start request from reopening that same attempt.
+6. Cancellation and completion compete for the same database row. If completion already won, cancellation leaves the saved recording and files intact. If cancellation won, completion is rejected and server-side cleanup deletes only the exact paths in that attempt's manifest. The complete local backup remains.
+7. Verified Blob callbacks clean up files that finish after cancellation in both client-token and presigned modes. An active attempt has a 15-minute lease, renewed once per minute, and a one-hour token expiry. A daily cron expires abandoned attempts and retries cleanup, including delayed completions. Starting another upload also triggers an opportunistic cleanup sweep for that user. Completed attempts are never cleaned by this workflow.
+8. Dashboard reads small recovery summaries, filtered by owner for new backups, without loading every recording Blob. Its existing red **Lưu bài giảng ngay** button links to `/studio?recover=<backup-id>`. Studio loads that exact backup, reconstructs only its preview URL, opens Review, and starts saving automatically. It does not ask for media permissions or require a second recovery click. The recovery query is consumed after success so returning to Live Studio does not reload it.
+9. After cloud saving, the required title/local completion flow stays in effect. Only a successful full local save after title confirmation removes the recovery backup/index. Cloud success without a received response is discovered on retry rather than deleted. Legacy raw drafts can still be repaired, but missing historical cursor data cannot be recreated.
+
+### Deployment and cleanup limits
+
+- Migration `0008_recording_upload_attempts` adds the upload ledger and unique owner/local-ID index. It was applied and schema-verified on the configured Neon database; no existing recording rows were deleted or rewritten.
+- `vercel.json` schedules `/api/recording-uploads/cleanup` daily at `00:00 UTC`. **Set a strong `CRON_SECRET` in Vercel before deployment.** The endpoint fails closed without it, and Vercel supplies the bearer header automatically. See [Vercel cron authentication](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
+- Immediate cleanup is best-effort when a tab closes or the network disappears; durable expiry and the cron are the fallback. The UI does not claim deletion has completed synchronously at tab close. Upload cancellation aborts transfers and deletes completed Blob objects; unfinished multipart staging is managed by the storage provider.
+- Old orphan files outside the new `recording-uploads/<attempt-id>/` namespaces are intentionally outside this cleanup mechanism. Local recovery still depends on this browser/profile/origin retaining its IndexedDB storage. Legacy backups have no owner identity and retain their prior manual-recovery behavior; new backups are owner-tagged.
+
+### Verification
+
+- `npm run test:recording-storage`: tests backup-before-upload, quota failure, network failure, cancellation, page-exit beacon, existing-recording reuse, and manifest validation.
+- `npm run test:upload-database`: executes the production server lifecycle against real PostgreSQL with mocked Blob operations; all fixture rows are inside a transaction that is rolled back. Covers ownership, duplicate active attempts, cancellation-before-start, late callbacks, completed-record protection, expiry cleanup, atomic metadata rollback, and uniqueness.
+- An isolated Chromium fixture using the actual IndexedDB and leave-warning modules verifies video/cursor survival across reload, account-filtered summaries, index deletion, and link/Back/reload cancel/confirm behavior.
+- Build/lint validation is recorded in `MEMORY.md`. Real authenticated long-session capture, end-to-end Blob network interruption, and production cron execution still require deployment/runtime QA.

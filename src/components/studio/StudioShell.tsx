@@ -21,7 +21,7 @@ function RecordingWorkspace({ onOpenPresentation }: { onOpenPresentation: () => 
 
   return (
     <section className={`${styles.workspace} ${studio.session === 'review' ? '' : styles.standardWorkspace}`}>
-      <StudioLeaveWarning reason={studio.leaveWarning} />
+      <StudioLeaveWarning reason={studio.leaveWarning} onConfirmLeave={studio.cancelPendingUpload} />
       <StudioHeader studio={studio} />
       {/* <StudioToolbar studio={studio} onOpenPresentation={onOpenPresentation} /> */}
       <StudioSessionNotice studio={studio} />
@@ -51,7 +51,7 @@ function PresentationWorkspace({ onReturnToRecording }: { onReturnToRecording: (
 
   return (
     <section className={styles.workspace}>
-      <StudioLeaveWarning reason={studio.leaveWarning} />
+      <StudioLeaveWarning reason={studio.leaveWarning} onConfirmLeave={studio.cancelPendingUpload} />
       <StudioHeader
         studio={studio}
         integratedPresentation

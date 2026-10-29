@@ -3,6 +3,7 @@ import { getDb, isDbConfigured } from '@/lib/db';
 import { getSessionUserId, unauthorizedResponse } from '@/lib/auth';
 import { getBlobCommandCredentials } from '@/lib/blobCredentials';
 import { getRecordingTitleError, normalizeRecordingTitle } from '@/lib/recordingTitle';
+import { completeUploadAttempt, UploadConflict } from '@/lib/recordingUploads';
 import { DbRecording, DbRecordingAsset, DbSharedRecording } from '@/types/database';
 import { del } from '@vercel/blob';
 
@@ -77,156 +78,18 @@ export async function GET() {
   }
 }
 
-/** POST /api/recordings — Saves recording metadata for the authenticated user. */
+/** POST /api/recordings — Atomically completes one authenticated upload attempt. */
 export async function POST(request: NextRequest) {
-  // §2.9 — Auth gate
   const userId = await getSessionUserId();
   if (!userId) return unauthorizedResponse();
-
-  if (!isDbConfigured) {
-    return NextResponse.json(
-      { message: 'Database not configured. Saved to local storage only.' },
-      { status: 200 }
-    );
-  }
-
   try {
-    const body = await request.json();
-    const {
-      title,
-      recorded_at,
-      duration_seconds,
-      file_size_bytes,
-      resolution = '1920x1080',
-      fps = 30,
-      // §2.10 — mime_type stored as-is so the share page knows the container format
-      mime_type = 'video/webm',
-      local_id = null,
-      storage_url = null,
-      blob_pathname = null,  // required for future del(pathname) deletions
-      is_public = false,     // §2.9 — share link off by default
-      settings = {},
-      assets = [],
-    } = body;
-
-    const titleError = getRecordingTitleError(title);
-    if (titleError) {
-      return NextResponse.json({ error: titleError }, { status: 400 });
-    }
-    const recordedAt = typeof recorded_at === 'string' ? new Date(recorded_at) : null;
-    if (!recordedAt || Number.isNaN(recordedAt.getTime())) {
-      return NextResponse.json({ error: 'A valid recording timestamp is required.' }, { status: 400 });
-    }
-    const normalizedTitle = normalizeRecordingTitle(title);
-    const normalizedRecordedAt = recordedAt.toISOString();
-
-    const validAssetKinds = new Set([
-      'composite',
-      'webcam',
-      'screen',
-      'audio',
-      'microphone-audio',
-      'system-audio',
-      'cursor',
-    ]);
-    if (!Array.isArray(assets) || assets.some((asset) => !validAssetKinds.has(asset?.kind))) {
-      return NextResponse.json({ error: 'Invalid recording assets.' }, { status: 400 });
-    }
-
-    const sql = getDb();
-    // Retrying after a lost response must not create another recording row.
-    if (typeof local_id === 'string' && local_id) {
-      const existing = await sql`
-        SELECT * FROM recordings WHERE user_id = ${userId} AND local_id = ${local_id}
-        ORDER BY created_at DESC LIMIT 1;
-      `;
-      if (existing.length) {
-        const existingAssets = await sql`
-          SELECT * FROM recording_assets WHERE recording_id = ${existing[0].id}
-          ORDER BY created_at ASC;
-        `;
-        return NextResponse.json({ recording: { ...existing[0], assets: existingAssets } });
-      }
-    }
-    // §2.8 / §2.9 — Insert with user_id FK and is_public column
-    const result = await sql`
-      INSERT INTO recordings (
-        user_id,
-        title,
-        recorded_at,
-        duration_seconds,
-        file_size_bytes,
-        resolution,
-        fps,
-        mime_type,
-        local_id,
-        storage_url,
-        blob_pathname,
-        is_public,
-        settings
-      ) VALUES (
-        ${userId},
-        ${normalizedTitle},
-        ${normalizedRecordedAt},
-        ${duration_seconds},
-        ${file_size_bytes},
-        ${resolution},
-        ${fps},
-        ${mime_type},
-        ${local_id},
-        ${storage_url},
-        ${blob_pathname},
-        ${is_public},
-        ${JSON.stringify(settings)}
-      )
-      RETURNING *;
-    `;
-
-    const recording = result[0] as DbRecording;
-    const insertedAssets: DbRecordingAsset[] = [];
-    try {
-      for (const asset of assets) {
-        const assetResult = await sql`
-          INSERT INTO recording_assets (
-            recording_id,
-            kind,
-            storage_url,
-            blob_pathname,
-            mime_type,
-            file_size_bytes,
-            resolution,
-            fps,
-            sample_rate_hz,
-            metadata
-          ) VALUES (
-            ${recording.id},
-            ${asset.kind},
-            ${asset.storage_url},
-            ${asset.blob_pathname},
-            ${asset.mime_type},
-            ${asset.file_size_bytes},
-            ${asset.resolution ?? null},
-            ${asset.fps ?? null},
-            ${asset.sample_rate_hz ?? null},
-            ${JSON.stringify(asset.metadata ?? {})}
-          )
-          RETURNING *;
-        `;
-        insertedAssets.push(assetResult[0] as DbRecordingAsset);
-      }
-    } catch (assetError) {
-      await sql`DELETE FROM recordings WHERE id = ${recording.id} AND user_id = ${userId};`;
-      throw assetError;
-    }
-
-    return NextResponse.json({
-      recording: { ...recording, assets: insertedAssets },
-    }, { status: 201 });
+    const recording = await completeUploadAttempt(userId, await request.json(), request);
+    return NextResponse.json({ recording }, { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      { error: (error as Error).message },
-      { status: 500 }
-    );
+    console.error('Recording completion failed', error);
+    return NextResponse.json({
+      error: error instanceof UploadConflict ? error.message : 'Could not finish saving this recording. Please try again.',
+    }, { status: error instanceof UploadConflict ? 409 : 400 });
   }
 }
 

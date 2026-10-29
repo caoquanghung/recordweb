@@ -165,6 +165,12 @@ if (command === "verify") {
       IF to_regclass('public.recording_assets') IS NULL THEN
         RAISE EXCEPTION 'Missing table: recording_assets';
       END IF;
+      IF to_regclass('public.recording_upload_attempts') IS NULL THEN
+        RAISE EXCEPTION 'Missing table: recording_upload_attempts';
+      END IF;
+      IF to_regclass('public.recordings_owner_local_id_key') IS NULL THEN
+        RAISE EXCEPTION 'Missing unique owner/local recording index';
+      END IF;
       IF to_regclass('public.recording_projects') IS NULL THEN
         RAISE EXCEPTION 'Missing table: recording_projects';
       END IF;

@@ -1,5 +1,17 @@
 import type { RecordingMediaProfile, RecordingProjectStatus } from './recordingProject';
 import type { AppRole } from '@/lib/auth/roles';
+import type { UploadManifestAsset } from '@/lib/recordingUploadProtocol';
+
+export interface DbRecordingUploadAttempt {
+  id: string;
+  user_id: string;
+  local_id: string;
+  recording_id: string;
+  status: 'uploading' | 'cancelled' | 'completed';
+  manifest: UploadManifestAsset[];
+  lease_expires_at: string;
+  token_expires_at: string;
+}
 
 /** Mirrors the `users` table — populated by the auth provider callback. */
 export interface DbUser {

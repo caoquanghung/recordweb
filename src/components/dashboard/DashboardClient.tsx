@@ -2,10 +2,11 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppSidebar } from '@/components/app/AppSidebar';
-import { getAllLocalRecordings, getRecordingDrafts, type RecordingDraft } from '@/lib/idb';
+import { getAllLocalRecordings, getRecordingDraftSummaries, type RecordingDraftSummary } from '@/lib/idb';
 import type { DbRecording, DbStudioPreset } from '@/types/database';
 import styles from './DashboardClient.module.css';
 
@@ -31,22 +32,24 @@ function Icon({ src, size = 18 }: { src: string; size?: number }) {
 }
 
 export function DashboardClient() {
+  const { userId } = useAuth();
   const router = useRouter();
   const [recordings, setRecordings] = useState<DbRecording[]>([]);
   const [presets, setPresets] = useState<DbStudioPreset[]>([]);
-  const [drafts, setDrafts] = useState<RecordingDraft[]>([]);
+  const [drafts, setDrafts] = useState<RecordingDraftSummary[]>([]);
   const [localCount, setLocalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
   const loadDashboard = useCallback(async () => {
+    if (!userId) return;
     setLoading(true);
     try {
       const [recordingResponse, presetResponse, local, storedDrafts] = await Promise.all([
         fetch('/api/recordings', { cache: 'no-store' }),
         fetch('/api/presets', { cache: 'no-store' }),
         getAllLocalRecordings(),
-        getRecordingDrafts(),
+        getRecordingDraftSummaries(userId),
       ]);
       const recordingData = await recordingResponse.json();
       const presetData = await presetResponse.json();
@@ -61,7 +64,7 @@ export function DashboardClient() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => void loadDashboard(), 0);
@@ -118,9 +121,9 @@ export function DashboardClient() {
                     <span>Chưa hoàn tất lưu trữ</span>
                   </div>
                   <h2 id="recovery-title">
-                    {drafts.length} bản ghi chưa lưu <small>(hệ thống đã tự động sao lưu an toàn)</small>
+                    {drafts.length} bản ghi chưa lưu thành công <small>(có bản sao lưu trên thiết bị này)</small>
                   </h2>
-                  <p>Hệ thống phát hiện phiên ghi gần nhất chưa được lưu hoàn chỉnh. Hãy mở Studio để phục hồi dữ liệu.</p>
+                  <p>Hãy lưu lại bản ghi để hoàn tất tải lên. Giữ trang mở cho đến khi quá trình lưu trữ kết thúc.</p>
                 </div>
               </div>
               <div className={styles.recoveryActions}>
@@ -128,7 +131,7 @@ export function DashboardClient() {
                   <Icon src="eye.svg" />
                   Xem lại hoặc huỷ
                 </Link>
-                <Link className={styles.dangerButton} href="/studio">
+                <Link className={styles.dangerButton} href={`/studio?recover=${encodeURIComponent(drafts[0].id)}`}>
                   <Icon src="save.svg" />
                   Lưu bài giảng ngay
                 </Link>
@@ -179,15 +182,15 @@ export function DashboardClient() {
               {!loading && drafts.length > 0 && (
                 <article className={`${styles.recordingCard} ${styles.draftCard}`}>
                   <div className={styles.cardBody}>
-                    <span className={`${styles.statusBadge} ${styles.statusDraft}`}><i />Bài giảng đang quay dở</span>
+                    <span className={`${styles.statusBadge} ${styles.statusDraft}`}><i />Bản ghi chưa lưu thành công</span>
                     <h3>Bản ghi chưa hoàn tất gần nhất</h3>
                     <p>Đã quay được: {formatLongDuration(drafts[0].durationMs / 1000)}</p>
                     <div className={styles.thumbnail}>
                       <Image src={dashboardAsset('recording-draft.png')} alt="Xem trước bản ghi bài giảng chưa hoàn tất" fill sizes="(max-width: 720px) 100vw, 33vw" />
                     </div>
                   </div>
-                  <button className={styles.primaryCardAction} type="button" onClick={() => router.push('/studio')}>
-                    <Icon src="play.svg" />Vào quay tiếp
+                  <button className={styles.primaryCardAction} type="button" onClick={() => router.push(`/studio?recover=${encodeURIComponent(drafts[0].id)}`)}>
+                    <Icon src="save.svg" />Lưu lại bản ghi
                   </button>
                 </article>
               )}

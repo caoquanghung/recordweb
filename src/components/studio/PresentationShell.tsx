@@ -19,7 +19,7 @@ export function PresentationShell() {
       <AppNavigation active="presentation" />
 
       <section className={styles.workspace}>
-        <StudioLeaveWarning reason={studio.leaveWarning} />
+        <StudioLeaveWarning reason={studio.leaveWarning} onConfirmLeave={studio.cancelPendingUpload} />
         <StudioHeader studio={studio} eyebrow="RecordWeb presentation" title="Lecture workspace" />
         <StudioToolbar
           studio={studio}

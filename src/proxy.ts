@@ -12,6 +12,8 @@ const isPublicRoute = createRouteMatcher([
   // Vercel Blob calls this endpoint after a direct upload. Token generation is
   // still authenticated inside the Route Handler.
   '/api/upload(.*)',
+  // This endpoint verifies CRON_SECRET itself; it never accepts a user ID.
+  '/api/recording-uploads/cleanup',
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

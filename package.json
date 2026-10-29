@@ -12,6 +12,8 @@
     "lint": "eslint",
     "test:authorization": "node --experimental-strip-types --test tests/unit/authorization.test.mjs",
     "test:extension": "node --test extension/tests/*.test.mjs",
+    "test:recording-storage": "node --experimental-strip-types --test tests/unit/recording-upload.test.mjs tests/unit/recording-leave-warning.test.mjs",
+    "test:upload-database": "node --env-file-if-exists=.env.local --experimental-strip-types --test tests/integration/recording-upload-database.test.mjs",
     "extension:icons": "node scripts/generate-extension-icons.mjs",
     "extension:package": "node scripts/package-extension.mjs",
     "extension:dev": "node scripts/build-extension-dev.mjs",

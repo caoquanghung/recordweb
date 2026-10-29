@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styles from './StudioLeaveWarning.module.css';
 
 // Feature-detect the Navigation API; older browsers still get link/unload guards.
@@ -13,7 +13,12 @@ interface BrowserNavigation extends EventTarget {
   traverseTo: (key: string) => { finished: Promise<unknown> };
 }
 
-export function StudioLeaveWarning({ reason }: { reason: string | null }) {
+export function StudioLeaveWarning({ reason, onConfirmLeave }: {
+  reason: string | null;
+  onConfirmLeave?: () => Promise<void>;
+}) {
+  const [leaving, setLeaving] = useState(false);
+  const onConfirmLeaveRef = useRef(onConfirmLeave);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const stayButtonRef = useRef<HTMLButtonElement>(null);
   const pendingLeaveRef = useRef<(() => void) | null>(null);
@@ -22,7 +27,8 @@ export function StudioLeaveWarning({ reason }: { reason: string | null }) {
 
   useEffect(() => {
     reasonRef.current = reason;
-  }, [reason]);
+    onConfirmLeaveRef.current = onConfirmLeave;
+  }, [reason, onConfirmLeave]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -100,22 +106,31 @@ export function StudioLeaveWarning({ reason }: { reason: string | null }) {
 
   return (
     <dialog ref={dialogRef} className={styles.dialog} aria-labelledby="recording-leave-title"
-      aria-describedby="recording-leave-reason" onCancel={() => { pendingLeaveRef.current = null; }}>
+      aria-describedby="recording-leave-reason" onCancel={(event) => {
+        if (leaving) event.preventDefault();
+        else pendingLeaveRef.current = null;
+      }}>
       <h2 id="recording-leave-title">Leave before saving is complete?</h2>
       <p id="recording-leave-reason">{reason}</p>
       <div className={styles.actions}>
-        <button ref={stayButtonRef} className={styles.stay} type="button" onClick={() => {
+        <button ref={stayButtonRef} className={styles.stay} type="button" disabled={leaving} onClick={() => {
           pendingLeaveRef.current = null;
           dialogRef.current?.close();
         }}>
           Stay on this page
         </button>
-        <button className={styles.leave} type="button" onClick={() => {
+        <button className={styles.leave} type="button" disabled={leaving} onClick={async () => {
           const proceed = pendingLeaveRef.current;
           pendingLeaveRef.current = null;
-          dialogRef.current?.close();
-          proceed?.();
-        }}>Leave anyway</button>
+          setLeaving(true);
+          try {
+            await onConfirmLeaveRef.current?.();
+          } finally {
+            dialogRef.current?.close();
+            proceed?.();
+            setLeaving(false);
+          }
+        }}>{leaving ? 'Leaving…' : 'Leave anyway'}</button>
       </div>
     </dialog>
   );

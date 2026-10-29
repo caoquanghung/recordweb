@@ -35,6 +35,7 @@ interface Options {
   resolution: string;
   fps?: number;
   cursorCapture?: CursorCaptureController;
+  ownerUserId?: string;
 }
 
 export interface RecordingSessionResult {
@@ -61,6 +62,7 @@ export function useRecordingSession({
   resolution,
   fps = 30,
   cursorCapture,
+  ownerUserId,
 }: Options): RecordingSessionResult {
   const recordersRef = useRef<Partial<Record<RecordingAssetKind, MediaRecorder>>>({});
   const chunksRef = useRef<Partial<Record<RecordingAssetKind, Blob[]>>>({});
@@ -68,6 +70,7 @@ export function useRecordingSession({
   const assetErrorsRef = useRef<string[]>([]);
   const recordingIdRef = useRef('');
   const startedAtRef = useRef('');
+  const ownerUserIdRef = useRef(ownerUserId);
   const timerRef = useRef<number | null>(null);
   const previewUrlRef = useRef<string | null>(null);
   const sessionCursorCaptureRef = useRef<CursorCaptureController | null>(null);
@@ -111,6 +114,7 @@ export function useRecordingSession({
           id,
           startedAt,
           durationMs: clock.elapsed(),
+          ownerUserId: ownerUserIdRef.current,
           assets: snapshotRecordingAssets(chunksRef.current, assetSpecsRef.current),
         });
       })
@@ -160,6 +164,11 @@ export function useRecordingSession({
       };
 
       await draftWriteRef.current.catch(() => undefined);
+      // This write is the upload barrier: all finalized assets must be durable first.
+      await saveRecordingDraft({
+        id, startedAt, durationMs, ownerUserId: ownerUserIdRef.current,
+        recording: { ...result, previewUrl: undefined },
+      });
       setRecording(result);
       setStatus('ready');
 
@@ -259,6 +268,7 @@ export function useRecordingSession({
     assetSpecsRef.current = {};
     assetErrorsRef.current = [];
     recordingIdRef.current = id;
+    ownerUserIdRef.current = ownerUserId;
     startedAtRef.current = startedAt;
     clock.reset();
     finalizingRef.current = false;
@@ -333,7 +343,7 @@ export function useRecordingSession({
       setError(`Could not start all recording encoders: ${(cause as Error).message}`);
       setStatus('error');
     }
-  }, [audioStream, checkpointDraft, clock, cursorCapture, fps, markAssetStopped, microphoneAudioStream, resolution, screenStream, startClock, stop, systemAudioStream, videoStream, webcamStream]);
+  }, [audioStream, checkpointDraft, clock, cursorCapture, fps, markAssetStopped, microphoneAudioStream, ownerUserId, resolution, screenStream, startClock, stop, systemAudioStream, videoStream, webcamStream]);
 
   const pause = useCallback(() => {
     const recorders = getActiveRecorders(recordersRef.current);

@@ -1,6 +1,6 @@
 'use client';
 
-import { upload, uploadPresigned } from '@vercel/blob/client';
+import { useAuth } from '@clerk/nextjs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMediaSession } from '@/components/media/MediaSessionProvider';
 import { useAudioDSP } from '@/hooks/useAudioDSP';
@@ -16,9 +16,10 @@ import { waitForCaptureHandle } from '@/lib/captureHandle';
 import { repairWebmDuration } from '@/lib/ebmlPatcher';
 import {
   deleteRecordingDraft,
-  getRecordingDrafts,
+  getRecordingDraft,
+  getRecordingDraftSummaries,
   saveLocalRecording,
-  type RecordingDraft,
+  type RecordingDraftSummary,
 } from '@/lib/idb';
 import {
   downloadRecordingArchive,
@@ -26,6 +27,7 @@ import {
 } from '@/lib/recordingArchive';
 import { getRecordingTitleError, normalizeRecordingTitle } from '@/lib/recordingTitle';
 import { getRecordingLeaveWarning } from './recordingLeaveWarning';
+import { createRecordingUploadJob, type RecordingUploadJob } from '@/lib/recordingUploadClient';
 import type { DbRecording, DbStudioPreset } from '@/types/database';
 import type {
   AudioFilterConfig,
@@ -43,8 +45,6 @@ import {
   audioModes,
   audioPresetByLabel,
   compositeAssetFor,
-  extensionForMimeType,
-  getBlobContentType,
   MEDIA_ASSET_KINDS,
   modes,
   type BrowserCapabilities,
@@ -63,6 +63,7 @@ interface UseStudioControllerOptions {
 }
 
 export function useStudioController({ workspace = 'studio' }: UseStudioControllerOptions = {}) {
+  const { userId: ownerUserId } = useAuth();
   const presentationWorkspace = workspace === 'presentation';
   const [mode, setMode] = useState<RecordingMode>('screen-pip');
   const [background, setBackground] = useState<BackgroundRemovalMode>('original');
@@ -88,7 +89,8 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const [isConnectingSlideSource, setIsConnectingSlideSource] = useState(false);
   const [sourceCaptureEnabled, setSourceCaptureEnabled] = useState(false);
   const [recoveredRecording, setRecoveredRecording] = useState<RecordingMetadata | null>(null);
-  const [recoveryDrafts, setRecoveryDrafts] = useState<RecordingDraft[]>([]);
+  const [recoveryDrafts, setRecoveryDrafts] = useState<RecordingDraftSummary[]>([]);
+  const [recoveryLoaded, setRecoveryLoaded] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState('');
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -99,6 +101,8 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const recoveredPreviewUrlRef = useRef<string | null>(null);
   const recoveredDraftIdRef = useRef<string | null>(null);
   const uploadStartedForRef = useRef<string | null>(null);
+  const uploadJobRef = useRef<RecordingUploadJob | null>(null);
+  const requestedRecoveryRef = useRef<string | null>(null);
   const endSessionRequestedRef = useRef(false);
   const [micGain, setMicGain] = useState(1);
   const [systemVolume, setSystemVolume] = useState(1);
@@ -235,6 +239,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     saveTitle: saveCompletedRecordingTitle,
     reset: resetRecording,
   } = useRecordingSession({
+    ownerUserId: ownerUserId ?? undefined,
     videoStream: recordingVideoStream,
     webcamStream: normalizedWebcamStream,
     screenStream: presentationWorkspace || presentationCapture ? null : normalizedScreenStream,
@@ -345,12 +350,14 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
 
   useEffect(() => {
     const loadDrafts = window.setTimeout(() => {
-      void getRecordingDrafts()
+      if (!ownerUserId) return;
+      void getRecordingDraftSummaries(ownerUserId)
         .then(setRecoveryDrafts)
-        .catch((error) => setRecoveryMessage(`Could not inspect recovery data: ${(error as Error).message}`));
+        .catch((error) => setRecoveryMessage(`Could not inspect recovery data: ${(error as Error).message}`))
+        .finally(() => setRecoveryLoaded(true));
     }, 0);
     return () => window.clearTimeout(loadDrafts);
-  }, []);
+  }, [ownerUserId]);
 
   useEffect(() => () => {
     if (recoveredPreviewUrlRef.current) URL.revokeObjectURL(recoveredPreviewUrlRef.current);
@@ -591,11 +598,31 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     };
   }, [session, setCameraVisible, setMicMuted, startUiTest, stopRecording, workspace]);
 
-  const recoverLatestDraft = async () => {
-    const draft = recoveryDrafts[0];
-    if (!draft) return;
+  const recoverLatestDraft = useCallback(async (requestedId?: string) => {
+    const id = requestedId ?? recoveryDrafts[0]?.id;
+    if (!id || !ownerUserId) return;
     setRecoveryMessage('Recovering the latest recording…');
     try {
+      const consumeRecoveryRequest = () => {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('recover') !== id) return;
+        url.searchParams.delete('recover');
+        window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+      };
+      const draft = await getRecordingDraft(id);
+      if (!draft || (draft.ownerUserId && draft.ownerUserId !== ownerUserId)) throw new Error('Không tìm thấy bản sao lưu của tài khoản này.');
+      if (draft.recording?.blob) {
+        if (recoveredPreviewUrlRef.current) URL.revokeObjectURL(recoveredPreviewUrlRef.current);
+        const previewUrl = URL.createObjectURL(draft.recording.blob);
+        recoveredPreviewUrlRef.current = previewUrl;
+        recoveredDraftIdRef.current = draft.id;
+        setRecoveredRecording({ ...draft.recording, previewUrl });
+        consumeRecoveryRequest();
+        setRecoveryDrafts((current) => current.filter((item) => item.id !== draft.id));
+        setTitleError('');
+        setRecoveryMessage('Đã phục hồi đầy đủ bản ghi. Đang lưu trữ lại…');
+        return;
+      }
       const draftAssets = draft.assets ?? (draft.chunks?.length ? {
         composite: {
           mimeType: draft.mimeType || 'video/webm',
@@ -652,13 +679,41 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       };
       recoveredDraftIdRef.current = draft.id;
       setRecoveredRecording(recording);
+      consumeRecoveryRequest();
       setRecoveryDrafts((current) => current.filter((item) => item.id !== draft.id));
       setTitleError('');
       setRecoveryMessage('Recovery complete. Your recording is being saved.');
     } catch (error) {
       setRecoveryMessage(`Recovery failed: ${(error as Error).message}`);
     }
-  };
+  }, [ownerUserId, recoveryDrafts, resolution]);
+
+  useEffect(() => {
+    const requestedId = new URLSearchParams(window.location.search).get('recover');
+    if (!requestedId || requestedRecoveryRef.current === requestedId || !recoveryLoaded) return;
+    const restore = window.setTimeout(() => {
+      requestedRecoveryRef.current = requestedId;
+      if (!recoveryDrafts.some((draft) => draft.id === requestedId)) {
+        setRecoveryMessage('Không tìm thấy bản sao lưu được chọn.');
+        return;
+      }
+      void recoverLatestDraft(requestedId);
+    }, 0);
+    return () => window.clearTimeout(restore);
+  }, [recoverLatestDraft, recoveryDrafts, recoveryLoaded]);
+
+  const cancelPendingUpload = useCallback(async () => {
+    await uploadJobRef.current?.cancel();
+  }, []);
+
+  useEffect(() => {
+    const cancelOnExit = () => uploadJobRef.current?.cancelOnExit();
+    window.addEventListener('pagehide', cancelOnExit);
+    return () => {
+      window.removeEventListener('pagehide', cancelOnExit);
+      cancelOnExit();
+    };
+  }, []);
 
   const saveRecordingTitle = async (value: string) => {
     const validationError = getRecordingTitleError(value);
@@ -728,114 +783,46 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   };
 
   const uploadRecording = useCallback(async () => {
-    if (!activeRecording) return;
-    const composite = compositeAssetFor(activeRecording);
-    if (!composite?.blob) return;
+    if (!activeRecording || !ownerUserId || uploadJobRef.current) return;
     setUploadState('uploading');
     setUploadProgress(0);
-    setUploadMessage('Saving your recording…');
+    setUploadMessage('Đang sao lưu và lưu trữ bản ghi…');
+    let job: RecordingUploadJob | null = null;
     try {
-      const uploadConfigResponse = await fetch('/api/upload', { cache: 'no-store' });
-      const uploadConfig = await uploadConfigResponse.json() as { uploadMethod?: string; error?: string };
-      if (!uploadConfigResponse.ok) {
-        throw new Error(uploadConfig.error ?? 'Could not determine the Blob upload method.');
-      }
-      if (uploadConfig.uploadMethod !== 'client-token' && uploadConfig.uploadMethod !== 'presigned') {
-        throw new Error('The Blob upload method is invalid.');
-      }
-      const uploadToBlob = uploadConfig.uploadMethod === 'presigned' ? uploadPresigned : upload;
-      const localAssets = [
-        composite,
-        activeRecording.assets?.webcam,
-        activeRecording.assets?.screen,
-        activeRecording.assets?.audio,
-        activeRecording.assets?.['microphone-audio'],
-        activeRecording.assets?.['system-audio'],
-        activeRecording.assets?.cursor,
-      ].filter((asset): asset is RecordingAssetMetadata & { blob: Blob } => Boolean(asset?.blob));
-      const progressByKind = new Map<RecordingAssetKind, number>();
-      const updateTotalProgress = () => {
-        const total = localAssets.reduce((sum, asset) => sum + (progressByKind.get(asset.kind) ?? 0), 0);
-        setUploadProgress(Math.round(total / localAssets.length));
-      };
-      const uploadedAssets = await Promise.all(localAssets.map(async (asset) => {
-        const contentType = getBlobContentType(asset.mimeType);
-        const extension = extensionForMimeType(asset.mimeType);
-        const uploaded = await uploadToBlob(`recordings/${activeRecording.id}/${asset.kind}.${extension}`, asset.blob, {
-          access: 'public',
-          handleUploadUrl: '/api/upload',
-          contentType,
-          multipart: true,
-          onUploadProgress: ({ percentage }) => {
-            progressByKind.set(asset.kind, percentage);
-            updateTotalProgress();
-          },
-        });
-        return {
-          kind: asset.kind,
-          storage_url: uploaded.url,
-          blob_pathname: uploaded.pathname,
-          mime_type: asset.mimeType,
-          file_size_bytes: asset.fileSizeBytes,
-          resolution: asset.resolution ?? null,
-          fps: asset.fps ?? null,
-          sample_rate_hz: asset.sampleRateHz ?? null,
-          metadata: ['audio', 'microphone-audio', 'system-audio'].includes(asset.kind) && asset.waveformPeaks
-            ? { waveformPeaks: asset.waveformPeaks, waveformVersion: 1 }
-            : {},
-        };
-      }));
-      const uploadedComposite = uploadedAssets.find((asset) => asset.kind === 'composite');
-      if (!uploadedComposite) throw new Error('The composite upload did not complete.');
-      setUploadState('saving');
-      setUploadMessage('Finishing your recording…');
-      const response = await fetch('/api/recordings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: `Recording ${activeRecording.id}`,
-          recorded_at: activeRecording.createdAt,
-          duration_seconds: activeRecording.durationSeconds,
-          file_size_bytes: activeRecording.fileSizeBytes,
-          resolution: activeRecording.resolution,
-          fps: activeRecording.fps,
-          mime_type: activeRecording.mimeType,
-          local_id: activeRecording.localId,
-          storage_url: uploadedComposite.storage_url,
-          blob_pathname: uploadedComposite.blob_pathname,
-          is_public: false,
-          assets: uploadedAssets,
-          settings: {
-            recordingMode: mode,
-            pipShape,
-            pipSize,
-            pipPosition,
-            bgRemovalMode: background,
-            audioMode,
-            waveformPeaks: activeRecording.assets?.audio?.waveformPeaks ?? [],
-          },
-        }),
+      job = createRecordingUploadJob({
+        recording: activeRecording, ownerUserId,
+        settings: {
+          recordingMode: mode, pipShape, pipSize, pipPosition, bgRemovalMode: background, audioMode,
+          waveformPeaks: activeRecording.assets?.audio?.waveformPeaks ?? [],
+        },
+        onPhase: (phase) => {
+          setUploadState(phase);
+          setUploadMessage(phase === 'saving' ? 'Đang hoàn tất lưu trữ bản ghi…' : 'Đang tải bản ghi lên…');
+        },
+        onProgress: setUploadProgress,
       });
-      const data = await response.json();
-      if (!response.ok || !data.recording) {
-        throw new Error(data.error ?? data.message ?? 'Neon did not return the saved metadata.');
-      }
-      setCloudRecording(data.recording);
+      uploadJobRef.current = job;
+      const saved = await job.run();
+      setCloudRecording(saved);
       setUploadState('ready');
       setUploadProgress(100);
-      setUploadMessage('Recording saved. Add a title to continue.');
+      setUploadMessage(activeRecording.title ? 'Bản ghi đã được lưu.' : 'Bản ghi đã được lưu. Hãy đặt tiêu đề để tiếp tục.');
     } catch (error) {
       console.error('Recording save failed', error);
       setUploadState('error');
-      setUploadMessage('Could not save the recording. Check your connection and try again.');
+      setUploadMessage(job?.cancelled
+        ? 'Quá trình lưu đã bị gián đoạn. Bản sao lưu trên thiết bị vẫn còn; hãy thử lưu lại.'
+        : (error as Error).message || 'Không thể lưu bản ghi. Hãy kiểm tra kết nối và thử lại.');
+    } finally {
+      if (uploadJobRef.current === job) uploadJobRef.current = null;
     }
-  }, [activeRecording, audioMode, background, mode, pipPosition, pipShape, pipSize]);
+  }, [activeRecording, ownerUserId, audioMode, background, mode, pipPosition, pipShape, pipSize]);
 
   useEffect(() => {
-    if (!activeRecording || uploadStartedForRef.current === activeRecording.id) return;
+    if (!activeRecording || !ownerUserId || uploadStartedForRef.current === activeRecording.id) return;
     uploadStartedForRef.current = activeRecording.id;
     void uploadRecording();
-  }, [activeRecording, uploadRecording]);
+  }, [activeRecording, ownerUserId, uploadRecording]);
 
   const retryRecordingSave = () => {
     if (!activeRecording || uploadState !== 'error') return;
@@ -979,6 +966,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     titleSaving,
     titleError,
     leaveWarning,
+    cancelPendingUpload,
     micGain, setMicGain,
     systemVolume, setSystemVolume,
     customAudioConfig, setCustomAudioConfig,

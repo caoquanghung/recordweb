@@ -72,3 +72,15 @@ Migration `0007_recording_recorded_at.sql` separates the actual recording sessio
 start time (`recorded_at`) from the metadata insertion time (`created_at`). Existing
 rows are backfilled from `created_at`; library queries sort by `recorded_at` newest
 first.
+
+Migration `0008_recording_upload_attempts.sql` adds owner-scoped upload manifests,
+leases, terminal cancellation/completion states, and the unique
+`recordings(user_id, local_id)` partial index. Existing duplicates cause the migration
+to fail rather than being deleted automatically. Metadata completion claims an
+active attempt and inserts the recording and all assets in one atomic SQL statement.
+Cancelled manifests remain as tombstones so delayed uploads cannot reopen them.
+
+Set `CRON_SECRET` in Vercel for the daily upload-cleanup endpoint configured in
+`vercel.json`; this is separate from applying the database migration.
+`npm run test:upload-database` verifies the lifecycle in an always-rolled-back
+fixture transaction without calling live Blob APIs.
