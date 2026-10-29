@@ -16,7 +16,7 @@ The command creates:
 artifacts/chrome-web-store/recordweb-presentation-cursor-<version>.zip
 ```
 
-The package command will not overwrite an existing ZIP for the same version. Version `0.4.9` is backed up in `extension/releases/`; copy each future ZIP there and commit or tag the matching source revision. For localhost testing, run `npm run extension:dev` and load `artifacts/extension-development/` in a separate browser profile; that build is never submitted to the Store.
+The package command will not overwrite an existing ZIP for the same version. Version `0.4.10` is backed up in `extension/releases/`; copy each future ZIP there and commit or tag the matching source revision. For localhost testing, run `npm run extension:dev` and load `artifacts/extension-development/` in a separate browser profile; that build is never submitted to the Store.
 
 The generated Store manifest is normalized from `extension/manifest.json`:
 
@@ -38,18 +38,18 @@ RecordWeb Presentation Cursor
 ### Summary
 
 ```text
-Capture a time-aligned presenter cursor from a Google Slides tab shared with RecordWeb.
+Install to capture a separate, time-aligned cursor source from a Google Slides tab shared with RecordWeb.
 ```
 
 ### Detailed description
 
 ```text
-RecordWeb Presentation Cursor connects a Google Slides tab to the RecordWeb browser recording studio.
+Install RecordWeb Presentation Cursor to capture a separate cursor source while recording a Google Slides tab in RecordWeb. The RecordWeb website alone cannot read pointer coordinates inside another browser tab. Chrome grants the extension access to the supported Slides tab so RecordWeb can save cursor movement as its own synchronized asset.
 
 After you select a Google Slides tab in Chrome's native share picker, the extension verifies that exact tab and records normalized cursor movement with active-recording timestamps. RecordWeb saves the cursor as a separate, synchronized asset alongside the recorded video and audio. This supports cursor playback and combining those sources for human-computer interaction (HCI) research.
 
 Features:
-- One-time installation with no extension click required for each session
+- Required one-time installation to capture the separate cursor source; no extension click required for each session
 - Exact shared-tab verification using Chrome Capture Handle
 - Cursor movement capture with active-recording timestamps
 - A separate cursor trajectory that can be combined with screen, camera, and audio recordings for HCI analysis
@@ -57,7 +57,7 @@ Features:
 - Support for Google Slides browser fullscreen presentation
 - Local browser backup and an automatic cloud-save attempt after a recording finishes
 
-Chrome still requires the user to select and confirm the shared tab for each new display-capture stream.
+Without the installed extension, RecordWeb cannot create the separate cursor trajectory from the Slides tab. Chrome still requires the user to select and confirm the shared tab for each new display-capture stream.
 ```
 
 ### Category
@@ -68,10 +68,16 @@ Choose `Productivity`.
 
 Choose the primary language used by the Store listing. English is the safest first submission because the current extension UI and reviewer notes are in English. A Vietnamese localized listing can be added afterward.
 
+### Homepage and support URLs
+
+Both Store listing URLs are optional. Enter `https://recordweb-nine.vercel.app/` as the Homepage URL only after it opens for a signed-out visitor and the Store dashboard accepts it. The current `/` route is Clerk-protected and redirects to `/dashboard`; if the dashboard reports that it cannot access the homepage, leave this optional listing field blank while checking the production deployment. Test both `/` and the public `/privacy` page in a clean browser profile. If neither loads, check Vercel's production-domain assignment and Deployment Protection before submitting. A reviewer account cannot bypass Vercel Deployment Protection.
+
+Leave Support URL blank until a public support page exists. The Store has a built-in Support hub; supply a monitored support email in the publisher settings. The optional listing Homepage URL is distinct from `homepage_url` in `extension/manifest.json`, which the extension package uses to identify the production app origin.
+
 ## Single purpose
 
 ```text
-Capture time-aligned pointer positions in the Google Slides tab explicitly shared with RecordWeb so its cursor trajectory can be synchronized with that session's media for playback and HCI analysis.
+Capture the lecturer's cursor movements in a Google Slides presentation explicitly shared with RecordWeb while recording a lecture. Save a separate, time-aligned cursor trajectory synchronized with the lecture's video and audio for playback and HCI research.
 ```
 
 ## Permission justifications
@@ -129,14 +135,16 @@ The deployed site must serve this updated `/privacy` page before submission. Its
 ```text
 Test prerequisites:
 1. Use Chrome 116 or newer.
-2. Open https://recordweb-nine.vercel.app/ and sign in.
-3. Open a Google Slides presentation that you can access in another tab.
-4. In RecordWeb Studio, connect camera and microphone, then choose Connect Google Slides.
-5. Select the open Slides tab in Chrome's native share picker and click Share.
-6. Confirm that the Studio preview remains connected.
-7. Start recording from Studio or from the Ready to record control in the Slides tab.
+2. Install and enable this extension. Reload any RecordWeb or Google Slides tabs that were already open.
+3. Open https://recordweb-nine.vercel.app/ and sign in.
+4. Open a Google Slides presentation that you can access in another tab.
+5. In RecordWeb Studio, connect camera and microphone, then choose Connect Google Slides.
+6. Select the open Slides tab in Chrome's native share picker and click Share.
+7. Confirm that the Studio preview remains connected.
+8. Start recording from Studio or from the Ready to record control in the Slides tab.
 
 Expected behavior:
+- The website alone cannot access pointer coordinates in the Slides tab. With the extension disabled, Studio asks for the extension and cannot connect that cursor source.
 - The extension resolves only the exact picker-selected Google Slides tab.
 - Cursor capture starts only after RecordWeb starts recording.
 - During recording, the Slides tab displays a compact session toolbar.
@@ -159,6 +167,10 @@ Already prepared in the extension package:
 - `extension/icons/icon-32.png`
 - `extension/icons/icon-48.png`
 - `extension/icons/icon-128.png`
+
+The five upload-sized screenshot candidates are directly in `docs/screenShot/` as numbered JPEG files. Each is 1280×800, three-channel, and has no alpha. The full-resolution PNG originals are in `docs/screenShot/originals/` and should not be uploaded. The candidates show Studio setup, a connected Slides tab, the native share picker, recording details, and exported source files.
+
+Before Store upload, replace screenshots captured on `localhost` with production-site captures. The setup screenshot also contains an older on-screen claim that uploads happen only when chosen by the user; the current Studio automatically attempts cloud upload after recording. Do not submit that stale screenshot as a privacy disclosure.
 
 Still capture manually from the production user flow:
 

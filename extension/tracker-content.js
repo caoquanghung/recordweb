@@ -131,7 +131,6 @@
   function handleShortcut(event) {
     if (!sampler.getState().sessionId || !event.altKey || event.repeat) return;
     const command = ({
-      p: 'toggle-pause',
       s: 'stop',
       m: 'toggle-microphone',
       c: 'toggle-camera',
@@ -139,7 +138,6 @@
     if (!command) return;
     event.preventDefault();
     event.stopPropagation();
-    if (command === 'toggle-pause') controls.togglePaused();
     portClient.send({ type: MESSAGE.PRESENTATION_COMMAND, command });
   }
 

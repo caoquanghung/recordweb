@@ -132,7 +132,6 @@
       <div class="controls">
         <button class="ready-action" type="button" title="Start recording with the connected RecordWeb Studio">Start recording</button>
         <span class="separator" aria-hidden="true"></span>
-        <button class="control pause" type="button" title="Pause or resume recording"><span class="icon" aria-hidden="true">Ⅱ</span><span class="label">Pause</span></button>
         <button class="control microphone" type="button" data-active="true" title="Mute or unmute microphone"><span class="icon" aria-hidden="true">●</span><span class="label">Mic</span></button>
         <button class="control camera" type="button" data-active="true" title="Show or hide camera"><span class="icon" aria-hidden="true">◆</span><span class="label">Camera</span></button>
         <button class="control end" type="button" title="End recording and disconnect all sources">End session</button>
@@ -168,7 +167,6 @@
       const launcher = shadow.querySelector('.launcher');
       const statusLabel = shadow.querySelector('.status-label');
       const readyButton = shadow.querySelector('.ready-action');
-      const pauseButton = shadow.querySelector('.pause');
       const microphoneButton = shadow.querySelector('.microphone');
       const cameraButton = shadow.querySelector('.camera');
       const endButton = shadow.querySelector('.end');
@@ -182,8 +180,6 @@
         launcher.setAttribute('aria-expanded', String(state.expanded));
         launcher.title = state.mode === 'ready' ? 'Start recording from this presentation tab' : 'Show RecordWeb controls';
         statusLabel.textContent = state.mode === 'ready' ? 'Ready to record' : 'Recording';
-        pauseButton.querySelector('.icon').textContent = state.paused ? '▶' : 'Ⅱ';
-        pauseButton.querySelector('.label').textContent = state.paused ? 'Resume' : 'Pause';
         microphoneButton.dataset.active = String(state.microphoneActive);
         microphoneButton.querySelector('.label').textContent = state.microphoneActive ? 'Mic' : 'Muted';
         cameraButton.dataset.active = String(state.cameraActive);
@@ -222,11 +218,6 @@
         collapse();
         sendCommand('start');
       });
-      pauseButton.addEventListener('click', () => {
-        state.paused = !state.paused;
-        render();
-        relay('toggle-pause');
-      });
       microphoneButton.addEventListener('click', () => {
         state.microphoneActive = !state.microphoneActive;
         render();
@@ -257,12 +248,7 @@
       mounted.render();
     };
 
-    const togglePaused = () => {
-      if (!mounted) return;
-      setPaused(!mounted.state.paused);
-    };
-
-    return Object.freeze({ destroy, moveToCurrentParent, setPaused, show, togglePaused });
+    return Object.freeze({ destroy, moveToCurrentParent, setPaused, show });
   }
 
   globalThis.RecordWebTrackerControls = Object.freeze({ create });
