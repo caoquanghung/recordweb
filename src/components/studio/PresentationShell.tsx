@@ -8,6 +8,7 @@ import { PresentationSourcesPanel } from './PresentationSourcesPanel';
 import { PresentationStage } from './PresentationStage';
 import { StudioReviewWorkspace } from './StudioReviewWorkspace';
 import { useStudioController } from './useStudioController';
+import { StudioLeaveWarning } from './StudioLeaveWarning';
 import styles from './StudioShell.module.css';
 
 export function PresentationShell() {
@@ -18,6 +19,7 @@ export function PresentationShell() {
       <AppNavigation active="presentation" />
 
       <section className={styles.workspace}>
+        <StudioLeaveWarning reason={studio.leaveWarning} />
         <StudioHeader studio={studio} eyebrow="RecordWeb presentation" title="Lecture workspace" />
         <StudioToolbar
           studio={studio}

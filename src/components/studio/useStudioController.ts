@@ -25,6 +25,7 @@ import {
   RECORDING_ARCHIVE_KINDS,
 } from '@/lib/recordingArchive';
 import { getRecordingTitleError, normalizeRecordingTitle } from '@/lib/recordingTitle';
+import { getRecordingLeaveWarning } from './recordingLeaveWarning';
 import type { DbRecording, DbStudioPreset } from '@/types/database';
 import type {
   AudioFilterConfig,
@@ -255,6 +256,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         ? recordingStatus
         : 'setup';
   const elapsed = activeRecording?.durationSeconds ?? elapsedMs / 1000;
+  const leaveWarning = getRecordingLeaveWarning({ session, uploadState, titleRequired, titleSaving });
   const activeMode = useMemo(() => modes.find((item) => item.value === mode) ?? modes[0], [mode]);
   const sourcesConnected = Boolean(
     screenStream
@@ -280,16 +282,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     else if (!presentationWorkspace) stopScreen();
     return () => window.clearTimeout(releaseSourceCanvases);
   }, [presentationCapture, presentationWorkspace, recordingStatus, stopAllMedia, stopPresentationCapture, stopScreen]);
-
-  useEffect(() => {
-    if (!titleRequired) return;
-    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = true;
-    };
-    window.addEventListener('beforeunload', warnBeforeLeaving);
-    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
-  }, [titleRequired]);
 
   const loadPresets = useCallback(async () => {
     try {
@@ -986,6 +978,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     titleRequired,
     titleSaving,
     titleError,
+    leaveWarning,
     micGain, setMicGain,
     systemVolume, setSystemVolume,
     customAudioConfig, setCustomAudioConfig,

@@ -10,6 +10,7 @@ import { StudioEffectsPanel } from './StudioEffectsPanel';
 import { StudioReviewWorkspace } from './StudioReviewWorkspace';
 import { StudioSourcesPanel } from './StudioSourcesPanel';
 import { StudioStage } from './StudioStage';
+import { StudioLeaveWarning } from './StudioLeaveWarning';
 import { useStudioController } from './useStudioController';
 import styles from './StudioShell.module.css';
 
@@ -20,6 +21,7 @@ function RecordingWorkspace({ onOpenPresentation }: { onOpenPresentation: () => 
 
   return (
     <section className={`${styles.workspace} ${studio.session === 'review' ? '' : styles.standardWorkspace}`}>
+      <StudioLeaveWarning reason={studio.leaveWarning} />
       <StudioHeader studio={studio} />
       {/* <StudioToolbar studio={studio} onOpenPresentation={onOpenPresentation} /> */}
       <StudioSessionNotice studio={studio} />
@@ -49,6 +51,7 @@ function PresentationWorkspace({ onReturnToRecording }: { onReturnToRecording: (
 
   return (
     <section className={styles.workspace}>
+      <StudioLeaveWarning reason={studio.leaveWarning} />
       <StudioHeader
         studio={studio}
         integratedPresentation

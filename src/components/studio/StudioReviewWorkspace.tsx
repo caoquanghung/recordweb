@@ -102,6 +102,9 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
             <div className={styles.saveStatus} aria-live="polite">
               {isSaving && <progress max="100" value={uploadProgress} aria-label="Recording save progress" />}
               <span>{uploadMessage || (isSaving ? 'Saving your recording…' : '')}</span>
+              {(isSaving || titleSaving) && (
+                <p className={styles.leaveGuidance}>Keep this page open until saving finishes. Leaving can interrupt the save and leave your recording incomplete in the Library.</p>
+              )}
               {uploadState === 'error' && <button type="button" onClick={retryRecordingSave}>Try saving again</button>}
             </div>
           </div>

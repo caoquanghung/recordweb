@@ -35,6 +35,7 @@
 .saveStatus { display: grid; gap: 8px; margin-top: 14px; color: var(--muted); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
 .saveStatus:empty { display: none; }
 .saveStatus progress { width: 100%; height: 5px; accent-color: var(--primary-bright); }
+.leaveGuidance { margin: 0; padding: 10px 12px; border-left: 3px solid var(--primary-bright); border-radius: 4px; color: var(--text); background: var(--panel-raised); line-height: 1.6; }
 .saveStatus button { justify-self: start; padding: 0; border: 0; color: var(--primary-bright); background: none; font: inherit; font-weight: 750; text-decoration: underline; cursor: pointer; }
 .cardIcon { width: 35px; height: 35px; display: grid; place-items: center; border-radius: 9px; color: var(--primary-bright); background: color-mix(in srgb, var(--brand-primary-action) 13%, transparent); }
 .cardIcon svg { width: 18px; height: 18px; }
