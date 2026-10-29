@@ -145,10 +145,7 @@ stateDiagram-v2
     Setup --> Countdown: Start recording and source is ready
     Setup --> Setup: Start blocked; show source guidance
     Countdown --> Recording: 3-2-1 completes
-    Recording --> Paused: Pause or Space / Alt+P
-    Paused --> Recording: Resume or Space / Alt+P
     Recording --> Processing: Stop or Alt+S
-    Paused --> Processing: Stop or Alt+S
     Processing --> Review: Finalization succeeds
     Processing --> Setup: Finalization fails
     Review --> Setup: Record another
@@ -157,9 +154,9 @@ stateDiagram-v2
 1. Select **Start recording** in Studio, or use the target tab's **Ready to record → Start recording** control after the live preview is ready. Both actions run the same source validation, reuse the tab stream acquired by Connect, begin the countdown, and keep/focus the verified picker-selected Google Slides tab without opening the share picker again.
 2. If no usable video source or cursor target is ready, recording stays in setup and the Sources panel reopens with guidance.
 3. The app resumes browser audio if needed, closes the side panels, and shows a three-second countdown.
-4. When the countdown completes, the app starts the recorders in the already-focused Slides tab. A compact **Recording** pill appears in the bottom-right corner only while recording. Hovering or clicking expands pause/resume, microphone, camera, and **End session** controls; it auto-collapses after inactivity and follows Slides into browser fullscreen. The overlay is part of the shared tab, so it appears in captured video while visible.
-5. **End session** hides the overlay immediately, stops and finalizes all recording assets (including cursor JSON), then disconnects the picker-selected Slides target and every owned media source. A normal Stop returns to RecordWeb but keeps camera and microphone available for another take. `Alt+P`, `Alt+S`, `Alt+M`, and `Alt+C` remain available as low-visual-impact controls.
-6. During recording, the control dock shows elapsed time and exposes pause/resume, stop, microphone mute, and camera visibility controls.
+4. When the countdown completes, the app starts the recorders in the already-focused Slides tab. A compact **Recording** pill appears in the bottom-right corner only while recording. Hovering or clicking expands microphone, camera, and **End session** controls; it auto-collapses after inactivity and follows Slides into browser fullscreen. The overlay is part of the shared tab, so it appears in captured video while visible.
+5. **End session** hides the overlay immediately, stops and finalizes all recording assets (including cursor JSON), then disconnects the picker-selected Slides target and every owned media source. A normal Stop returns to RecordWeb but keeps camera and microphone available for another take. `Alt+S`, `Alt+M`, and `Alt+C` remain available as low-visual-impact controls.
+6. During recording, the control dock shows elapsed time and exposes stop, microphone mute, and camera visibility controls. Recording remains continuous until stopped.
 7. The session is checkpointed to IndexedDB while recording.
 8. Select Stop, press `Alt+S`, or reach the 30-minute limit to finalize the session.
 9. The UI enters **Finalizing** while it repairs and prepares the recorded assets, stops the native display stream, then opens Review.
@@ -168,7 +165,6 @@ Keyboard controls outside form fields:
 
 | Shortcut | Action |
 | --- | --- |
-| `Space` or `Alt+P` | Pause or resume while recording. |
 | `Alt+S` | Stop and finalize. |
 | `Alt+M` | Toggle microphone mute. |
 | `Alt+C` | Toggle camera visibility. |
@@ -195,7 +191,7 @@ The slide file remains local in the browser. While still in setup, it can be rep
 2. Starting asks the browser for current-tab capture.
 3. In the browser picker, the user must explicitly choose **This Tab**. RecordWeb cannot select it silently.
 4. When supported, capture is restricted to the presentation area. Otherwise the app uses a clean full-tab fallback and shows a warning.
-5. After capture begins, the same countdown, recording, pause/resume, stop, finalization, and Review states used by Studio apply.
+5. After capture begins, the same countdown, continuous recording, stop, finalization, and Review states used by Studio apply.
 6. The rendered slide, raw webcam, and custom cursor are the visible presentation content. MediaPipe background removal is not part of this mode.
 7. After a deck is loaded, **Full screen presentation** (or `Shift+F`) places the presentation capture area itself in browser fullscreen. The same slide, webcam, and custom-cursor DOM root remains mounted, so capture and normalized cursor tracking continue without changing sources. Press `Escape` or `Shift+F` to leave fullscreen.
 

@@ -19,16 +19,11 @@ export function StudioStage({ studio }: { studio: StudioController }) {
     compositorResolution,
     canvasPointerHandlers,
     mode,
-    cameraVisible,
-    pipShape,
-    background,
     countdown,
     compositeStream,
     elapsed,
     startRecordingAttention,
     startUiTest,
-    resumeRecording,
-    pauseRecording,
     stopRecording,
   } = studio;
   const startButtonRef = useRef<HTMLButtonElement>(null);
@@ -115,24 +110,13 @@ export function StudioStage({ studio }: { studio: StudioController }) {
             <StudioIcon name="record" /> Start recording
           </button>
         ) : (
-          <>
-            <button
-              className={styles.roundControl}
-              onClick={session === 'paused' ? resumeRecording : pauseRecording}
-              disabled={session === 'countdown' || session === 'processing'}
-              aria-label={session === 'paused' ? 'Resume' : 'Pause'}
-            >
-              <StudioIcon name={session === 'paused' ? 'play' : 'pause'} />
-            </button>
-            <button className={styles.stopControl} onClick={stopRecording} disabled={session === 'countdown' || session === 'processing'} aria-label="Stop">
-              <StudioIcon name="stop" />
-            </button>
-          </>
+          <button className={styles.stopControl} onClick={stopRecording} disabled={session === 'countdown' || session === 'processing'} aria-label="Stop">
+            <StudioIcon name="stop" />
+          </button>
         )}
         <div className={styles.controlDivider} />
         <StudioMediaToggles studio={studio} />
       </div>
-      {/* <div className={styles.shortcutHint}>Space pause/resume · Alt+S finish · video is checkpointed to IndexedDB</div> */}
     </section>
   );
 }

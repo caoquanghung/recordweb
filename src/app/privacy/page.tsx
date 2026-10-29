@@ -32,7 +32,7 @@ export default function PrivacyPolicyPage() {
             <li>Normalized pointer coordinates and timestamps during an active recording session.</li>
             <li>The Google Slides tab identity and presentation URL or identifier needed to bind RecordWeb to the tab the user explicitly shared.</li>
             <li>A random, opaque Capture Handle used to verify that the browser picker and cursor tracker refer to the same tab.</li>
-            <li>Temporary extension connection and tab identifiers needed to start, pause, resume, stop, and finalize cursor capture.</li>
+            <li>Temporary extension connection and tab identifiers needed to start, stop, and finalize cursor capture.</li>
           </ul>
           <p>
             The extension does not read slide text, passwords, form entries, authentication cookies, or a user&apos;s

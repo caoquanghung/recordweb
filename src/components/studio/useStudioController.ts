@@ -230,8 +230,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     error: recordingError,
     recording: completedRecording,
     start: startRecording,
-    pause: pauseRecording,
-    resume: resumeRecording,
     stop: stopRecording,
     saveTitle: saveCompletedRecordingTitle,
     reset: resetRecording,
@@ -459,11 +457,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       const target = event.target as HTMLElement | null;
       if (target?.matches('input, textarea, select, [contenteditable="true"]')) return;
 
-      if ((event.code === 'Space' || (event.altKey && event.key.toLowerCase() === 'p')) && (session === 'recording' || session === 'paused')) {
-        event.preventDefault();
-        if (session === 'paused') resumeRecording();
-        else pauseRecording();
-      }
       if (event.altKey && event.key.toLowerCase() === 's' && (session === 'recording' || session === 'paused')) {
         event.preventDefault();
         stopRecording();
@@ -480,7 +473,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [diagnosticsOpen, pauseRecording, resumeRecording, session, setCameraVisible, setMicMuted, stopRecording]);
+  }, [diagnosticsOpen, session, setCameraVisible, setMicMuted, stopRecording]);
 
   useEffect(() => {
     if (countdown === null) return;
@@ -597,10 +590,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         endSessionRequestedRef.current = true;
         stopRecording();
       }
-      if (command === 'toggle-pause') {
-        if (session === 'recording') pauseRecording();
-        if (session === 'paused') resumeRecording();
-      }
       if (command === 'toggle-microphone') setMicMuted((value) => !value);
       if (command === 'toggle-camera') setCameraVisible((value) => !value);
     };
@@ -608,7 +597,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     return () => {
       window.removeEventListener(RECORDWEB_PRESENTATION_COMMAND_EVENT, handlePresentationCommand);
     };
-  }, [pauseRecording, resumeRecording, session, setCameraVisible, setMicMuted, startUiTest, stopRecording, workspace]);
+  }, [session, setCameraVisible, setMicMuted, startUiTest, stopRecording, workspace]);
 
   const recoverLatestDraft = async () => {
     const draft = recoveryDrafts[0];
@@ -1039,8 +1028,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     recordingWarning,
     recordingError,
     startRecordingAttention,
-    pauseRecording,
-    resumeRecording,
     stopRecording,
     activeRecording,
     session,

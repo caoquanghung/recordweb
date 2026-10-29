@@ -12,7 +12,7 @@ The primary workflow should remain simple:
 
 1. Choose what to capture: screen, webcam, microphone, and system audio.
 2. Select or customize a studio preset.
-3. Record with pause and resume support.
+3. Record continuously until the user stops the session.
 4. Preview and optionally trim the result.
 5. Save locally or upload and share.
 
@@ -49,7 +49,7 @@ The application should perform a browser compatibility check before the recordin
 
 Use a premium dark interface with the recording canvas at the center. A floating control dock could contain:
 
-- Record, pause, and resume controls.
+- Continuous recording and stop controls.
 - Elapsed time and the 30-minute limit.
 - Microphone mute control.
 - Camera toggle.
@@ -136,11 +136,9 @@ Provide understandable modes before exposing technical controls:
 
 Advanced users can expand a panel with gain, high-pass filter, compressor, and noise-gate controls.
 
-### 3.3 Pause and Resume
+### 3.3 Continuous Recording
 
-Pause and resume should operate as one continuous recording session. Keep the canvas compositor and audio graph active while pausing only `MediaRecorder`. This produces a single recording without requiring separate files to be merged.
-
-Use strong visual feedback when recording is paused so users do not accidentally continue presenting.
+Do not expose pause or resume controls after recording starts. Keeping each session continuous avoids timestamp gaps and broken-frame risks in post-recording processing.
 
 ### 3.4 Recording Recovery
 
@@ -171,7 +169,7 @@ Prioritize the initial release in this order:
 2. Screen, webcam, microphone, and system-audio capture.
 3. 1080p canvas composition at 30 FPS.
 4. Webcam positioning and resizing.
-5. Pause, resume, and stop.
+5. Stop recording.
 6. A 30-minute automatic recording limit.
 7. Local recovery and WebM download.
 8. Basic audio enhancement.
