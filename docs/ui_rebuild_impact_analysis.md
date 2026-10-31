@@ -83,7 +83,8 @@ Lưu ý: Studio dùng `AppNavigation` nhưng có shell/layout riêng; Dashboard,
 | `src/components/studio/StudioReviewWorkspace.tsx` | Review video, waveform, cursor, source download, upload/publish actions | Presentation của finalized assets và cloud state |
 | `src/components/studio/StudioDiagnosticsDrawer.tsx` | Preflight capability/service drawer | Presentation của health/capability state |
 | `src/components/studio/StudioPrimitives.tsx` | Icon SVG và status dot dùng trong Studio | Rủi ro thấp |
-| `src/components/studio/StudioShell.module.css` | Layout và toàn bộ visual Studio; gần 2.000 dòng CSS, gồm responsive drawers, stage, controls, review và diagnostics | Class name được dùng bởi các Studio view; đổi tên phải sửa đồng bộ consumer |
+| `src/components/studio/StudioShell.module.css` | Entrypoint 230 dòng chỉ compose class từ các CSS Module theo component; không còn chứa declaration giao diện | Giữ import `styles.*` hiện tại và compose đủ identity cho selector cha–con giữa các module |
+| `StudioLayout`, `StudioChrome`, `StudioSourcesPanel`, `StudioEffectsPanel`, `StudioStage`, `PresentationStage`, `StudioRecordingControls`, `StudioInputs`, `StudioPrimitives` (`src/components/studio/*.module.css`) | Chín module sở hữu layout/tokens, chrome, sources, effects, preview, presentation, recording controls, inputs và primitives; mỗi module giữ base/theme/responsive/override theo thứ tự cũ | Bản đồ ownership và quy tắc thêm class nằm trong `src/components/studio/STYLES.md`; Review/Diagnostics giữ module riêng hiện có |
 | `src/components/studio/AudioLevelMeter.tsx` | Thanh mức âm lượng và trạng thái audio | Nhận trạng thái DSP; cách hiển thị phụ thuộc mức tín hiệu thực |
 | `src/components/studio/AudioLevelMeter.module.css` | Màu, chuyển động và layout VU meter | Thấp nếu chỉ chỉnh visual |
 | `src/components/studio/AudioMeterPanel.tsx` | Gom microphone/system meter; Standard Studio chỉ hiển thị thanh microphone trong `StudioSourcesPanel`, Presentation giữ cả hai và chế độ collapse/expand | Có local interaction state ở chế độ Presentation |
@@ -146,11 +147,11 @@ Lưu ý: Studio dùng `AppNavigation` nhưng có shell/layout riêng; Dashboard,
 
 1. **Đã tách `StudioShell.tsx`**: shell hiện chỉ còn khoảng 40 dòng composition; processing nằm trong `useStudioController.ts` và UI được chia theo vùng chức năng. Rủi ro chính đã chuyển sang contract giữa controller và các view.
 2. **`useStudioController.ts` vẫn là processing coordinator lớn**: đây là chủ đích để giữ nguyên thứ tự hook và async lifecycle trong lần refactor đầu. Chỉ nên tách tiếp recovery/upload/preset sau khi có characterization tests cho các flow đó.
-3. **`StudioShell.module.css` vẫn lớn**: khoảng 1.700 dòng sau khi đã xóa hơn 300 dòng selector không còn consumer; nên tiếp tục tách theo view khi bắt đầu redesign thực tế.
+3. **Đã tách CSS Studio theo view (31/10/2026)**: từ 2.673 dòng sang chín module khoảng 40–470 dòng, còn `StudioShell.module.css` là facade 230 dòng. Các component không cần đổi JSX/import hay handler. Hai contract test kiểm tra composition; đối chiếu 553 selector/context, 167 class export và 80 tổ hợp computed-style/geometry trên Chromium đã pass. Không thêm `@import` vào facade vì composition đã tải CSS và import bổ sung gây trùng output Turbopack.
 4. **Token theme bị phân tán**:
    - `globals.css` chỉ có `--background` và `--foreground`.
    - `WorkspaceShell.module.css` định nghĩa bộ token riêng cho Dashboard/Library/Settings.
-   - `StudioShell.module.css` có scope token/layout riêng cho Studio.
+   - `StudioLayout.module.css` sở hữu scope token/layout riêng cho Studio, được export qua facade `StudioShell.module.css`.
    - Share/Auth lại có style độc lập.
    Việc đổi branding hiện phải sửa nhiều nơi và dễ lệch light/dark theme.
 5. **Đã xóa CSS navigation cũ** khỏi `StudioShell.module.css`; navigation hiện chỉ do `AppNavigation.tsx` và `AppNavigation.module.css` sở hữu.

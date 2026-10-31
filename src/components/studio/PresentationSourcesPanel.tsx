@@ -19,8 +19,6 @@ export function PresentationSourcesPanel({ studio }: { studio: StudioController 
     microphoneStream,
     mediaStatuses,
     mediaError,
-    resolution,
-    setResolution,
   } = studio;
   const devicesConnected = Boolean(cameraStream || microphoneStream);
 
@@ -94,13 +92,6 @@ export function PresentationSourcesPanel({ studio }: { studio: StudioController 
       <section className={styles.panelSection}>
         <div className={styles.sectionHeading}>
           <div><span>03</span><h2>Output</h2></div>
-        </div>
-        <div className={styles.segmented}>
-          {['1280x720', '1920x1080'].map((value) => (
-            <button key={value} onClick={() => setResolution(value)} className={resolution === value ? styles.segmentActive : ''}>
-              {value === '1920x1080' ? '1080p' : '720p'}
-            </button>
-          ))}
         </div>
         <div className={styles.outputMeta}>
           <span>30 FPS</span><span>16:9</span><span>30 min max</span>

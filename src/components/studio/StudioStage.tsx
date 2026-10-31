@@ -10,7 +10,6 @@ export function StudioStage({ studio }: { studio: StudioController }) {
     session,
     sessionLabel,
     activeMode,
-    resolution,
     compositorRunning,
     compositorFps,
     visualSourcesConnected,
@@ -38,7 +37,7 @@ export function StudioStage({ studio }: { studio: StudioController }) {
     <section className={styles.stageColumn}>
       <div className={styles.stageToolbar}>
         <div className={styles.stageMode}><StatusDot ok={recordingReady || session === 'recording'} /> {session === 'setup' ? (recordingReady ? 'Preview ready' : 'Live preview') : sessionLabel}</div>
-        <div className={styles.stageTags}><span>{activeMode.label}</span><span>{resolution}</span><span>{compositorRunning ? `${compositorFps || '—'} FPS` : '30 FPS target'}</span></div>
+        <div className={styles.stageTags}><span>{activeMode.label}</span><span>{compositorRunning ? `${compositorFps || '—'} FPS` : '30 FPS target'}</span></div>
       </div>
 
       <div className={`${styles.stage} ${session === 'recording' ? styles.stageRecording : ''}`}>

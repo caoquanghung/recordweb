@@ -147,9 +147,7 @@
   gap: 10px;
 }
 
-.primaryButton,
-.secondaryButton,
-.shareCard button {
+.secondaryButton {
   min-height: 42px;
   display: inline-flex;
   align-items: center;
@@ -163,22 +161,13 @@
   cursor: pointer;
 }
 
-.primaryButton {
-  border: 1px solid var(--brand-dark);
-  color: white;
-  background: linear-gradient(135deg, #1749bd, #00288e);
-  box-shadow: 0 8px 18px rgba(0, 40, 142, 0.2);
-}
-
 .secondaryButton {
   border: 1px solid #d8dfec;
   color: #26354c;
   background: white;
 }
 
-.primaryButton:disabled,
-.secondaryButton:disabled,
-.shareCard button:disabled {
+.secondaryButton:disabled {
   opacity: 0.58;
   cursor: wait;
 }
@@ -230,8 +219,7 @@
 }
 
 .cardHeader h2,
-.railHeader h2,
-.shareCard h2 {
+.railHeader h2 {
   color: #152338;
   font-size: 14px;
   line-height: 1.25;
@@ -243,8 +231,7 @@
   font-size: 11px;
 }
 
-.cardIcon,
-.railIcon {
+.cardIcon {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -255,11 +242,6 @@
 .cardIcon {
   width: 38px;
   height: 38px;
-}
-
-.railIcon {
-  width: 46px;
-  height: 46px;
 }
 
 .videoMeta {
@@ -426,35 +408,6 @@
 
 .rightColumn .card {
   padding: 18px;
-}
-
-.shareCard {
-  display: grid;
-  justify-items: start;
-  gap: 10px;
-  background:
-    radial-gradient(circle at 100% 0, rgba(57, 98, 201, 0.12), transparent 13rem),
-    #fff;
-}
-
-.shareCard p {
-  color: #697588;
-  font-size: 12px;
-  line-height: 1.55;
-}
-
-.shareCard button {
-  width: 100%;
-  margin-top: 5px;
-  border: 1px solid #d8e2f9;
-  color: #123e99;
-  background: #eff4ff;
-}
-
-.accessLabel {
-  color: #778297;
-  font-size: 10px;
-  line-height: 1.4;
 }
 
 .railHeader {
@@ -636,9 +589,7 @@
 }
 
 .backLink:focus-visible,
-.primaryButton:focus-visible,
 .secondaryButton:focus-visible,
-.shareCard button:focus-visible,
 .disclosure:focus-visible,
 .chapterList button:focus-visible,
 .stateCard a:focus-visible {
@@ -759,7 +710,6 @@
 :global(html[data-theme='dark']) .titleRow h1,
 :global(html[data-theme='dark']) .cardHeader h2,
 :global(html[data-theme='dark']) .railHeader h2,
-:global(html[data-theme='dark']) .shareCard h2,
 :global(html[data-theme='dark']) .fileInfo dd,
 :global(html[data-theme='dark']) .emptyChapters strong { color: #eef2f8; }
 
@@ -770,8 +720,6 @@
 :global(html[data-theme='dark']) .videoMeta,
 :global(html[data-theme='dark']) .disclosure small,
 :global(html[data-theme='dark']) .sourceItem small,
-:global(html[data-theme='dark']) .shareCard p,
-:global(html[data-theme='dark']) .accessLabel,
 :global(html[data-theme='dark']) .chapterList small,
 :global(html[data-theme='dark']) .emptyChapters,
 :global(html[data-theme='dark']) .fileInfo dt { color: #94a1b5; }
@@ -788,7 +736,6 @@
 :global(html[data-theme='dark']) .sourceGrid,
 :global(html[data-theme='dark']) .fileInfo > div { border-color: #27334a; }
 :global(html[data-theme='dark']) .cardIcon,
-:global(html[data-theme='dark']) .railIcon,
 :global(html[data-theme='dark']) .stateIcon { background: #1e2c52; }
 :global(html[data-theme='dark']) .secondaryButton { color: #d9e1ed; border-color: #34415a; background: #1b2538; }
 :global(html[data-theme='dark']) .notice { color: var(--brand-primary); border-color: var(--brand-primary-border); background: var(--brand-primary-soft); }
@@ -799,10 +746,4 @@
 :global(html[data-theme='dark']) .sourceItem > span,
 :global(html[data-theme='dark']) .chapterNumber,
 :global(html[data-theme='dark']) .railHeader > span { color: var(--brand-primary); background: var(--brand-primary-soft); }
-:global(html[data-theme='dark']) .shareCard {
-  background:
-    radial-gradient(circle at 100% 0, rgba(89, 113, 195, 0.18), transparent 13rem),
-    #151d2d;
-}
-:global(html[data-theme='dark']) .shareCard button { color: var(--brand-primary); border-color: var(--brand-primary-border); background: var(--brand-primary-soft); }
 :global(html[data-theme='dark']) .chapterList button:hover { border-color: #526aa9; background: #1b2945; }

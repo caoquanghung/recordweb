@@ -123,7 +123,6 @@
 }
 
 .implementationNote p { margin-top: 7px; font-size: 14px; line-height: 1.7; }
-.announcement { min-height: 24px; margin-top: 12px; color: #1d4ed8; font-size: 13px; }
 
 @media (max-width: 1100px) {
   .content { padding-right: 40px; padding-left: 40px; }

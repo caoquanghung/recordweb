@@ -3,35 +3,24 @@
 import Link from 'next/link';
 import { AppSidebar } from '@/components/app/AppSidebar';
 import styles from './LibraryClient.module.css';
-import {
-  RecordingPreviewDialog,
-  SharingDialog,
-} from './LibraryDialogs';
+import { RecordingPreviewDialog } from './LibraryDialogs';
 import { LibraryIcon } from './LibraryPrimitives';
 import { LibraryRecordingGrid } from './LibraryRecordingGrid';
 import {
   LIBRARY_PAGE_SIZE,
   type LibrarySort,
-  type LibraryTab,
   useLibraryController,
 } from './useLibraryController';
 
 export function LibraryClient() {
   const library = useLibraryController();
   const {
-    tab, setTab, query, setQuery, sort, setSort, page, setPage,
-    cloud, shared, loading, message,
+    query, setQuery, sort, setSort, page, setPage,
+    loading, message,
     preview, setPreview,
-    sharingRecording, setSharingRecording, shares,
-    recipientEmail, setRecipientEmail, permission, setPermission, shareBusy,
     loadLibrary, paginatedEntries, visibleCount, pageCount,
     cloudBytes, cloudGigabytes, storagePercent, totalCount,
   } = library;
-
-  const tabs: Array<[LibraryTab, string, number]> = [
-    ['mine', 'Tất cả bài giảng', cloud.length],
-    ['shared', 'Được chia sẻ', shared.length],
-  ];
 
   return (
     <div className={styles.libraryShell}>
@@ -46,7 +35,7 @@ export function LibraryClient() {
                 <span className={styles.countBadge}>{totalCount} bài giảng đã ghi</span>
               </div>
               <h1>Thư viện bài giảng đã ghi</h1>
-              <p>Quản lý, xem lại và chia sẻ video bài giảng của Thầy/Cô cho học sinh một cách an toàn và thuận tiện.</p>
+              <p>Quản lý, xem lại và tải xuống dữ liệu bài giảng phục vụ nghiên cứu.</p>
             </div>
 
             <section className={styles.storageCard} aria-label="Dung lượng lưu trữ bài giảng">
@@ -77,21 +66,6 @@ export function LibraryClient() {
               />
             </label>
 
-            <div className={styles.tabs} role="tablist" aria-label="Lọc bài giảng">
-              {tabs.map(([value, label, count]) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === value}
-                  className={tab === value ? styles.tabActive : ''}
-                  onClick={() => { setTab(value); setPage(1); }}
-                >
-                  {label} ({count})
-                </button>
-              ))}
-            </div>
-
             <label className={styles.sortField}>
               <span className={styles.sortGlyph} aria-hidden="true">↕</span>
               <span className={styles.srOnly}>Sắp xếp bài giảng</span>
@@ -112,7 +86,7 @@ export function LibraryClient() {
               <strong>Chưa có bài giảng trong mục này</strong>
               <span>{query
                 ? 'Thử một từ khoá khác hoặc xoá bộ lọc tìm kiếm.'
-                : 'Quay bài giảng trong Studio hoặc xem mục Được chia sẻ.'}</span>
+                : 'Quay bài giảng trong Studio để dữ liệu xuất hiện tại đây.'}</span>
               {!query && <Link href="/studio">Ghi bài giảng mới</Link>}
             </div>
           )}
@@ -123,8 +97,6 @@ export function LibraryClient() {
               setPreview={setPreview}
               downloadCloudFiles={library.downloadCloudFiles}
               removeCloud={library.removeCloud}
-              openSharing={library.openSharing}
-              togglePublic={library.togglePublic}
             />
           )}
 
@@ -157,22 +129,6 @@ export function LibraryClient() {
         </div>
 
         {preview && <RecordingPreviewDialog preview={preview} onClose={() => setPreview(null)} />}
-        {sharingRecording && (
-          <SharingDialog
-            recording={sharingRecording}
-            shares={shares}
-            recipientEmail={recipientEmail}
-            permission={permission}
-            busy={shareBusy}
-            onClose={() => setSharingRecording(null)}
-            onRecipientEmailChange={setRecipientEmail}
-            onPermissionChange={setPermission}
-            onTogglePublic={library.togglePublic}
-            onCopyLink={library.copyShareLink}
-            onGrantAccess={library.grantAccess}
-            onRevokeAccess={library.revokeAccess}
-          />
-        )}
       </main>
     </div>
   );

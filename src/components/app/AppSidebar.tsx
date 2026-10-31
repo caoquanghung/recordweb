@@ -11,7 +11,7 @@ import { useAppTheme } from './useAppTheme';
 import styles from './AppSidebar.module.css';
 
 export type AppSidebarBehavior = 'fixed' | 'adaptive';
-export type AppSidebarIcon = 'studio' | 'library' | 'settings' | 'help';
+export type AppSidebarIcon = 'studio' | 'library';
 
 export interface AppSidebarItem {
   id: string;
@@ -33,8 +33,6 @@ interface AppSidebarProps {
 const defaultItems: AppSidebarItem[] = [
   { id: 'studio', label: 'Studio Giảng Bài', icon: 'studio', href: '/studio' },
   { id: 'library', label: 'Thư viện bài giảng', icon: 'library', href: '/library' },
-  { id: 'settings', label: 'Cài đặt thiết bị', icon: 'settings', href: '/settings' },
-  { id: 'help', label: 'Trợ giúp & Hướng dẫn', icon: 'help' },
 ];
 
 function isActiveRoute(pathname: string, href?: string) {
@@ -106,7 +104,7 @@ export function AppSidebar({
               <Image src="/figma/sidebar/brand.svg" alt="" width={26} height={21} />
             </span>
             <span className={styles.brandCopy}>
-              <strong>Giảng Đường Số</strong>
+              <strong>Research Studio</strong>
               <span>Phòng Thu Trực Tuyến</span>
             </span>
           </Link>

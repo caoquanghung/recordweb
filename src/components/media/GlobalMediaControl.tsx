@@ -55,6 +55,7 @@ export function GlobalMediaControl() {
     { source: 'camera' as const, label: cameraVisible ? 'Camera' : 'Camera off', stream: cameraStream, stop: stopCamera, inactive: !cameraVisible },
     { source: 'microphone' as const, label: micMuted ? 'Mic muted' : 'Mic', stream: microphoneStream, stop: stopMicrophone, inactive: micMuted },
   ].filter(({ stream }) => Boolean(stream));
+
   const {
     panelRef,
     position,
@@ -98,10 +99,17 @@ export function GlobalMediaControl() {
           <span className={styles.grip} aria-hidden="true">
             <i /><i /><i /><i /><i /><i />
           </span>
-          <span className={styles.liveDot} aria-hidden="true" />
-          <span className={styles.headingLabel}>Devices in use</span>
-          <span className={styles.dragHint} aria-hidden="true">Drag to move</span>
+          <span className={styles.headingText}>
+            <span className={styles.headingTitle}>
+              <span className={styles.liveDot} aria-hidden="true" />
+              <span className={styles.headingLabel}>Devices in use</span>
+            </span>
+            <span className={styles.dragHint}>Drag to reposition</span>
+          </span>
         </div>
+        <span className={styles.sourceCount} aria-label={`${sources.length} connected sources`}>
+          {sources.length}
+        </span>
         <button
           className={styles.resetPosition}
           type="button"
@@ -110,28 +118,52 @@ export function GlobalMediaControl() {
           aria-label="Reset device panel position"
           title="Reset position"
         >
-          ↙
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
         </button>
       </div>
+
       <div className={styles.sources}>
         {sources.map(({ source, label, stop, inactive }) => (
           <button
-            className={styles.sourceButton}
+            className={`${styles.sourceButton} ${inactive ? styles.sourceInactive : ''}`}
             key={source}
             type="button"
             onClick={stop}
             aria-label={`Disconnect ${source}`}
             title={`Disconnect ${source}`}
           >
-            <SourceIcon source={source} inactive={inactive} />
-            <span>{label}</span>
-            <span className={styles.close} aria-hidden="true">×</span>
+            <span className={`${styles.iconWrap} ${styles[source]}`} aria-hidden="true">
+              <SourceIcon source={source} inactive={inactive} />
+            </span>
+            <span className={styles.sourceInfo}>
+              <span className={styles.sourceLabel}>{label}</span>
+              <span className={styles.sourceStatus}>
+                <span className={styles.statusDot} aria-hidden="true" />
+                {inactive ? 'Inactive · connected' : 'Connected'}
+              </span>
+            </span>
+            <span className={styles.close} aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </span>
           </button>
         ))}
       </div>
-      <button className={styles.disconnectAll} type="button" onClick={stopAll}>
-        Disconnect all
-      </button>
+
+      <div className={styles.footer}>
+        <button className={styles.disconnectAll} type="button" onClick={stopAll}>
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 8l8 8M16 8l-8 8" />
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+          <span>Disconnect all</span>
+          <span className={styles.disconnectHint} aria-hidden="true">All sources</span>
+        </button>
+      </div>
     </aside>
   );
 }

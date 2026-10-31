@@ -62,6 +62,9 @@ interface UseStudioControllerOptions {
   workspace?: StudioWorkspaceKind;
 }
 
+const RECORDING_RESOLUTION = '1920x1080';
+const COMPOSITOR_RESOLUTION = { width: 1920, height: 1080 } as const;
+
 export function useStudioController({ workspace = 'studio' }: UseStudioControllerOptions = {}) {
   const { userId: ownerUserId } = useAuth();
   const presentationWorkspace = workspace === 'presentation';
@@ -70,7 +73,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const [pipShape, setPipShape] = useState<PipShape>('rounded');
   const [pipSize, setPipSize] = useState<PipSize>('medium');
   const [audioMode, setAudioMode] = useState('Voice clarity');
-  const [resolution, setResolution] = useState('1920x1080');
   const [countdown, setCountdown] = useState<number | null>(null);
   const [healthState, setHealthState] = useState<CheckState>('idle');
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -190,9 +192,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     background,
   );
 
-  const compositorResolution = resolution === '1920x1080'
-    ? { width: 1920, height: 1080 }
-    : { width: 1280, height: 720 };
+  const compositorResolution = COMPOSITOR_RESOLUTION;
   const {
     canvasRef,
     outputStream: compositeStream,
@@ -246,7 +246,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     audioStream: mixedAudioStream,
     microphoneAudioStream: microphoneOutputStream,
     systemAudioStream: systemAudioOutputStream,
-    resolution,
+    resolution: RECORDING_RESOLUTION,
     fps: 30,
     cursorCapture,
   });
@@ -334,9 +334,8 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
           setPipShape(preset.pip_shape === 'cutout' ? 'circle' : preset.pip_shape as PipShape);
           setPipSize(preset.pip_size as PipSize);
           setBackground('original');
-          const filters = preset.filters_config as { mode?: string; resolution?: string };
+          const filters = preset.filters_config as { mode?: string };
           if (filters.mode) setAudioMode(filters.mode);
-          if (filters.resolution) setResolution(filters.resolution);
           setPresetMessage(`Loaded “${preset.preset_name}” from Dashboard.`);
           localStorage.removeItem('recordweb-pending-preset');
         }
@@ -627,7 +626,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         composite: {
           mimeType: draft.mimeType || 'video/webm',
           chunks: draft.chunks,
-          resolution,
+          resolution: RECORDING_RESOLUTION,
           fps: 30,
         },
       } : {});
@@ -669,7 +668,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         title: '',
         durationSeconds: draft.durationMs / 1000,
         fileSizeBytes: composite.fileSizeBytes,
-        resolution: composite.resolution ?? resolution,
+        resolution: composite.resolution ?? RECORDING_RESOLUTION,
         fps: composite.fps ?? 30,
         mimeType: composite.mimeType,
         createdAt: draft.startedAt,
@@ -686,7 +685,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     } catch (error) {
       setRecoveryMessage(`Recovery failed: ${(error as Error).message}`);
     }
-  }, [ownerUserId, recoveryDrafts, resolution]);
+  }, [ownerUserId, recoveryDrafts]);
 
   useEffect(() => {
     const requestedId = new URLSearchParams(window.location.search).get('recover');
@@ -829,26 +828,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     void uploadRecording();
   };
 
-  const publishAndCopyLink = async () => {
-    if (!cloudRecording || titleRequired) return;
-    setUploadMessage('Preparing share link…');
-    try {
-      const response = await fetch('/api/recordings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: cloudRecording.id, is_public: true }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Could not update sharing access.');
-      setCloudRecording(data.recording);
-      const shareUrl = `${window.location.origin}/share/${cloudRecording.id}`;
-      await navigator.clipboard.writeText(shareUrl);
-      setUploadMessage('Share link copied to the clipboard.');
-    } catch (error) {
-      setUploadMessage(`Could not publish: ${(error as Error).message}`);
-    }
-  };
-
   const inspectBrowserCapabilities = () => {
     const nextCapabilities: BrowserCapabilities = {
       screenCapture: Boolean(navigator.mediaDevices?.getDisplayMedia),
@@ -899,7 +878,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
           pip_size: pipSize,
           pip_position: 'bottom-right',
           bg_removal_mode: background,
-          filters_config: { mode: audioMode, resolution },
+          filters_config: { mode: audioMode },
         }),
       });
       const data = await response.json();
@@ -915,9 +894,8 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     setPipShape(preset.pip_shape === 'cutout' ? 'circle' : preset.pip_shape as PipShape);
     setPipSize(preset.pip_size as PipSize);
     setBackground('original');
-    const filters = preset.filters_config as { mode?: string; resolution?: string };
+    const filters = preset.filters_config as { mode?: string };
     if (filters.mode) setAudioMode(filters.mode);
-    if (filters.resolution) setResolution(filters.resolution);
     setPresetMessage(`Loaded “${preset.preset_name}”.`);
   };
 
@@ -937,7 +915,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     pipShape, setPipShape,
     pipSize, setPipSize,
     audioMode, setAudioMode,
-    resolution, setResolution,
     countdown,
     micMuted, setMicMuted,
     cameraVisible, setCameraVisible,
@@ -1027,7 +1004,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     saveRecordingTitle,
     downloadRecordingFiles,
     retryRecordingSave,
-    publishAndCopyLink,
     runSystemCheck,
     runDevicePreflight,
     savePreset,

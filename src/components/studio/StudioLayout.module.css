@@ -1,0 +1,385 @@
+/* Styles owned by Studio Layout.
+ * Class identities are composed by StudioShell.module.css; import that facade in JSX.
+ * Keep base, theme, responsive, and Standard Studio overrides together in this file.
+ */
+.appShell {
+  --studio-bg: #080b12;
+  --panel: rgba(17, 22, 34, 0.88);
+  --panel-solid: #111622;
+  --panel-raised: #171d2b;
+  --line: rgba(255, 255, 255, 0.075);
+  --line-strong: rgba(255, 255, 255, 0.13);
+  --primary: var(--brand-primary-action);
+  --primary-bright: var(--brand-primary);
+  --cyan: #46d6e7;
+  --green: #48d7a1;
+  --red: #ff5263;
+  --amber: #f6b84a;
+  --text: #f4f5f8;
+  --muted: #929bad;
+  --dim: #5f6879;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  color: var(--text);
+  background:
+    radial-gradient(circle at 58% -20%, color-mix(in srgb, var(--brand-primary-action) 10%, transparent), transparent 42rem),
+    var(--studio-bg);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.workspace {
+  width: 100%;
+  max-width: 1760px;
+  margin: 0 auto;
+  padding: 22px clamp(20px, 2.2vw, 38px) 44px;
+}
+
+.studioGrid {
+  display: grid;
+  grid-template-columns: 238px minmax(460px, 1fr) 250px;
+  gap: 16px;
+  align-items: start;
+}
+
+:global(html[data-theme='light']) .appShell {
+  --studio-bg: #eef1f7;
+  --panel: rgba(255, 255, 255, 0.88);
+  --panel-solid: #ffffff;
+  --panel-raised: #f4f6fa;
+  --line: rgba(30, 39, 58, 0.1);
+  --line-strong: rgba(30, 39, 58, 0.17);
+  --primary: var(--brand-primary-action);
+  --primary-bright: var(--brand-primary);
+  --cyan: #147f91;
+  --green: #13835c;
+  --red: #d83a4c;
+  --amber: #a96d08;
+  --text: #182030;
+  --muted: #5f697b;
+  --dim: #8790a0;
+  background:
+    radial-gradient(circle at 58% -20%, color-mix(in srgb, var(--brand-primary-action) 14%, transparent), transparent 42rem),
+    var(--studio-bg);
+}
+
+.studioGrid {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  grid-template-areas:
+    "stage sources"
+    "stage effects";
+  column-gap: clamp(18px, 1.6vw, 24px);
+  row-gap: 18px;
+}
+
+.studioGrid.sourcesClosed {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  grid-template-areas: "stage effects";
+}
+
+.studioGrid.effectsClosed {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  grid-template-areas: "stage sources";
+}
+
+.studioGrid.sourcesClosed.effectsClosed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "stage";
+}
+
+@media (max-width: 1120px) {
+  .studioGrid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "stage";
+  }
+
+  .studioGrid.sourcesClosed,
+.studioGrid.effectsClosed,
+.studioGrid.sourcesClosed.effectsClosed {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "stage";
+  }
+}
+
+@media (max-width: 900px) {
+  .workspace { padding: 18px; }
+  .studioGrid,
+.studioGrid.sourcesClosed,
+.studioGrid.effectsClosed,
+.studioGrid.sourcesClosed.effectsClosed {
+    grid-template-columns: 1fr;
+    grid-template-areas: "stage";
+  }
+}
+
+@media (max-width: 680px) {
+  .appShell { display: block; padding-bottom: 66px; }
+}
+
+/* Studio screen reconstruction: scoped so Presentation keeps its existing shell. */
+.studioScreen {
+  --studio-bg: #0d1324;
+  --panel: #151d31;
+  --panel-solid: #151d31;
+  --panel-raised: #1c2740;
+  --line: rgba(204, 214, 235, 0.12);
+  --line-strong: rgba(204, 214, 235, 0.22);
+  --primary: var(--brand-primary-action);
+  --primary-bright: var(--brand-primary);
+  --cyan: #2cc8bd;
+  --green: #2cc8a6;
+  --red: #e95368;
+  --amber: #e2a84a;
+  --text: #f6f8fc;
+  --muted: #a5afc2;
+  --dim: #6f7a90;
+  display: block;
+  color: var(--text);
+  background: var(--studio-bg);
+  font-family: "Be Vietnam Pro", var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.studioNavigation {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 110;
+  width: 20px;
+  pointer-events: none;
+}
+
+.studioNavigationEdge {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 110;
+  width: 20px;
+  height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: rgba(180, 193, 228, 0.82);
+  background: linear-gradient(90deg, rgba(35, 47, 78, 0.42), transparent);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: width 180ms ease, color 180ms ease, background 180ms ease;
+  backdrop-filter: blur(10px);
+}
+
+.studioNavigationEdge span {
+  width: 4px;
+  height: 42px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--brand-primary) 42%, transparent);
+}
+
+.studioNavigationEdge:hover,
+.studioNavigationEdge:focus-visible {
+  width: 25px;
+  color: var(--brand-primary);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--brand-primary-action) 68%, transparent), transparent);
+}
+
+.studioNavigationEdge:focus-visible {
+  outline: 3px solid var(--brand-focus-ring);
+  outline-offset: 3px;
+}
+
+@media (min-width: 841px) {
+  .studioNavigation .studioSidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 111;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: auto;
+    transform: translateX(calc(-100% - 12px));
+    box-shadow: 18px 0 52px rgba(2, 6, 23, 0.3);
+    transition:
+      transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease,
+      visibility 0s linear 280ms;
+  }
+
+  .studioNavigation:hover .studioSidebar,
+.studioNavigation:focus-within .studioSidebar {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(0);
+    transition-delay: 0s;
+  }
+}
+
+.studioScreen .workspace {
+  max-width: none;
+  min-height: 100vh;
+  padding: 0 8px 28px;
+  background:
+    radial-gradient(circle at 50% -30%, color-mix(in srgb, var(--brand-primary-action) 16%, transparent), transparent 42rem),
+    var(--studio-bg);
+}
+
+.studioScreen .studioGrid,
+.studioScreen .studioGrid.sourcesClosed,
+.studioScreen .studioGrid.effectsClosed,
+.studioScreen .studioGrid.sourcesClosed.effectsClosed {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "stage stage"
+    "sources effects";
+  gap: 10px;
+  padding: 0 8px;
+}
+
+.studioScreen .studioGrid.sourcesClosed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "stage" "effects";
+}
+
+.studioScreen .studioGrid.effectsClosed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "stage" "sources";
+}
+
+.studioScreen .studioGrid.sourcesClosed.effectsClosed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "stage";
+}
+
+:global(html[data-theme='light']) .studioScreen {
+  --studio-bg: #f2f5fa;
+  --panel: #ffffff;
+  --panel-solid: #ffffff;
+  --panel-raised: #f5f7fb;
+  --line: rgba(30, 52, 88, 0.11);
+  --line-strong: rgba(30, 52, 88, 0.2);
+  --primary: var(--brand-primary-action);
+  --primary-bright: var(--brand-primary);
+  --cyan: #0f9488;
+  --green: #0f9f83;
+  --red: #df415b;
+  --amber: #b87418;
+  --text: #17233a;
+  --muted: #5c687b;
+  --dim: #8993a4;
+  background: var(--studio-bg);
+}
+
+:global(html[data-theme='light']) .studioScreen .workspace {
+  background:
+    radial-gradient(circle at 50% -30%, color-mix(in srgb, var(--brand-primary-action) 11%, transparent), transparent 42rem),
+    var(--studio-bg);
+}
+
+@media (max-width: 1120px) {
+  .studioScreen .studioGrid,
+.studioScreen .studioGrid.sourcesClosed,
+.studioScreen .studioGrid.effectsClosed,
+.studioScreen .studioGrid.sourcesClosed.effectsClosed {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "stage" "sources" "effects";
+  }
+
+  .studioScreen .studioGrid.sourcesClosed { grid-template-areas: "stage" "effects"; }
+  .studioScreen .studioGrid.effectsClosed { grid-template-areas: "stage" "sources"; }
+  .studioScreen .studioGrid.sourcesClosed.effectsClosed { grid-template-areas: "stage"; }
+}
+
+@media (max-width: 840px) {
+  .studioNavigation {
+    position: static;
+    width: 0;
+    pointer-events: auto;
+  }
+
+  .studioNavigationEdge {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studioNavigationEdge,
+.studioNavigation .studioSidebar {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Standard Studio setup: live stage beside a persistent, actionable source rail. */
+.studioScreen .standardWorkspace {
+  --studio-bg: #f8fafc;
+  --panel: #fff;
+  --panel-solid: #fff;
+  --panel-raised: #f8fafc;
+  --line: rgba(148, 163, 184, .24);
+  --line-strong: rgba(148, 163, 184, .4);
+  --text: #0f172a;
+  --muted: #475569;
+  --dim: #64748b;
+  --green: #059669;
+  --red: #dc2626;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+  color: var(--text);
+  background: var(--studio-bg);
+}
+
+.studioScreen .standardGrid,
+.studioScreen .standardGrid.sourcesClosed,
+.studioScreen .standardGrid.effectsClosed,
+.studioScreen .standardGrid.sourcesClosed.effectsClosed {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas:
+    "stage sources"
+    "stage effects";
+  gap: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
+  padding: 0;
+  align-items: stretch;
+  overflow: hidden;
+  background: #fff;
+}
+
+.studioScreen .standardGrid.effectsClosed { grid-template-areas: "stage sources"; grid-template-rows: minmax(0, 1fr); }
+.studioScreen .standardGrid.sourcesClosed { grid-template-areas: "stage effects"; grid-template-rows: minmax(0, 1fr); }
+.studioScreen .standardGrid.sourcesClosed.effectsClosed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "stage";
+  grid-template-rows: minmax(0, 1fr);
+}
+
+:global(html[data-theme='dark']) .studioScreen .standardWorkspace {
+  --studio-bg: #0b1220;
+  --panel: #111c2c;
+  --panel-solid: #111c2c;
+  --panel-raised: #18263a;
+  --line: rgba(148, 163, 184, .2);
+  --line-strong: rgba(148, 163, 184, .35);
+  --text: #f1f5f9;
+  --muted: #cbd5e1;
+  --dim: #94a3b8;
+  background: var(--studio-bg);
+}
+:global(html[data-theme='dark']) .studioScreen .standardGrid { background: #111c2c; }
+
+@media (max-width: 760px) {
+  .studioScreen .standardGrid,
+.studioScreen .standardGrid.sourcesClosed,
+.studioScreen .standardGrid.effectsClosed,
+.studioScreen .standardGrid.sourcesClosed.effectsClosed {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "sources" "stage" "effects";
+    grid-template-rows: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 1fr);
+  }
+  .studioScreen .standardGrid.sourcesClosed { grid-template-areas: "stage" "effects"; grid-template-rows: minmax(0, 3fr) minmax(0, 1fr); }
+  .studioScreen .standardGrid.effectsClosed { grid-template-areas: "sources" "stage"; grid-template-rows: minmax(0, 2fr) minmax(0, 3fr); }
+  .studioScreen .standardGrid.sourcesClosed.effectsClosed { grid-template-areas: "stage"; grid-template-rows: minmax(0, 1fr); }
+}

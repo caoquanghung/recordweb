@@ -143,8 +143,6 @@
 
 .iconstudio { --sidebar-icon: url('/figma/sidebar/studio.svg'); }
 .iconlibrary { --sidebar-icon: url('/figma/sidebar/library.svg'); }
-.iconsettings { --sidebar-icon: url('/figma/sidebar/settings.svg'); }
-.iconhelp { --sidebar-icon: url('/figma/sidebar/help.svg'); }
 
 .navLabel {
   min-width: 0;

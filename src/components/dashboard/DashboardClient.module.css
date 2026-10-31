@@ -26,7 +26,6 @@
 .hero,
 .recordingCard,
 .workspaceSection,
-.utilityPanel,
 .statsGrid article { box-shadow: 0 1px 2px rgb(15 23 42 / 5%); }
 
 .recoveryBanner {
@@ -51,7 +50,7 @@
 .recoveryCopy p { max-width: 680px; margin-top: 4px; color: #475569; font-size: 16px; line-height: 1.625; }
 .recoveryActions { flex: 0 0 auto; display: flex; gap: 12px; }
 
-.secondaryButton, .dangerButton, .heroButton, .primaryCardAction, .disabledAction, .watchButton, .shareButton { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; font-size: 16px; font-weight: 700; text-decoration: none; }
+.secondaryButton, .dangerButton, .heroButton, .primaryCardAction, .disabledAction, .watchButton { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; font-size: 16px; font-weight: 700; text-decoration: none; }
 .secondaryButton { padding: 0 20px; color: #334155; border: 1px solid #e2e8f0; background: #fff; }
 .dangerButton { padding: 0 24px; color: #fff; background: #dc2626; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -2px rgb(0 0 0 / 10%); }
 .message { padding: 12px 16px; color: #92400e; border: 1px solid #fde68a; border-radius: 12px; background: #fffbeb; font-size: 14px; }
@@ -81,14 +80,15 @@
 .recordingCard p { min-height: 48px; color: #64748b; font-size: 16px; line-height: 24px; }
 .thumbnail { position: relative; width: 100%; aspect-ratio: 16 / 9; margin-top: 12px; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 12px; background: #f1f5f9; }
 .thumbnail > img { object-fit: cover; }
+.thumbnail > video { width: 100%; height: 100%; display: block; object-fit: cover; }
+.recordingThumbnailFallback { position: absolute; inset: 0; background: radial-gradient(circle at 72% 28%, rgb(56 189 248 / 34%), transparent 24%), linear-gradient(135deg, #111827 0%, #1e3a8a 52%, #0f766e 120%); }
 .processingThumbnail > img { opacity: .2; }
 .processingThumbnail > span { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #1e293b; font-size: 16px; font-weight: 700; }
 .primaryCardAction, .disabledAction { min-height: 56px; margin: 0 24px 24px; border: 0; }
 .primaryCardAction { color: #fff; background: #1d4ed8; cursor: pointer; font-size: 18px; }
 .disabledAction { color: #64748b; background: #f1f5f9; font-size: 18px; }
-.cardActions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 24px 24px; }
+.cardActions { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 0 24px 24px; }
 .watchButton { min-height: 56px; color: #1e293b; background: #f1f5f9; font-size: 18px; }
-.shareButton { min-height: 56px; color: #fff; background: #1d4ed8; box-shadow: 0 1px 2px rgb(0 0 0 / 5%); font-size: 18px; }
 .emptyState { grid-column: 1 / -1; min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px; color: #64748b; border: 1px dashed #bfdbfe; border-radius: 16px; background: #fff; text-align: center; }
 .emptyState h3 { color: #0f172a; font-size: 20px; }
 .emptyState p { max-width: 540px; line-height: 1.6; }
@@ -97,31 +97,13 @@
 .workspaceSection { display: flex; flex-direction: column; gap: 18px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 20px; background: #fff; }
 .statsGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .statsGrid article { display: grid; gap: 6px; padding: 18px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; }
-.statsGrid span, .utilityHeading span { color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.statsGrid span { color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .statsGrid strong { font-size: 26px; letter-spacing: -.04em; }
 .statsGrid small { color: #94a3b8; font-size: 11px; }
-.utilityGrid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr); gap: 18px; }
-.utilityPanel { padding: 18px; border: 1px solid #e2e8f0; border-radius: 14px; }
-.utilityHeading { display: grid; gap: 4px; margin-bottom: 14px; }
-.utilityHeading h3 { font-size: 18px; }
-.quickGrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.quickGrid button { min-height: 126px; display: flex; flex-direction: column; align-items: flex-start; gap: 7px; padding: 14px; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; text-align: left; cursor: pointer; transition: 160ms ease; }
-.quickGrid button:hover { transform: translateY(-2px); border-color: #93c5fd; }
-.quickGrid button > span { color: #1d4ed8; font: 700 10px/1 var(--font-geist-mono), monospace; }
-.quickGrid strong { margin-top: auto; font-size: 13px; }
-.quickGrid small { color: #64748b; font-size: 11px; line-height: 1.4; }
-.presetList { display: grid; gap: 8px; }
-.presetRow { min-height: 58px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; }
-.presetRow > div { min-width: 0; display: grid; gap: 4px; }
-.presetRow strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.presetRow small { color: #64748b; font-size: 10px; }
-.presetRow button { padding: 7px 9px; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 7px; background: #fff; font-size: 10px; cursor: pointer; }
-.presetRow .deleteButton { color: #b91c1c; }
-.emptyCopy { padding: 20px 4px; color: #64748b; font-size: 13px; line-height: 1.6; }
 .secondaryButton:hover, .watchButton:hover { background: #e2e8f0; }
 .dangerButton:hover { background: #b91c1c; }
-.heroButton:hover, .primaryCardAction:hover, .shareButton:hover, .emptyState button:hover { background: #1e40af; }
-.secondaryButton:focus-visible, .dangerButton:focus-visible, .heroButton:focus-visible, .primaryCardAction:focus-visible, .watchButton:focus-visible, .shareButton:focus-visible, .quickGrid button:focus-visible, .presetRow button:focus-visible, .emptyState button:focus-visible { outline: 3px solid rgb(37 99 235 / 30%); outline-offset: 2px; }
+.heroButton:hover, .primaryCardAction:hover, .emptyState button:hover { background: #1e40af; }
+.secondaryButton:focus-visible, .dangerButton:focus-visible, .heroButton:focus-visible, .primaryCardAction:focus-visible, .watchButton:focus-visible, .emptyState button:focus-visible { outline: 3px solid rgb(37 99 235 / 30%); outline-offset: 2px; }
 
 @media (max-width: 1180px) {
   .recoveryBanner, .hero { align-items: flex-start; flex-direction: column; }
@@ -129,7 +111,6 @@
   .heroButton { width: 100%; }
   .recordingGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .statsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .utilityGrid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 840px) {
@@ -152,10 +133,7 @@
   .sectionTitle h2 { font-size: 20px; }
   .sectionHeader > a { font-size: 14px; }
   .recordingGrid, .statsGrid { grid-template-columns: 1fr; }
-  .quickGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-
-@media (prefers-reduced-motion: reduce) { .quickGrid button { transition: none; } }
 
 :global(html[data-theme='dark']) .dashboardShell {
   color: #eef2f8;
@@ -165,7 +143,6 @@
 :global(html[data-theme='dark']) .hero,
 :global(html[data-theme='dark']) .recordingCard,
 :global(html[data-theme='dark']) .workspaceSection,
-:global(html[data-theme='dark']) .utilityPanel,
 :global(html[data-theme='dark']) .emptyState {
   border-color: #28344a;
   background: #151d2d;
@@ -178,9 +155,6 @@
 
 :global(html[data-theme='dark']) .hero p,
 :global(html[data-theme='dark']) .recordingCard p,
-:global(html[data-theme='dark']) .quickGrid small,
-:global(html[data-theme='dark']) .presetRow small,
-:global(html[data-theme='dark']) .emptyCopy,
 :global(html[data-theme='dark']) .emptyState { color: #9ba7ba; }
 
 :global(html[data-theme='dark']) .sectionHeader { border-color: #28344a; }
@@ -188,13 +162,9 @@
 :global(html[data-theme='dark']) .watchButton,
 :global(html[data-theme='dark']) .disabledAction { color: #c0cad9; background: #222d41; }
 :global(html[data-theme='dark']) .thumbnail { border-color: #2a3650; background: #0a0f19; }
-:global(html[data-theme='dark']) .statsGrid article,
-:global(html[data-theme='dark']) .quickGrid button { color: #edf2f9; border-color: #2a3650; background: #111a2a; }
+:global(html[data-theme='dark']) .statsGrid article { color: #edf2f9; border-color: #2a3650; background: #111a2a; }
 :global(html[data-theme='dark']) .statsGrid span,
-:global(html[data-theme='dark']) .utilityHeading span,
 :global(html[data-theme='dark']) .statsGrid small { color: #8997ac; }
-:global(html[data-theme='dark']) .presetRow { border-color: #2a3650; }
-:global(html[data-theme='dark']) .presetRow button,
 :global(html[data-theme='dark']) .secondaryButton { color: #d8e0ec; border-color: #34415a; background: #1b2538; }
 :global(html[data-theme='dark']) .secondaryButton:hover,
 :global(html[data-theme='dark']) .watchButton:hover { background: #29364d; }

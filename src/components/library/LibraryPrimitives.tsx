@@ -11,10 +11,8 @@ export type LibraryIconName =
   | 'search'
   | 'sync'
   | 'play'
-  | 'share'
   | 'download'
   | 'cursor'
-  | 'lock'
   | 'trash';
 
 export function LibraryIcon({ name }: { name: LibraryIconName }) {
@@ -22,10 +20,8 @@ export function LibraryIcon({ name }: { name: LibraryIconName }) {
     search: <><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></>,
     sync: <><path d="M20 12a8 8 0 0 0-14.9-4" /><path d="M5 3v5h5" /><path d="M4 12a8 8 0 0 0 14.9 4" /><path d="M19 21v-5h-5" /></>,
     play: <><circle cx="12" cy="12" r="9" /><path d="m10 8 6 4-6 4Z" /></>,
-    share: <><circle cx="18" cy="5" r="2" /><circle cx="6" cy="12" r="2" /><circle cx="18" cy="19" r="2" /><path d="m8 11 8-5M8 13l8 5" /></>,
     download: <><path d="M12 3v12" /><path d="m8 11 4 4 4-4" /><path d="M5 20h14" /></>,
     cursor: <><path d="m5 3 6.5 16 2.2-5.3L19 11.5Z" /><path d="m14 14 4 4" /></>,
-    lock: <><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
     trash: <><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13" /></>,
   };
 

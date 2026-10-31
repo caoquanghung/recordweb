@@ -1,0 +1,42 @@
+/* Styles owned by Studio Primitives.
+ * Class identities are composed by StudioShell.module.css; import that facade in JSX.
+ * Keep base, theme, responsive, and Standard Studio overrides together in this file.
+ */
+.icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+}
+
+.statusDotOk,
+.statusDotIdle {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.statusDotOk {
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(72, 215, 161, 0.55);
+}
+
+.statusDotIdle {
+  background: #454d5c;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Studio screen reconstruction: scoped so Presentation keeps its existing shell. */
+
+/* Standard Studio setup: live stage beside a persistent, actionable source rail. */

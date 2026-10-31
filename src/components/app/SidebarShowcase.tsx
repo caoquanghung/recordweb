@@ -7,25 +7,14 @@ import styles from './SidebarShowcase.module.css';
 const baseItems: AppSidebarItem[] = [
   { id: 'studio', label: 'Studio Giảng Bài', icon: 'studio', href: '/studio' },
   { id: 'library', label: 'Thư viện bài giảng', icon: 'library', href: '/library' },
-  { id: 'settings', label: 'Cài đặt thiết bị', icon: 'settings', href: '/settings' },
 ];
 
 export function SidebarShowcase() {
   const [behavior, setBehavior] = useState<AppSidebarBehavior>('adaptive');
-  const [announcement, setAnnouncement] = useState('');
-  const items: AppSidebarItem[] = [
-    ...baseItems,
-    {
-      id: 'help',
-      label: 'Trợ giúp & Hướng dẫn',
-      icon: 'help',
-      onSelect: () => setAnnouncement('Trang demo đã nhận thao tác mở trợ giúp.'),
-    },
-  ];
 
   return (
     <div className={`${styles.showcase} ${behavior === 'fixed' ? styles.fixedLayout : styles.adaptiveLayout}`}>
-      <AppSidebar behavior={behavior} activeHref="/library" items={items} />
+      <AppSidebar behavior={behavior} activeHref="/library" items={baseItems} />
 
       <main className={styles.content}>
         <div className={styles.contentInner}>
@@ -78,8 +67,6 @@ export function SidebarShowcase() {
               <code> activeHref</code> chỉ dùng khi cần override như ở trang showcase này.
             </p>
           </aside>
-
-          <p className={styles.announcement} aria-live="polite">{announcement}</p>
         </div>
       </main>
     </div>

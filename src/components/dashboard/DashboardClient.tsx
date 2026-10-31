@@ -10,13 +10,13 @@ import { getAllLocalRecordings, getRecordingDraftSummaries, type RecordingDraftS
 import type { DbRecording, DbStudioPreset } from '@/types/database';
 import styles from './DashboardClient.module.css';
 
-const quickStarts = [
-  { title: 'Trình chiếu bài giảng', detail: 'Màn hình, camera và giọng nói rõ ràng', mode: 'screen-pip', background: 'original', audioMode: 'Voice clarity' },
-  { title: 'Hướng dẫn thực hành', detail: 'Ưu tiên màn hình với camera thu gọn', mode: 'screen-pip', background: 'original', audioMode: 'Natural' },
-  { title: 'Lời nhắn qua camera', detail: 'Chỉ dùng camera với hình ảnh gốc', mode: 'webcam-only', background: 'original', audioMode: 'Voice clarity' },
-  { title: 'Giới thiệu sản phẩm', detail: 'Màn hình và người trình bày', mode: 'screen-pip', background: 'original', audioMode: 'Podcast' },
-  { title: 'Bài giảng trực tuyến', detail: 'Ghi màn hình với lọc tiếng ồn', mode: 'screen-pip', background: 'original', audioMode: 'Noise reduction' },
-];
+const defaultQuickStart = {
+  title: 'Trình chiếu bài giảng',
+  detail: 'Màn hình, camera và giọng nói rõ ràng',
+  mode: 'screen-pip',
+  background: 'original',
+  audioMode: 'Voice clarity',
+};
 
 const dashboardAsset = (name: string) => `/figma/dashboard/${name}`;
 
@@ -76,30 +76,9 @@ export function DashboardClient() {
     [recordings],
   );
 
-  const startQuickRecording = (configuration: typeof quickStarts[number]) => {
+  const startQuickRecording = (configuration: typeof defaultQuickStart) => {
     localStorage.setItem('recordweb-quick-start', JSON.stringify(configuration));
     router.push('/studio');
-  };
-
-  const openPresetInStudio = (preset: DbStudioPreset) => {
-    localStorage.setItem('recordweb-pending-preset', JSON.stringify(preset));
-    router.push('/studio');
-  };
-
-  const deletePreset = async (id: string) => {
-    if (!window.confirm('Xoá cấu hình đã lưu này?')) return;
-    const response = await fetch('/api/presets', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage(data.error ?? 'Không thể xoá cấu hình.');
-      return;
-    }
-    setPresets((current) => current.filter((preset) => preset.id !== id));
-    setMessage('Đã xoá cấu hình.');
   };
 
   const recentRecordings = recordings.slice(0, drafts.length > 0 ? 2 : 3);
@@ -145,9 +124,9 @@ export function DashboardClient() {
             <div className={styles.heroCopy}>
               <span className={styles.greeting}><Icon src="greeting.svg" />Kính chào Thầy/Cô</span>
               <h1 id="dashboard-heading">Hôm nay Thầy/Cô muốn giảng bài gì?</h1>
-              <p>Chỉ cần một bấm chuột, hệ thống sẽ tự động bật máy ảnh, mở trình chiếu slide và thu âm bài giảng rõ ràng, sắc nét.</p>
+              {/* <p>Chỉ cần một bấm chuột, hệ thống sẽ tự động bật máy ảnh, mở trình chiếu slide và thu âm bài giảng rõ ràng, sắc nét.</p> */}
             </div>
-            <button className={styles.heroButton} type="button" onClick={() => startQuickRecording(quickStarts[0])}>
+            <button className={styles.heroButton} type="button" onClick={() => startQuickRecording(defaultQuickStart)}>
               <Icon src="video.svg" size={27} />
               Bắt đầu ghi bài giảng mới
             </button>
@@ -202,12 +181,21 @@ export function DashboardClient() {
                     <h3>{recording.title}</h3>
                     <p>Đã quay: {new Date(recording.recorded_at).toLocaleDateString('vi-VN')} • Thời lượng {formatLongDuration(Number(recording.duration_seconds))}</p>
                     <div className={styles.thumbnail}>
-                      <Image src={dashboardAsset('recording-ready.png')} alt={`Xem trước ${recording.title}`} fill sizes="(max-width: 720px) 100vw, 33vw" />
+                      {recording.storage_url ? (
+                        <video
+                          src={recording.storage_url}
+                          aria-label={`Khung hình xem trước ${recording.title}`}
+                          muted
+                          playsInline
+                          preload="metadata"
+                        />
+                      ) : (
+                        <span className={styles.recordingThumbnailFallback} aria-hidden="true" />
+                      )}
                     </div>
                   </div>
                   <div className={styles.cardActions}>
-                    <Link className={styles.watchButton} href={`/share/${recording.id}`}><Icon src="watch.svg" size={20} />Xem lại</Link>
-                    <Link className={styles.shareButton} href={`/share/${recording.id}`}><Icon src="share.svg" size={18} />Gửi sinh viên</Link>
+                    <Link className={styles.watchButton} href={`/library/${recording.id}`}><Icon src="watch.svg" size={20} />Xem lại</Link>
                   </div>
                 </article>
               ))}
@@ -217,7 +205,7 @@ export function DashboardClient() {
                   <Icon src="video.svg" size={32} />
                   <h3>Chưa có bài giảng nào</h3>
                   <p>Bắt đầu bản ghi đầu tiên; dữ liệu chỉ được tải lên đám mây khi Thầy/Cô chủ động lưu.</p>
-                  <button type="button" onClick={() => startQuickRecording(quickStarts[0])}>Ghi bài giảng mới</button>
+                  <button type="button" onClick={() => startQuickRecording(defaultQuickStart)}>Ghi bài giảng mới</button>
                 </div>
               )}
             </div>
@@ -232,35 +220,6 @@ export function DashboardClient() {
               <article><span>Bản ghi cục bộ</span><strong>{loading ? '—' : localCount}</strong><small>Có trong trình duyệt này</small></article>
               <article><span>Dung lượng đám mây</span><strong>{loading ? '—' : `${(cloudBytes / 1024 / 1024).toFixed(1)} MB`}</strong><small>Theo metadata tệp ghi</small></article>
               <article><span>Cấu hình đã lưu</span><strong>{loading ? '—' : presets.length}</strong><small>Sẵn sàng dùng lại</small></article>
-            </div>
-
-            <div className={styles.utilityGrid}>
-              <div className={styles.utilityPanel}>
-                <div className={styles.utilityHeading}><span>Bắt đầu nhanh</span><h3>Chọn quy trình ghi</h3></div>
-                <div className={styles.quickGrid}>
-                  {quickStarts.map((item, index) => (
-                    <button key={item.title} type="button" onClick={() => startQuickRecording(item)}>
-                      <span>{String(index + 1).padStart(2, '0')}</span>
-                      <strong>{item.title}</strong>
-                      <small>{item.detail}</small>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className={styles.utilityPanel}>
-                <div className={styles.utilityHeading}><span>Cấu hình</span><h3>Thiết lập đã lưu</h3></div>
-                <div className={styles.presetList}>
-                  {!loading && presets.length === 0 && <p className={styles.emptyCopy}>Lưu một thiết lập từ bảng Hiệu ứng trong Studio để dùng lại tại đây.</p>}
-                  {presets.slice(0, 5).map((preset) => (
-                    <div className={styles.presetRow} key={preset.id}>
-                      <div><strong>{preset.preset_name}</strong><small>{preset.pip_shape} · {preset.pip_size} · {preset.bg_removal_mode}</small></div>
-                      <button type="button" onClick={() => openPresetInStudio(preset)}>Dùng</button>
-                      <button className={styles.deleteButton} type="button" onClick={() => void deletePreset(preset.id)}>Xoá</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </section>
         </div>

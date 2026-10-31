@@ -42,7 +42,7 @@ export function StudioSourcesPanel({ studio }: SourcesSectionProps) {
         {studio.mediaError && <p className={styles.sourceError} role="alert">{studio.mediaError.message}</p>}
       </div>
 
-      <footer className={styles.inspectorFooter}><StudioIcon name="check" /> {studio.mode === 'screen-only' ? 'Screen only' : 'Original camera'} · {studio.resolution === '1920x1080' ? '1080p' : '720p'} at 30 FPS</footer>
+      <footer className={styles.inspectorFooter}><StudioIcon name="check" /> {studio.mode === 'screen-only' ? 'Screen only' : 'Original camera'} · 30 FPS</footer>
     </aside>
   );
 }
@@ -131,6 +131,11 @@ function SlidesConnectionStep({ studio, slidesReady }: SourcesSectionProps & { s
       </button>
       {!requiredDevicesConnected && <p className={styles.connectionHint}>Complete step 1 to unlock this action.</p>}
       {!tabCapture.available && <p className={styles.sourceWarning}>Install or enable the RecordWeb extension, then reload this page.</p>}
+      {studio.session === 'setup' && !slidesReady && tabCapture.status === 'error' && (
+        <p className={styles.connectionHint}>
+          If the RecordWeb extension is already installed but Verification fails, reload the Google Slides tab, then try connecting again. The tab may have been put to sleep.
+        </p>
+      )}
       {requiredDevicesConnected && !slidesReady && tabCapture.available && (
         <p className={styles.connectionHint} role="status">{tabCapture.message}</p>
       )}
@@ -142,7 +147,7 @@ function SourceSettings({ studio }: SourcesSectionProps) {
   const {
     mode, setMode, effectsTab, setEffectsTab,
     selectedCameraId, setSelectedCameraId, selectedMicrophoneId, setSelectedMicrophoneId,
-    cameras, microphones, resolution, setResolution,
+    cameras, microphones,
     tabCapture, legacyCursorTrajectory, sourcesConnected, stopAllMedia,
   } = studio;
 
@@ -184,14 +189,6 @@ function SourceSettings({ studio }: SourcesSectionProps) {
             {microphones.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Microphone ${index + 1}`}</option>)}
           </select>
         </label>
-        <span className={styles.fieldLabel}>Output resolution</span>
-        <div className={styles.segmented}>
-          {['1280x720', '1920x1080'].map((value) => (
-            <button key={value} type="button" onClick={() => setResolution(value)} className={resolution === value ? styles.segmentActive : ''} disabled={studio.session !== 'setup'}>
-              {value === '1920x1080' ? '1080p' : '720p'}
-            </button>
-          ))}
-        </div>
         <div className={styles.outputMeta}><span>30 FPS</span><span>16:9</span><span>30 min max</span></div>
         {!tabCapture.available && legacyCursorTrajectory.available && (
           <label className={styles.fieldLabel}>

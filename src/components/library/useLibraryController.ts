@@ -2,19 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { downloadRecordingArchive } from '@/lib/recordingArchive';
-import type {
-  DbRecording,
-  DbRecordingAsset,
-  DbRecordingShare,
-  DbSharedRecording,
-} from '@/types/database';
+import type { DbRecording, DbRecordingAsset } from '@/types/database';
 import type { RecordingInspectionData } from '@/components/review/recordingInspection';
 
-export type LibraryTab = 'mine' | 'shared';
 export type LibrarySort = 'newest' | 'oldest';
-export type LibraryEntry =
-  | { kind: 'cloud'; recording: DbRecording; title: string; createdAt: number }
-  | { kind: 'shared'; recording: DbSharedRecording; title: string; createdAt: number };
+export type LibraryEntry = { recording: DbRecording; title: string; createdAt: number };
 
 export type RecordingPreview = {
   title: string;
@@ -32,21 +24,14 @@ export const LIBRARY_PAGE_SIZE = 6;
 const CLOUD_ALLOWANCE_BYTES = 50 * 1024 * 1024 * 1024;
 
 export function useLibraryController() {
-  const [tab, setTab] = useState<LibraryTab>('mine');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<LibrarySort>('newest');
   const [page, setPage] = useState(1);
   const [cloud, setCloud] = useState<DbRecording[]>([]);
-  const [shared, setShared] = useState<DbSharedRecording[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState<RecordingPreview | null>(null);
   const [cursorPreview, setCursorPreview] = useState<CursorPreview | null>(null);
-  const [sharingRecording, setSharingRecording] = useState<DbRecording | null>(null);
-  const [shares, setShares] = useState<DbRecordingShare[]>([]);
-  const [recipientEmail, setRecipientEmail] = useState('');
-  const [permission, setPermission] = useState<'viewer' | 'viewer_download'>('viewer');
-  const [shareBusy, setShareBusy] = useState(false);
 
   const loadLibrary = useCallback(async () => {
     setLoading(true);
@@ -60,7 +45,6 @@ export function useLibraryController() {
         recording.storage_url || recording.assets?.some((asset) => asset.kind === 'composite'),
       );
       setCloud(((data.recordings ?? []) as DbRecording[]).filter(hasCloudVideo));
-      setShared(((data.sharedRecordings ?? []) as DbSharedRecording[]).filter(hasCloudVideo));
     } catch (error) {
       setMessage((error as Error).message);
     } finally {
@@ -75,27 +59,16 @@ export function useLibraryController() {
 
   const filteredEntries = useMemo<LibraryEntry[]>(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('vi');
-    const visibleCloud = tab === 'mine' ? cloud : [];
-    const visibleShared = tab === 'shared' ? shared : [];
-    const entries: LibraryEntry[] = [
-      ...visibleCloud.map((recording) => ({
-        kind: 'cloud' as const,
-        recording,
-        title: recording.title,
-        createdAt: new Date(recording.recorded_at).getTime(),
-      })),
-      ...visibleShared.map((recording) => ({
-        kind: 'shared' as const,
-        recording,
-        title: recording.title,
-        createdAt: new Date(recording.recorded_at).getTime(),
-      })),
-    ];
+    const entries: LibraryEntry[] = cloud.map((recording) => ({
+      recording,
+      title: recording.title,
+      createdAt: new Date(recording.recorded_at).getTime(),
+    }));
 
     return entries
       .filter((entry) => !normalizedQuery || entry.title.toLocaleLowerCase('vi').includes(normalizedQuery))
       .sort((left, right) => sort === 'newest' ? right.createdAt - left.createdAt : left.createdAt - right.createdAt);
-  }, [cloud, query, shared, sort, tab]);
+  }, [cloud, query, sort]);
 
   const visibleCount = filteredEntries.length;
   const pageCount = Math.max(1, Math.ceil(visibleCount / LIBRARY_PAGE_SIZE));
@@ -107,7 +80,7 @@ export function useLibraryController() {
   const cloudBytes = cloud.reduce((total, recording) => total + Number(recording.file_size_bytes || 0), 0);
   const cloudGigabytes = cloudBytes / 1024 / 1024 / 1024;
   const storagePercent = Math.min(100, (cloudBytes / CLOUD_ALLOWANCE_BYTES) * 100);
-  const totalCount = cloud.length + shared.length;
+  const totalCount = cloud.length;
 
   const openCloudCursor = async (title: string, asset: DbRecordingAsset) => {
     setMessage('Loading cursor trajectory…');
@@ -121,7 +94,7 @@ export function useLibraryController() {
     }
   };
 
-  const downloadCloudFiles = async (recording: DbRecording | DbSharedRecording) => {
+  const downloadCloudFiles = async (recording: DbRecording) => {
     const assets = recording.assets?.map((asset) => ({
       kind: asset.kind,
       mimeType: asset.mime_type,
@@ -143,29 +116,8 @@ export function useLibraryController() {
     }
   };
 
-  const togglePublic = async (recording: DbRecording) => {
-    const response = await fetch('/api/recordings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: recording.id, is_public: !recording.is_public }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage(data.error ?? 'Could not update link access.');
-      return;
-    }
-    setCloud((current) => current.map((item) => item.id === recording.id ? data.recording : item));
-    setSharingRecording((current) => current?.id === recording.id ? data.recording : current);
-    setMessage(data.recording.is_public ? 'Public link enabled.' : 'Public link disabled.');
-  };
-
-  const copyShareLink = async (recordingId: string) => {
-    await navigator.clipboard.writeText(`${window.location.origin}/share/${recordingId}`);
-    setMessage('Share link copied.');
-  };
-
   const removeCloud = async (recording: DbRecording) => {
-    if (!window.confirm('Delete this cloud recording, its Blob video, and all share grants? This cannot be undone.')) return;
+    if (!window.confirm('Delete this cloud recording and its Blob files? This cannot be undone.')) return;
     const response = await fetch('/api/recordings', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -180,77 +132,7 @@ export function useLibraryController() {
     setMessage('Cloud recording and Blob object deleted.');
   };
 
-  const openSharing = async (recording: DbRecording) => {
-    setSharingRecording(recording);
-    setShares([]);
-    setRecipientEmail('');
-    setShareBusy(true);
-    try {
-      const response = await fetch(`/api/shares?recordingId=${encodeURIComponent(recording.id)}`, { cache: 'no-store' });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Could not load recipients.');
-      setShares(data.shares ?? []);
-    } catch (error) {
-      setMessage((error as Error).message);
-    } finally {
-      setShareBusy(false);
-    }
-  };
-
-  const grantAccess = async () => {
-    if (!sharingRecording || !recipientEmail.trim()) return;
-    setShareBusy(true);
-    try {
-      const response = await fetch('/api/shares', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recordingId: sharingRecording.id,
-          recipientEmail: recipientEmail.trim(),
-          permission,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Could not share recording.');
-      setShares((current) => [
-        data.share,
-        ...current.filter((item) => item.recipient_user_id !== data.share.recipient_user_id),
-      ]);
-      setRecipientEmail('');
-      setMessage('Recipient access updated.');
-    } catch (error) {
-      setMessage((error as Error).message);
-    } finally {
-      setShareBusy(false);
-    }
-  };
-
-  const revokeAccess = async (share: DbRecordingShare) => {
-    if (!sharingRecording) return;
-    setShareBusy(true);
-    try {
-      const response = await fetch('/api/shares', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recordingId: sharingRecording.id,
-          recipientUserId: share.recipient_user_id,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Could not revoke access.');
-      setShares((current) => current.filter((item) => item.recipient_user_id !== share.recipient_user_id));
-      setMessage('Recipient access revoked.');
-    } catch (error) {
-      setMessage((error as Error).message);
-    } finally {
-      setShareBusy(false);
-    }
-  };
-
   return {
-    tab,
-    setTab,
     query,
     setQuery,
     sort,
@@ -258,21 +140,12 @@ export function useLibraryController() {
     page: currentPage,
     setPage,
     cloud,
-    shared,
     loading,
     message,
     preview,
     setPreview,
     cursorPreview,
     setCursorPreview,
-    sharingRecording,
-    setSharingRecording,
-    shares,
-    recipientEmail,
-    setRecipientEmail,
-    permission,
-    setPermission,
-    shareBusy,
     loadLibrary,
     paginatedEntries,
     visibleCount,
@@ -283,12 +156,7 @@ export function useLibraryController() {
     totalCount,
     openCloudCursor,
     downloadCloudFiles,
-    togglePublic,
-    copyShareLink,
     removeCloud,
-    openSharing,
-    grantAccess,
-    revokeAccess,
   };
 }
 

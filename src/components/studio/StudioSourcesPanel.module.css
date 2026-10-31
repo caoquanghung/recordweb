@@ -1,0 +1,415 @@
+/* Styles owned by Studio SourcesPanel.
+ * Class identities are composed by StudioShell.module.css; import that facade in JSX.
+ * Keep base, theme, responsive, and Standard Studio overrides together in this file.
+ */
+.leftPanel {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(18px);
+}
+
+.leftPanel {
+  overflow: hidden;
+}
+
+.panelSection {
+  padding: 17px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panelSection:last-child {
+  border-bottom: 0;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sectionHeading {
+  margin-bottom: 14px;
+}
+
+.sectionHeading > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionHeading > div > span {
+  color: var(--primary-bright);
+  font: 700 9px/1 var(--font-geist-mono), monospace;
+}
+
+.sectionHeading h2 {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.readyLabel {
+  padding: 4px 6px;
+  border: 1px solid rgba(72, 215, 161, 0.2);
+  border-radius: 5px;
+  color: var(--green);
+  background: rgba(72, 215, 161, 0.06);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modeList {
+  display: grid;
+  gap: 8px;
+}
+
+.modeButton {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px 1fr 14px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.018);
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.modeButton:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.modeButtonActive {
+  color: var(--text);
+  border-color: var(--brand-primary-border);
+  background: linear-gradient(110deg, color-mix(in srgb, var(--brand-primary-action) 14%, transparent), color-mix(in srgb, var(--brand-primary-action) 3.5%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-primary-action) 6%, transparent);
+}
+
+.modeIcon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary-action) 12%, transparent);
+}
+
+.modeIcon .icon {
+  width: 17px;
+}
+
+.modeButton strong,
+.modeButton small {
+  display: block;
+}
+
+.modeButton strong {
+  color: currentColor;
+  font-size: 11px;
+  font-weight: 630;
+}
+
+.modeButton small {
+  margin-top: 3px;
+  color: var(--dim);
+  font-size: 9px;
+}
+
+.radioMark {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--dim);
+  border-radius: 50%;
+}
+
+.modeButtonActive .radioMark {
+  border: 3px solid var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary-action) 12%, transparent);
+}
+
+.sourceStatus {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--dim);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.sourceActions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.sourceButton,
+.sourceStopButton {
+  flex: 1;
+  height: 34px;
+  border: 1px solid var(--brand-primary-border);
+  border-radius: 8px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--brand-primary-action) 12%, transparent);
+  font-size: 9px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.sourceStopButton {
+  border-color: var(--line-strong);
+  color: var(--muted);
+  background: transparent;
+}
+
+.sourceButton:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.outputMeta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  color: var(--dim);
+  font: 500 8px/1 var(--font-geist-mono), monospace;
+}
+
+:global(html[data-theme='light']) .modeButton {
+  background: rgba(30, 39, 58, 0.035);
+}
+
+.leftPanel {
+  align-self: start;
+  max-height: calc(100vh - 178px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+.leftPanel { grid-area: sources; }
+
+.sourceStatus {
+  font-size: 11px;
+}
+
+.modeButton strong,
+.sectionHeading h2 {
+  font-size: 13px;
+}
+
+.modeButton small {
+  font-size: 10px;
+}
+
+@media (max-width: 1120px) {
+
+  .leftPanel {
+    position: fixed;
+    top: 92px;
+    right: 18px;
+    bottom: 18px;
+    z-index: 45;
+    width: 320px;
+    overflow: auto;
+    box-shadow: 0 26px 80px rgba(0, 0, 0, 0.42);
+  }
+}
+
+@media (max-width: 900px) {
+
+  .leftPanel {
+    position: fixed;
+    top: 72px;
+    right: 14px;
+    bottom: 14px;
+    left: 14px;
+    z-index: 45;
+    width: auto;
+    overflow: auto;
+    box-shadow: 0 26px 80px rgba(0, 0, 0, 0.42);
+  }
+}
+
+@media (max-width: 680px) {
+  .panelSection { border-bottom: 1px solid var(--line); }
+}
+
+/* Studio screen reconstruction: scoped so Presentation keeps its existing shell. */
+
+.studioScreen .leftPanel {
+  position: static;
+  inset: auto;
+  width: auto;
+  max-height: none;
+  align-self: stretch;
+  overflow: visible;
+  border-radius: 14px;
+  background: var(--panel-solid);
+  box-shadow: 0 12px 32px rgba(2, 6, 23, .14);
+}
+
+.studioScreen .leftPanel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.studioScreen .leftPanel .panelSection { border-right: 1px solid var(--line); border-bottom: 0; }
+.studioScreen .leftPanel .panelSection:last-child { border-right: 0; }
+.studioScreen .panelSection { padding: 14px; }
+.studioScreen .modeList { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.studioScreen .modeButton { grid-template-columns: 26px minmax(0, 1fr); padding: 7px; }
+.studioScreen .modeIcon { width: 26px; height: 26px; border-radius: 7px; }
+.studioScreen .modeIcon .icon { width: 14px; }
+.studioScreen .modeButton .radioMark { display: none; }
+.studioScreen .modeButton small { display: none; }
+.studioScreen .sourceStatus { margin-top: 7px; }
+.studioScreen .sourceActions { margin-top: 8px; }
+
+:global(html[data-theme='light']) .studioScreen .leftPanel { background: rgba(255, 255, 255, .94); }
+
+@media (max-width: 1120px) {
+  .studioScreen .leftPanel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .studioScreen .leftPanel { grid-template-columns: 1fr; }
+  .studioScreen .leftPanel .panelSection { border-right: 0; border-bottom: 1px solid var(--line); }
+  .studioScreen .modeList { grid-template-columns: 1fr; }
+  .studioScreen .modeButton { grid-template-columns: 30px minmax(0, 1fr) 12px; }
+  .studioScreen .modeButton .radioMark { display: block; }
+  .studioScreen .modeButton small { display: block; }
+}
+
+/* Standard Studio setup: live stage beside a persistent, actionable source rail. */
+
+.studioScreen .standardGrid .setupInspector {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  border-left: 1px solid #e2e8f0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: -4px 0 20px rgba(15, 23, 42, .03);
+}
+
+.inspectorHeader {
+  flex: 0 0 57px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.inspectorHeader > div { display: flex; align-items: center; gap: 8px; }
+.inspectorHeader .icon { width: 18px; color: #2563eb; }
+.inspectorHeader h2 { font-size: 16px; font-weight: 700; letter-spacing: -.025em; }
+.inspectorReady,
+.inspectorPending { padding: 4px 8px; border-radius: 999px; font: 700 11px/1 var(--font-geist-mono), monospace; }
+.inspectorReady { color: #059669; background: #dff8eb; }
+.inspectorPending { color: #64748b; background: #f1f5f9; }
+.inspectorBody { min-height: 0; flex: 1 1 auto; overflow-y: auto; padding: 12px; scrollbar-width: thin; }
+.inspectorKicker { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; color: #64748b; font-size: 11px; letter-spacing: .04em; }
+.inspectorKicker strong { padding: 3px 8px; border-radius: 999px; color: #059669; background: #ecfdf5; font: 700 11px/1.2 var(--font-geist-mono), monospace; letter-spacing: 0; }
+.connectionCard { margin-bottom: 16px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 16px; background: #f8fafc; box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+.connectionCardReady { border-color: #b8e8d1; }
+.connectionCardTitle { display: flex; align-items: center; gap: 12px; }
+.connectionCardTitle > div { min-width: 0; flex: 1; }
+.connectionCardTitle small { display: block; color: #64748b; font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+.connectionCardTitle h3 { margin-top: 2px; font-size: 13px; font-weight: 750; }
+.connectionCardTitle > .statusDotOk,
+.connectionCardTitle > .statusDotIdle { flex: 0 0 8px; width: 8px; height: 8px; }
+.connectionIcon { flex: 0 0 40px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; color: #2563eb; background: #eff6ff; }
+.connectionIcon .icon { width: 19px; }
+.slidesIcon { color: #d97706; background: #fffbeb; }
+.connectionDetail { margin-top: 12px; color: #475569; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.connectionChips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.connectionChips span { padding: 5px 7px; border-radius: 7px; color: #475569; background: #fff; font: 500 10px/1.3 var(--font-geist-mono), monospace; }
+.connectPrimary,
+.connectSecondary { width: 100%; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; padding: 8px 10px; border: 1px solid transparent; border-radius: 12px; font-family: inherit; font-size: 13px; font-weight: 650; line-height: 1.25; cursor: pointer; }
+.connectPrimary { color: #422006; border-color: #fbbf24; background: linear-gradient(135deg, #ffdd77, #ff9933); }
+.connectSecondary { color: #6b2f0c; border-color: #f59e0b; background: #fbbf24; box-shadow: 0 1px 2px rgba(120, 53, 15, .12); }
+.connectPrimary .icon,
+.connectSecondary .icon { width: 16px; }
+.connectPrimary:hover:not(:disabled) { background: linear-gradient(135deg, #ffd166, #fb923c); }
+.connectPrimary.connectPrimaryConnected { color: #166534; border-color: #86efac; background: #dcfce7; }
+.connectPrimary.connectPrimaryConnected:hover:not(:disabled) { background: #bbf7d0; }
+.connectSecondary:hover:not(:disabled) { border-color: #d97706; background: #f59e0b; }
+.connectPrimary:disabled,
+.connectSecondary:disabled { color: #94a3b8; border-color: #e2e8f0; background: #e2e8f0; box-shadow: none; cursor: not-allowed; }
+.connectPrimary.connectPrimarySetup:disabled { color: #422006; border-color: #fbbf24; background: linear-gradient(135deg, #ffdd77, #ff9933); }
+.connectPrimary.connectPrimarySetup.connectPrimaryConnected:disabled { color: #166534; border-color: #86efac; background: #dcfce7; }
+.connectionHint { margin-top: 8px; color: #64748b; font-size: 11px; line-height: 1.45; }
+.inspectorTip { display: flex; gap: 9px; margin-bottom: 16px; padding: 14px; border: 1px solid #dbeafe; border-radius: 16px; color: #475569; background: #f8fbff; }
+.inspectorTip .icon { width: 16px; color: #2563eb; }
+.inspectorTip p { flex: 1; font-size: 11px; line-height: 1.45; }
+.setupDetails { margin: 0 0 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.setupDetails summary { padding: 12px; color: #2563eb; cursor: pointer; font-size: 12px; font-weight: 700; }
+.setupDetailsBody { padding: 0 12px 12px; }
+.setupDetailsBody .modeList { display: grid; grid-template-columns: 1fr; }
+.setupDetailsBody .modeButton { grid-template-columns: 30px minmax(0, 1fr) 12px; }
+.setupDetailsBody .modeButton small,
+.setupDetailsBody .modeButton .radioMark { display: block; }
+.setupDetailsBody .fieldLabel { color: #475569; }
+.setupDetailsBody .fieldLabel select { color: #0f172a; border-color: #cbd5e1; background: #fff; }
+.setupDetailsBody .modeButton { color: #475569; border-color: #e2e8f0; background: #fff; }
+.setupDetailsBody .modeButtonActive { color: #0f172a; border-color: #93c5fd; background: #eff6ff; }
+.setupDetailsBody .modeButton small { color: #64748b; }
+.setupDetailsBody .segmented button { color: #475569; }
+.setupDetailsBody .segmentActive { color: #1d4ed8; }
+.disconnectButton { width: 100%; margin-top: 16px; padding: 9px; border: 1px solid #fecaca; border-radius: 8px; color: #b91c1c; background: #fff; cursor: pointer; }
+.inspectorFooter { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; min-height: 39px; padding: 0 12px; border-top: 1px solid #e2e8f0; color: #475569; background: #f8fafc; font-size: 11px; }
+.inspectorFooter .icon { width: 14px; color: #2563eb; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupInspector { background: #111c2c; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupInspector { border-color: #2e4058; box-shadow: -4px 0 20px rgba(0, 0, 0, .1); }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorHeader,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorFooter { border-color: #2e4058; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorPending,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorFooter { color: #cbd5e1; background: #18263a; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorKicker,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionCardTitle small,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionDetail,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionHint,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorTip,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupDetailsBody .fieldLabel { color: #cbd5e1; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionCard,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupDetails { border-color: #334761; background: #18263a; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionCardReady { border-color: #2a846d; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectionChips span,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupDetailsBody .fieldLabel select,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupDetailsBody .modeButton { color: #e2e8f0; border-color: #344761; background: #1c2c42; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .setupDetailsBody .modeButtonActive { border-color: #60a5fa; background: #203b60; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectPrimary:disabled,
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectSecondary:disabled { color: #94a3b8; border-color: #334761; background: #26364b; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectPrimary.connectPrimarySetup:disabled { color: #422006; border-color: #fbbf24; background: linear-gradient(135deg, #ffdd77, #ff9933); }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .connectPrimary.connectPrimarySetup.connectPrimaryConnected:disabled { color: #166534; border-color: #86efac; background: #dcfce7; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .inspectorTip { border-color: #344761; background: #14243a; }
+:global(html[data-theme='dark']) .studioScreen .standardGrid .disconnectButton { color: #fca5a5; border-color: #7f3e4a; background: #1c2c42; }
+
+@media (max-width: 760px) {
+  .studioScreen .standardGrid .setupInspector { width: 100%; min-height: 0; max-height: none; border-left: 0; border-bottom: 1px solid #e2e8f0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connectPrimary,
+.connectSecondary { transition: none; }
+}

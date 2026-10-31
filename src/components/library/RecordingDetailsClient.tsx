@@ -7,13 +7,8 @@ import { AppSidebar } from '@/components/app/AppSidebar';
 import { RecordingDeveloperInspection } from '@/components/review/RecordingDeveloperInspection';
 import { getCloudRecordingInspection } from '@/components/review/recordingInspection';
 import { downloadRecordingArchive } from '@/lib/recordingArchive';
-import type { DbRecording, DbSharedRecording } from '@/types/database';
+import type { DbRecording } from '@/types/database';
 import styles from './RecordingDetailsClient.module.css';
-
-type DetailRecord = {
-  recording: DbRecording | DbSharedRecording;
-  access: 'owner' | 'shared';
-};
 
 type Chapter = {
   label: string;
@@ -96,12 +91,11 @@ function StatusPage({ kind, message }: { kind: 'loading' | 'error'; message?: st
 }
 
 export function RecordingDetailsClient({ recordingId }: { recordingId: string }) {
-  const [detail, setDetail] = useState<DetailRecord | null>(null);
+  const [recording, setRecording] = useState<DbRecording | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [downloadBusy, setDownloadBusy] = useState(false);
-  const [shareBusy, setShareBusy] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -115,12 +109,8 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
         const data = await response.json();
         if (!response.ok) throw new Error(data.error ?? 'Không thể tải thư viện bài giảng.');
         const owned = (data.recordings as DbRecording[] | undefined)?.find((item) => item.id === recordingId);
-        const shared = (data.sharedRecordings as DbSharedRecording[] | undefined)?.find((item) => item.id === recordingId);
-        const resolved = owned
-          ? { recording: owned, access: 'owner' as const }
-          : shared ? { recording: shared, access: 'shared' as const } : null;
-        if (!resolved) throw new Error('Bài giảng không tồn tại hoặc bạn không có quyền truy cập.');
-        if (!cancelled) setDetail(resolved);
+        if (!owned) throw new Error('Bài giảng không tồn tại hoặc bạn không có quyền truy cập.');
+        if (!cancelled) setRecording(owned);
       } catch (loadError) {
         if (!cancelled) setError((loadError as Error).message);
       } finally {
@@ -132,12 +122,8 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
     return () => { cancelled = true; };
   }, [recordingId]);
 
-  const recording = detail?.recording;
-  const isOwner = detail?.access === 'owner';
-  const hasDownloadPermission = Boolean(recording && (isOwner || ('share_permission' in recording && recording.share_permission === 'viewer_download')));
   const canDownload = Boolean(
     recording
-    && hasDownloadPermission
     && (recording.storage_url || recording.assets?.length),
   );
   const chapters = useMemo(() => recording ? getChapters(recording.settings) : [], [recording]);
@@ -145,30 +131,6 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
     () => recording ? getCloudRecordingInspection(recording) : undefined,
     [recording],
   );
-
-  const copyShareLink = async () => {
-    if (!recording) return;
-    setShareBusy(true);
-    setMessage('');
-    try {
-      if (isOwner && !recording.is_public) {
-        const response = await fetch('/api/recordings', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: recording.id, is_public: true }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error ?? 'Không thể bật liên kết chia sẻ.');
-        setDetail({ recording: data.recording, access: 'owner' });
-      }
-      await navigator.clipboard.writeText(`${window.location.origin}/share/${recording.id}`);
-      setMessage('Đã sao chép liên kết bài giảng.');
-    } catch (shareError) {
-      setMessage((shareError as Error).message);
-    } finally {
-      setShareBusy(false);
-    }
-  };
 
   const downloadFiles = async () => {
     if (!recording || !canDownload) return;
@@ -201,14 +163,6 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
   if (loading) return <StatusPage kind="loading" />;
   if (error || !recording) return <StatusPage kind="error" message={error} />;
 
-  const ownerName = 'owner_display_name' in recording
-    ? recording.owner_display_name || recording.owner_email
-    : 'Bạn';
-  const accessDescription = isOwner
-    ? 'Chủ sở hữu'
-    : 'share_permission' in recording && recording.share_permission === 'viewer_download'
-      ? 'Xem và tải'
-      : 'Chỉ xem';
   return (
     <div className={styles.shell}>
       <AppSidebar activeHref="/library" />
@@ -233,7 +187,6 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
                 <span><DetailIcon name="calendar" size={17} />{formatDate(recording.recorded_at)}</span>
                 <span><DetailIcon name="duration" size={17} />{formatDuration(Number(recording.duration_seconds))}</span>
                 <span><DetailIcon name="size" size={17} />{formatBytes(Number(recording.file_size_bytes))}</span>
-                <span><DetailIcon name="aspect" size={17} />{recording.resolution || 'Không rõ'}</span>
               </div>
             </div>
             <div className={styles.summaryActions}>
@@ -242,9 +195,6 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
                   <DetailIcon name="download" size={18} />{downloadBusy ? 'Đang chuẩn bị…' : 'Tải xuống'}
                 </button>
               )}
-              <button type="button" className={styles.primaryButton} onClick={() => void copyShareLink()} disabled={shareBusy}>
-                <DetailIcon name="share" size={18} />{shareBusy ? 'Đang xử lý…' : 'Chia sẻ'}
-              </button>
             </div>
           </section>
 
@@ -255,11 +205,11 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
               <section className={styles.card} aria-labelledby="video-heading">
                 <div className={styles.cardHeader}>
                   <div><span className={styles.cardIcon}><DetailIcon name="aspect" size={20} /></span><div><h2 id="video-heading">Video bài giảng</h2><p>Bản ghi tổng hợp màn hình và camera</p></div></div>
-                  <span className={styles.videoMeta}>{recording.resolution} · {recording.fps} FPS</span>
+                  <span className={styles.videoMeta}>{recording.fps} FPS</span>
                 </div>
                 <div className={styles.videoFrame}>
                   {recording.storage_url ? (
-                    <video ref={videoRef} src={recording.storage_url} controls controlsList={hasDownloadPermission ? undefined : 'nodownload'} playsInline preload="metadata" />
+                    <video ref={videoRef} src={recording.storage_url} controls playsInline preload="metadata" />
                   ) : (
                     <div className={styles.missingMedia}><DetailIcon name="aspect" size={30} /><strong>Chưa có video tổng hợp</strong><span>Thông tin bài giảng vẫn được lưu an toàn.</span></div>
                   )}
@@ -271,16 +221,6 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
             </div>
 
             <aside className={styles.rightColumn} aria-label="Thông tin bổ sung">
-              <section className={`${styles.card} ${styles.shareCard}`}>
-                <span className={styles.railIcon}><DetailIcon name="share-panel" size={24} /></span>
-                <h2>Chia sẻ bài giảng</h2>
-                <p>{isOwner ? 'Gửi liên kết để học sinh xem bài giảng.' : `Được chia sẻ bởi ${ownerName}.`}</p>
-                <button type="button" onClick={() => void copyShareLink()} disabled={shareBusy}>
-                  <DetailIcon name="copy" size={17} />Sao chép liên kết
-                </button>
-                <span className={styles.accessLabel}>{isOwner ? (recording.is_public ? 'Liên kết đang công khai' : 'Liên kết sẽ được bật khi sao chép') : 'Liên kết dành cho người được chia sẻ'}</span>
-              </section>
-
               <section className={styles.card} aria-labelledby="chapters-heading">
                 <div className={styles.railHeader}><div><span className={styles.cardIcon}><DetailIcon name="bookmark" size={20} /></span><h2 id="chapters-heading">Nội dung bài giảng</h2></div><span>{chapters.length}</span></div>
                 {chapters.length > 0 ? (
@@ -304,10 +244,8 @@ export function RecordingDetailsClient({ recordingId }: { recordingId: string })
                 <div className={styles.railHeader}><div><span className={styles.cardIcon}><DetailIcon name="storage" size={20} /></span><h2 id="info-heading">Thông tin tệp</h2></div></div>
                 <dl className={styles.fileInfo}>
                   <div><dt>Định dạng</dt><dd>{recording.mime_type.split(';')[0].replace('video/', '').toUpperCase()}</dd></div>
-                  <div><dt>Độ phân giải</dt><dd>{recording.resolution || '—'}</dd></div>
                   <div><dt>Tốc độ khung hình</dt><dd>{recording.fps ? `${recording.fps} FPS` : '—'}</dd></div>
                   <div><dt>Kích thước</dt><dd>{formatBytes(Number(recording.file_size_bytes))}</dd></div>
-                  <div><dt>Quyền truy cập</dt><dd>{accessDescription}</dd></div>
                 </dl>
               </section>
             </aside>

@@ -24,9 +24,9 @@ function formatBytes(bytes: number) {
 
 export function StudioReviewWorkspace({ studio }: { studio: StudioController }) {
   const {
-    activeRecording, elapsed, uploadState, uploadProgress, uploadMessage, cloudRecording,
+    activeRecording, elapsed, uploadState, uploadProgress, uploadMessage,
     titleRequired, titleSaving, titleError, saveRecordingTitle, downloadRecordingFiles,
-    publishAndCopyLink, retryRecordingSave,
+    retryRecordingSave,
   } = studio;
   const [title, setTitle] = useState('');
   const sourceFiles = RECORDING_ARCHIVE_KINDS.flatMap((kind) => {
@@ -50,11 +50,11 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
         <div>
           <span className={styles.eyebrow}>Recording complete</span>
           <h2>Review your recording</h2>
-          <p>Watch your video, name it, then share or download your files.</p>
+          <p>Watch your video, name it, then download your research files.</p>
         </div>
         <div className={styles.recordingSummary} aria-label="Recording details">
           <span>{formatDuration(elapsed)}</span>
-          {activeRecording && <><span>{activeRecording.resolution}</span><span>{activeRecording.fps} FPS</span></>}
+          {activeRecording && <span>{activeRecording.fps} FPS</span>}
         </div>
       </div>
 
@@ -107,17 +107,6 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
               )}
               {uploadState === 'error' && <button type="button" onClick={retryRecordingSave}>Try saving again</button>}
             </div>
-          </div>
-
-          <div className={styles.actionCard}>
-            <div className={styles.cardIcon}><StudioIcon name="spark" /></div>
-            <div className={styles.cardCopy}>
-              <span className={styles.sectionLabel}>Quick share</span>
-              <h3>Share your video</h3>
-              <p>Copy a link to send your recording.</p>
-            </div>
-            <button className={styles.primaryButton} type="button" onClick={() => void publishAndCopyLink()}
-              disabled={!readyToContinue || !cloudRecording || titleSaving}>Copy share link</button>
           </div>
 
           <div className={styles.actionCard}>

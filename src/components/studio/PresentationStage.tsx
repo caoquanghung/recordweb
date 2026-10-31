@@ -28,7 +28,6 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
   const {
     session,
     sessionLabel,
-    resolution,
     presentationDeck: {
       status: deckStatus,
       metadata,
@@ -159,7 +158,7 @@ export function PresentationStage({ studio }: { studio: StudioController }) {
       <div className={styles.stageToolbar}>
         <div className={styles.stageMode}><StatusDot ok={session === 'recording'} /> {sessionLabel}</div>
         <div className={styles.stageTags}>
-          <span>Presentation</span><span>{resolution}</span><span>30 FPS target</span>
+          <span>Presentation</span><span>30 FPS target</span>
         </div>
       </div>
 

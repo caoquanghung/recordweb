@@ -80,7 +80,6 @@ export function RecordingDeveloperInspection({
             {assets.map((asset) => {
               const technicalDetails = [
                 formatBytes(asset.fileSizeBytes),
-                asset.resolution,
                 asset.fps ? `${asset.fps} FPS` : undefined,
                 asset.sampleRateHz ? `${Math.round(asset.sampleRateHz / 1000)} kHz` : undefined,
               ].filter(Boolean).join(' · ');
