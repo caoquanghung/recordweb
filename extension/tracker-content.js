@@ -30,6 +30,17 @@
     },
   });
 
+  function warnBeforeLeaving(event) {
+    if (!sampler.getState().sessionId) return;
+    // Do not stop or reset here: cancelling departure must preserve cursor capture.
+    event.preventDefault();
+    event.returnValue = true;
+  }
+
+  function clearLeaveWarning() {
+    window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }
+
   function registerCaptureHandle(attempt = 0) {
     const handle = document.documentElement?.getAttribute(CAPTURE_HANDLE_ATTRIBUTE);
     if (handle) {
@@ -63,6 +74,7 @@
       case MESSAGE.CURSOR_START:
         if (!message.sessionId) break;
         sampler.start(message.sessionId, message.offsetMs, message.startIndex);
+        window.addEventListener('beforeunload', warnBeforeLeaving);
         if (message.requestId) {
           portClient.send({
             type: MESSAGE.CURSOR_STARTED,
@@ -83,6 +95,7 @@
         const { stoppedSessionId, lastSampleIndex } = sampler.stop({
           showReadyControls: ENABLE_PRESESSION_READY_CONTROLS,
         });
+        clearLeaveWarning();
         if (message.requestId && stoppedSessionId) {
           portClient.send({
             type: MESSAGE.CURSOR_STOPPED,
@@ -94,10 +107,14 @@
         break;
       }
       case MESSAGE.CURSOR_RESET:
-        if (!message.sessionId || message.sessionId === sampler.getState().sessionId) sampler.reset();
+        if (!message.sessionId || message.sessionId === sampler.getState().sessionId) {
+          sampler.reset();
+          clearLeaveWarning();
+        }
         break;
       case MESSAGE.DISCONNECT:
         sampler.reset();
+        clearLeaveWarning();
         break;
       default:
         break;

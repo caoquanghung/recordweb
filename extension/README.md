@@ -31,6 +31,12 @@ Run `npm run extension:package` from the repository root. The command creates a 
 The extension's static content script initializes cursor tracking automatically on supported Google Slides URLs. No toolbar click or extension shortcut is needed per recording session. Chrome still requires explicit confirmation in its native share picker for every new screen-share stream.
 The default Studio UI does not request or store a Slides URL. Its Connect action opens Chrome's picker directly and resolves the selected tab through Capture Handle. The extension still retains its URL-based lookup/opening module for future or non-UI workflows: when explicitly invoked, it can compare presentation IDs, reuse a matching tab, normalize editable URLs to `/present`, or create a background tab while preserving published presentation URLs.
 
+## Recording departure warning
+
+While the selected Slides tab has an active cursor session, closing, reloading, or navigating away requests Chrome's native leave confirmation. Choosing Stay leaves cursor sampling untouched. Stop, reset, and disconnect remove the listener; ready-only tabs do not request confirmation. The recording control's tooltip explains why the tab must stay open and recommends End session first.
+
+Chrome controls the dialog text and requires prior interaction in the Slides page or an embedded frame. Browser crashes, forced termination, and pages without that interaction cannot be guaranteed a prompt. This is a departure warning, not a replacement for cursor persistence.
+
 ## Module map
 
 - `extension-protocol.js`: shared port names, message names, channel, and reconnect timings.

@@ -1,7 +1,11 @@
 .reviewWorkspace { width: min(1120px, 100%); display: grid; gap: 24px; margin: 20px auto 40px; padding: 0 clamp(12px, 2vw, 28px); }
+.reviewNavigation { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .backButton { justify-self: start; display: inline-flex; align-items: center; gap: 10px; padding: 0; border: 0; color: var(--primary-bright); background: transparent; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .backButton span { font-size: 20px; line-height: 1; }
 .backButton:disabled { color: var(--muted); cursor: not-allowed; opacity: .55; }
+.libraryButton { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 15px; border: 1px solid var(--brand-primary-border); border-radius: 9px; color: white; background: var(--brand-primary-action); font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.libraryButton span { font-size: 16px; line-height: 1; }
+.libraryButton:disabled { color: var(--muted); border-color: var(--line); background: var(--panel-raised); cursor: not-allowed; opacity: .55; }
 .reviewWorkspace button:focus-visible { outline: 3px solid var(--brand-focus-ring); outline-offset: 3px; }
 .reviewHeading { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
 .eyebrow, .sectionLabel { color: var(--primary-bright); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
@@ -55,4 +59,4 @@
 .fileDetails strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .fileDetails small { overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 850px) { .reviewGrid { grid-template-columns: 1fr; } .actionColumn { grid-template-columns: repeat(2, minmax(0, 1fr)); } .titleCard { grid-column: 1 / -1; } }
-@media (max-width: 580px) { .reviewWorkspace { gap: 18px; } .reviewHeading { align-items: start; flex-direction: column; } .recordingSummary { justify-content: start; } .actionColumn { grid-template-columns: 1fr; } .titleCard { grid-column: auto; } }
+@media (max-width: 580px) { .reviewWorkspace { gap: 18px; } .reviewNavigation { align-items: stretch; flex-direction: column; } .backButton { min-height: 38px; } .libraryButton { width: 100%; } .reviewHeading { align-items: start; flex-direction: column; } .recordingSummary { justify-content: start; } .actionColumn { grid-template-columns: 1fr; } .titleCard { grid-column: auto; } }

@@ -40,12 +40,19 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
 
   return (
     <section className={styles.reviewWorkspace} aria-label="Recording review">
-      <button className={styles.backButton} type="button" onClick={() => {
-        if (window.location.pathname === '/studio') window.location.reload();
-        else window.location.assign(new URL('/studio', window.location.origin).href);
-      }} disabled={!readyToContinue}>
-        <span aria-hidden="true">←</span> Back on Live studio
-      </button>
+      <div className={styles.reviewNavigation}>
+        <button className={styles.backButton} type="button" onClick={() => {
+          if (window.location.pathname === '/studio') window.location.reload();
+          else window.location.assign(new URL('/studio', window.location.origin).href);
+        }} disabled={!readyToContinue}>
+          <span aria-hidden="true">←</span> Back on Live studio
+        </button>
+        <button className={styles.libraryButton} type="button" onClick={() => {
+          window.location.assign(new URL('/library', window.location.origin).href);
+        }} disabled={!readyToContinue}>
+          Go to Library <span aria-hidden="true">→</span>
+        </button>
+      </div>
       <div className={styles.reviewHeading}>
         <div>
           <span className={styles.eyebrow}>Recording complete</span>

@@ -178,7 +178,9 @@
         dock.dataset.mode = state.mode;
         dock.setAttribute('aria-label', state.mode === 'ready' ? 'RecordWeb start recording control' : 'RecordWeb recording controls');
         launcher.setAttribute('aria-expanded', String(state.expanded));
-        launcher.title = state.mode === 'ready' ? 'Start recording from this presentation tab' : 'Show RecordWeb controls';
+        launcher.title = state.mode === 'ready'
+          ? 'Start recording from this presentation tab'
+          : 'Keep this tab open to save cursor tracking. Use End session before closing.';
         statusLabel.textContent = state.mode === 'ready' ? 'Ready to record' : 'Recording';
         microphoneButton.dataset.active = String(state.microphoneActive);
         microphoneButton.querySelector('.label').textContent = state.microphoneActive ? 'Mic' : 'Muted';
