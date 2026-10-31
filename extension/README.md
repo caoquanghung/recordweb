@@ -4,13 +4,13 @@ This unpacked Chromium Manifest V3 extension automatically prepares 24 Hz cursor
 
 ## Local development
 
-1. Run `npm run extension:dev` from the repository root. This creates an unpacked development build in `artifacts/extension-development/` with `http://localhost:3000/` as its only RecordWeb origin.
+1. Run `npm run extension:dev` from the repository root. This creates an unpacked development build in `artifacts/extension-development/` for both `http://localhost:3000/` and the canonical production origin from `extension/manifest.json`.
 2. Start the website with `npm run dev` and open `http://localhost:3000` (not `127.0.0.1`).
 3. In `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `artifacts/extension-development/`. Its name includes **(Development)**.
 4. Reload any already-open localhost and Google Slides tabs after installing or rebuilding the extension. Use Chrome's **Reload** button for the unpacked extension after each rebuild.
 5. Use a separate browser profile for development, or disable the publication extension while testing. Both variants inject a Slides tracker and cannot safely track the same Slides tab at once.
 
-The publication source remains `extension/manifest.json`. The development build is generated and ignored by Git; rebuild it after changing extension code. Its toolbar button opens localhost.
+The publication source remains `extension/manifest.json`. The development build is generated and ignored by Git; rebuild it after changing extension code. Its toolbar button opens localhost, while its bridge also works on the exact production origin for deployment testing.
 
 ## Publication installation
 

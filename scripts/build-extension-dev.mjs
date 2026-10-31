@@ -13,24 +13,29 @@ if (productionOrigin === developmentOrigin) {
 }
 
 const developmentMatch = `${developmentOrigin}/*`;
+const productionMatch = `${productionOrigin}/*`;
 const developmentManifest = {
   ...productionManifest,
   name: `${productionManifest.name} (Development)`,
   homepage_url: `${developmentOrigin}/`,
-  host_permissions: productionManifest.host_permissions.map((match) =>
-    match === `${productionOrigin}/*` ? developmentMatch : match,
+  host_permissions: productionManifest.host_permissions.flatMap((match) =>
+    match === productionMatch ? [developmentMatch, productionMatch] : [match],
   ),
   content_scripts: productionManifest.content_scripts.map((script) => ({
     ...script,
-    matches: script.js.includes('recordweb-bridge.js') ? [developmentMatch] : script.matches,
+    matches: script.js.includes('recordweb-bridge.js')
+      ? [developmentMatch, productionMatch]
+      : script.matches,
   })),
 };
 
 if (!developmentManifest.host_permissions.includes(developmentMatch)
   || !developmentManifest.content_scripts.some((script) =>
-    script.js.includes('recordweb-bridge.js') && script.matches.length === 1 && script.matches[0] === developmentMatch
+    script.js.includes('recordweb-bridge.js')
+      && script.matches.includes(developmentMatch)
+      && script.matches.includes(productionMatch)
   )) {
-  throw new Error('Could not locate the RecordWeb application origin in the publication manifest.');
+  throw new Error('Could not add localhost alongside the publication origin.');
 }
 
 await mkdir(join(repositoryRoot, 'artifacts'), { recursive: true });

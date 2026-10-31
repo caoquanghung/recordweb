@@ -2,12 +2,25 @@ importScripts('extension-protocol.js', 'google-slides.js');
 
 const { MESSAGE, PORT } = globalThis.RecordWebExtensionProtocol;
 const GoogleSlides = globalThis.RecordWebGoogleSlides;
-const APP_URL = chrome.runtime.getManifest().homepage_url;
-const APP_ORIGIN = new URL(APP_URL).origin;
+const manifest = chrome.runtime.getManifest();
+const APP_URL = manifest.homepage_url;
+const APP_ORIGINS = new Set(
+  (manifest.content_scripts || [])
+    .filter((script) => script.js?.includes('recordweb-bridge.js'))
+    .flatMap((script) => script.matches || [])
+    .map((match) => {
+      try {
+        return new URL(match.replace(/\*$/, '')).origin;
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean),
+);
 
 function isRecordWebAppUrl(urlValue) {
   try {
-    return new URL(urlValue).origin === APP_ORIGIN;
+    return APP_ORIGINS.has(new URL(urlValue).origin);
   } catch {
     return false;
   }

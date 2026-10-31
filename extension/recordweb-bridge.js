@@ -1,11 +1,24 @@
 (() => {
   if (globalThis.__recordWebExtensionBridgeInstalled) return;
-  globalThis.__recordWebExtensionBridgeInstalled = true;
 
   const { CHANNEL, PORT } = globalThis.RecordWebExtensionProtocol;
-  const canonicalAppOrigin = new URL(chrome.runtime.getManifest().homepage_url).origin;
+  const manifest = chrome.runtime.getManifest();
+  const appOrigins = new Set(
+    (manifest.content_scripts || [])
+      .filter((script) => script.js?.includes('recordweb-bridge.js'))
+      .flatMap((script) => script.matches || [])
+      .map((match) => {
+        try {
+          return new URL(match.replace(/\*$/, '')).origin;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean),
+  );
 
-  if (window.location.origin !== canonicalAppOrigin) return;
+  if (!appOrigins.has(window.location.origin)) return;
+  globalThis.__recordWebExtensionBridgeInstalled = true;
 
   const portClient = globalThis.RecordWebResilientPort.create({
     portName: PORT.APP,

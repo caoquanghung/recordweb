@@ -4,15 +4,23 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 const homepageUrl = 'https://recordweb-nine.vercel.app/';
+const productionMatch = 'https://recordweb-nine.vercel.app/*';
+
+function manifestWithMatches(matches) {
+  return {
+    homepage_url: homepageUrl,
+    content_scripts: [{ matches, js: ['recordweb-bridge.js'] }],
+  };
+}
 
 async function readExtensionFile(name) {
   return readFile(new URL(`../${name}`, import.meta.url), 'utf8');
 }
 
-test('RecordWeb bridge connects only on the homepage_url origin', async () => {
+test('RecordWeb bridge connects only on exact manifest bridge origins', async () => {
   const source = await readExtensionFile('recordweb-bridge.js');
 
-  const runBridge = (origin) => {
+  const runBridge = (origin, matches = [productionMatch]) => {
     let connectCount = 0;
     const window = {
       location: { origin },
@@ -21,7 +29,7 @@ test('RecordWeb bridge connects only on the homepage_url origin', async () => {
     };
     const context = {
       URL,
-      chrome: { runtime: { getManifest: () => ({ homepage_url: homepageUrl }) } },
+      chrome: { runtime: { getManifest: () => manifestWithMatches(matches) } },
       window,
       RecordWebExtensionProtocol: {
         CHANNEL: 'recordweb-extension-v1',
@@ -41,13 +49,14 @@ test('RecordWeb bridge connects only on the homepage_url origin', async () => {
 
   assert.equal(runBridge('https://recordweb-nine.vercel.app'), 1);
   assert.equal(runBridge('http://localhost:3000'), 0);
+  assert.equal(runBridge('http://localhost:3000', [productionMatch, 'http://localhost:3000/*']), 1);
   assert.equal(runBridge('https://recordweb-preview-coannoacs-projects.vercel.app'), 0);
 });
 
-test('service worker accepts app ports only from the homepage_url origin', async () => {
+test('service worker accepts app ports only from exact manifest bridge origins', async () => {
   const source = await readExtensionFile('service-worker.js');
 
-  const runConnection = (url) => {
+  const runConnection = (url, matches = [productionMatch]) => {
     let connectListener;
     const postedMessages = [];
     const noOpEvent = { addListener() {} };
@@ -80,7 +89,7 @@ test('service worker accepts app ports only from the homepage_url origin', async
           setBadgeText: async () => undefined,
         },
         runtime: {
-          getManifest: () => ({ homepage_url: homepageUrl }),
+          getManifest: () => manifestWithMatches(matches),
           onConnect: { addListener(listener) { connectListener = listener; } },
         },
         tabs: {
@@ -107,6 +116,11 @@ test('service worker accepts app ports only from the homepage_url origin', async
     ['BRIDGE_READY'],
   );
   assert.equal(runConnection('http://localhost:3000/studio').length, 0);
+  assert.deepEqual(
+    runConnection('http://localhost:3000/studio', [productionMatch, 'http://localhost:3000/*'])
+      .map(({ type }) => type),
+    ['BRIDGE_READY'],
+  );
   assert.equal(
     runConnection('https://recordweb-preview-coannoacs-projects.vercel.app/studio').length,
     0,
