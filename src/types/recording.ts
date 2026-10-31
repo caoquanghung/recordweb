@@ -61,10 +61,14 @@ export interface CursorTrajectory {
         presentationTitle: string;
       };
   samples: CursorTrajectorySample[];
+  /** Recovered samples without a confirmed end-of-recording handshake. */
+  recovery?: { incomplete: true };
 }
 
 export interface CursorCaptureController {
   requiredForRecording?: boolean;
+  /** Read received samples without stopping capture or requiring a live target tab. */
+  snapshot?: (durationMs: number) => CursorTrajectory | null;
   start: (sessionId: string) => Promise<{ started: boolean; warning?: string }>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;

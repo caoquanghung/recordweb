@@ -1,4 +1,5 @@
 import { decodeRecordedWaveform } from '@/lib/audioWaveform';
+import { createCursorAsset } from '@/lib/cursorTrajectory';
 import {
   AUDIO_ASSET_KINDS,
   MEDIA_ASSET_ORDER,
@@ -17,17 +18,6 @@ interface FinalizeRecordingAssetsOptions {
   durationMs: number;
   getCursorTrajectory: () => Promise<CursorTrajectory | null>;
   errors: string[];
-}
-
-function createCursorAsset(cursor: CursorTrajectory): RecordingAssetMetadata {
-  const blob = new Blob([JSON.stringify(cursor, null, 2)], { type: 'application/json' });
-  return {
-    kind: 'cursor',
-    fileSizeBytes: blob.size,
-    mimeType: blob.type,
-    sampleRateHz: cursor.sampleRateHz,
-    blob,
-  };
 }
 
 export async function finalizeRecordingAssets({

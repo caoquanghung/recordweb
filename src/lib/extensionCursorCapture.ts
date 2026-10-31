@@ -101,8 +101,34 @@ export function createExtensionCursorCapture({
     settleStopIfDrained();
   };
 
+  const snapshot = (durationMs: number): CursorTrajectory | null => {
+    if (!sessionId || !sessionTarget) return null;
+    return {
+      schemaVersion: 2,
+      sessionId,
+      sampleRateHz: 24,
+      coordinateSpace: {
+        origin: 'top-left',
+        xRange: [0, 1],
+        yRange: [0, 1],
+        relativeTo: 'captured-screen-content',
+        sourceWidth: viewport.width,
+        sourceHeight: viewport.height,
+      },
+      timeline: { clock: 'active-recording-time', pausedIntervalsExcluded: true, durationMs },
+      tracking: {
+        mode: 'browser-extension-tab',
+        cursorBakedIntoScreenVideo: false,
+        targetTabId: sessionTarget.tabId,
+        targetTitle: sessionTarget.title,
+      },
+      samples: [...samples],
+    };
+  };
+
   const controller: CursorCaptureController = {
     requiredForRecording: true,
+    snapshot,
     start: async (nextSessionId) => {
       const target = connectedTarget;
       if (!target) {
@@ -169,32 +195,13 @@ export function createExtensionCursorCapture({
           targetTabId: stoppedTarget.tabId,
         });
       });
+      const trajectory = snapshot(durationMs);
       clearSession();
       if (!complete) {
-        throw new Error('Cursor tracker did not confirm its final sample; cursor.json was not created.');
+        throw new Error('Cursor tracker did not confirm its final sample.');
       }
 
-      return {
-        schemaVersion: 2,
-        sessionId: stoppedSessionId,
-        sampleRateHz: 24,
-        coordinateSpace: {
-          origin: 'top-left',
-          xRange: [0, 1],
-          yRange: [0, 1],
-          relativeTo: 'captured-screen-content',
-          sourceWidth: viewport.width,
-          sourceHeight: viewport.height,
-        },
-        timeline: { clock: 'active-recording-time', pausedIntervalsExcluded: true, durationMs },
-        tracking: {
-          mode: 'browser-extension-tab',
-          cursorBakedIntoScreenVideo: false,
-          targetTabId: stoppedTarget.tabId,
-          targetTitle: stoppedTarget.title,
-        },
-        samples: [...samples],
-      };
+      return trajectory;
     },
     reset: async () => {
       abortPendingCommands();

@@ -67,6 +67,16 @@ Future persistence work should first save every finalized asset, especially curs
 8. Dashboard reads small recovery summaries, filtered by owner for new backups, without loading every recording Blob. Its existing red **Lưu bài giảng ngay** button links to `/studio?recover=<backup-id>`. Studio loads that exact backup, reconstructs only its preview URL, opens Review, and starts saving automatically. It does not ask for media permissions or require a second recovery click. The recovery query is consumed after success so returning to Live Studio does not reload it.
 9. After cloud saving, the required title/local completion flow stays in effect. Only a successful full local save after title confirmation removes the recovery backup/index. Cloud success without a received response is discovered on retry rather than deleted. Legacy raw drafts can still be repaired, but missing historical cursor data cannot be recreated.
 
+### Live cursor checkpoints — October 31, 2026
+
+Raw recording drafts now also store received cursor samples, viewport/target metadata, and their active-time timeline alongside media chunks in the same IndexedDB checkpoint. Both the Google Slides extension controller and the in-app Presentation controller expose a non-destructive snapshot. Dashboard recovery rebuilds `cursor.json` from the saved trajectory and includes it in the existing full-backup-before-upload flow. The session ID must match the draft, samples beyond the recovered duration are omitted, and recovered JSON has `recovery.incomplete: true`.
+
+If Slides disappears while RecordWeb remains open, failed cursor-stop acknowledgements now preserve the pre-stop snapshot with a warning instead of discarding received samples. Successful acknowledged Stop keeps the normal complete output. This does not resume a closed Slides sampler or recreate historical data absent from older drafts. The deprecated Electron helper has no live snapshot API.
+
+Checkpoint cadence follows MediaRecorder chunk callbacks (requested one-second timeslices). Only completed IndexedDB transactions survive reliably; recent samples, queued writes, storage-quota failures, and cleared browser storage remain limitations. Reload/forced-exit safety does not depend on an unload-time asynchronous write.
+
+Validation: cursor/storage unit tests exercise live snapshots, media checkpoints, tracker-loss finalization, normal Stop, duration/session matching, and Presentation snapshots. A Chromium fixture with real IndexedDB retains checkpointed video and cursor across reload without Stop and filters recovery summaries by owner. Real Google Slides capture and forced browser termination still require manual QA.
+
 ### Deployment and cleanup limits
 
 - Migration `0008_recording_upload_attempts` adds the upload ledger and unique owner/local-ID index. It was applied and schema-verified on the configured Neon database; no existing recording rows were deleted or rewritten.

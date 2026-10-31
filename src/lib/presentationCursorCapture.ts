@@ -51,7 +51,32 @@ export function createPresentationCursorCaptureSession(): PresentationCursorCapt
     clock.reset();
   };
 
+  const snapshot = (durationMs: number): CursorTrajectory | null => {
+    if (!sessionId) return null;
+    return {
+      schemaVersion: 2,
+      sessionId,
+      sampleRateHz: PRESENTATION_CURSOR_SAMPLE_RATE_HZ,
+      coordinateSpace: {
+        origin: 'top-left',
+        xRange: [0, 1],
+        yRange: [0, 1],
+        relativeTo: 'captured-presentation-content',
+        sourceWidth: pointer.sourceWidth,
+        sourceHeight: pointer.sourceHeight,
+      },
+      timeline: { clock: 'active-recording-time', pausedIntervalsExcluded: true, durationMs },
+      tracking: {
+        mode: 'recordweb-presentation',
+        cursorBakedIntoScreenVideo: cursorBakedIntoVideo,
+        presentationTitle: title,
+      },
+      samples: [...samples],
+    };
+  };
+
   const controller: CursorCaptureController = {
+    snapshot,
     start: async (nextSessionId) => {
       if (!targetAvailable) {
         return { started: false, warning: 'Presentation cursor omitted: the presentation area is not mounted.' };
@@ -76,32 +101,9 @@ export function createPresentationCursorCaptureSession(): PresentationCursorCapt
       if (!sessionId) return null;
       clock.pause();
       clearTimer();
-      const completedSessionId = sessionId;
+      const trajectory = snapshot(durationMs);
       sessionId = null;
-      return {
-        schemaVersion: 2,
-        sessionId: completedSessionId,
-        sampleRateHz: PRESENTATION_CURSOR_SAMPLE_RATE_HZ,
-        coordinateSpace: {
-          origin: 'top-left',
-          xRange: [0, 1],
-          yRange: [0, 1],
-          relativeTo: 'captured-presentation-content',
-          sourceWidth: pointer.sourceWidth,
-          sourceHeight: pointer.sourceHeight,
-        },
-        timeline: {
-          clock: 'active-recording-time',
-          pausedIntervalsExcluded: true,
-          durationMs,
-        },
-        tracking: {
-          mode: 'recordweb-presentation',
-          cursorBakedIntoScreenVideo: cursorBakedIntoVideo,
-          presentationTitle: title,
-        },
-        samples: [...samples],
-      };
+      return trajectory;
     },
     reset: async () => resetSession(),
   };

@@ -13,6 +13,7 @@ import { useRecordingSession } from '@/hooks/useRecordingSession';
 import { useVisionSegmentation } from '@/hooks/useVisionSegmentation';
 import { decodeRecordedWaveform } from '@/lib/audioWaveform';
 import { waitForCaptureHandle } from '@/lib/captureHandle';
+import { createCursorAsset, recoverCursorTrajectory } from '@/lib/cursorTrajectory';
 import { repairWebmDuration } from '@/lib/ebmlPatcher';
 import {
   deleteRecordingDraft,
@@ -648,6 +649,8 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
           sampleRateHz: draftAsset.sampleRateHz,
         };
       }
+      const cursor = recoverCursorTrajectory(draft.cursor, draft.id, draft.durationMs);
+      if (cursor) assets.cursor = createCursorAsset(cursor);
       for (const kind of ['audio', 'microphone-audio', 'system-audio'] as const) {
         const recoveredAudio = assets[kind];
         if (!recoveredAudio?.blob) continue;
@@ -681,7 +684,9 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       consumeRecoveryRequest();
       setRecoveryDrafts((current) => current.filter((item) => item.id !== draft.id));
       setTitleError('');
-      setRecoveryMessage('Recovery complete. Your recording is being saved.');
+      setRecoveryMessage(cursor
+        ? 'Recovery complete, including checkpointed cursor data. The interrupted ending may be missing. Your recording is being saved.'
+        : 'Recovery complete. Your recording is being saved.');
     } catch (error) {
       setRecoveryMessage(`Recovery failed: ${(error as Error).message}`);
     }

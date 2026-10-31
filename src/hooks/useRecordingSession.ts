@@ -12,6 +12,7 @@ import {
   type RecordingAssetSpec,
 } from '@/lib/recordingAssets';
 import { createRecordingClock } from '@/lib/recordingClock';
+import { recoverCursorTrajectory } from '@/lib/cursorTrajectory';
 import { finalizeRecordingAssets } from '@/lib/recordingFinalization';
 import { getRecordingTitleError, normalizeRecordingTitle } from '@/lib/recordingTitle';
 import type {
@@ -79,6 +80,7 @@ export function useRecordingSession({
   const draftWriteRef = useRef<Promise<void>>(Promise.resolve());
   const cursorStopRef = useRef<Promise<CursorTrajectory | null>>(Promise.resolve(null));
   const cursorStopRequestedRef = useRef(false);
+  const cursorSnapshotRef = useRef<CursorTrajectory | null>(null);
   const [clock] = useState(() => createRecordingClock());
   const [status, setStatus] = useState<RecordingSessionResult['status']>('idle');
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -91,16 +93,27 @@ export function useRecordingSession({
     timerRef.current = null;
   }, []);
 
+  const snapshotCursor = useCallback((durationMs: number) => {
+    const snapshot = sessionCursorCaptureRef.current?.snapshot?.(durationMs);
+    if (snapshot?.sessionId === recordingIdRef.current) cursorSnapshotRef.current = snapshot;
+    return recoverCursorTrajectory(cursorSnapshotRef.current, recordingIdRef.current, durationMs);
+  }, []);
+
   const requestCursorStop = useCallback((durationMs: number) => {
     if (!cursorStopRequestedRef.current) {
       cursorStopRequestedRef.current = true;
       const controller = sessionCursorCaptureRef.current;
+      const fallback = snapshotCursor(durationMs);
       cursorStopRef.current = controller
-        ? Promise.resolve().then(() => controller.stop(durationMs))
+        ? Promise.resolve().then(() => controller.stop(durationMs)).catch((cause) => {
+          if (!fallback) throw cause;
+          assetErrorsRef.current.push(`cursor: ${(cause as Error).message} Preserved received samples; the cursor path may be incomplete.`);
+          return fallback;
+        })
         : Promise.resolve(null);
     }
     return cursorStopRef.current;
-  }, []);
+  }, [snapshotCursor]);
 
   const checkpointDraft = useCallback(() => {
     const id = recordingIdRef.current;
@@ -110,10 +123,14 @@ export function useRecordingSession({
     draftWriteRef.current = draftWriteRef.current
       .catch(() => undefined)
       .then(async () => {
+        // A queued write from an old session must never snapshot the next session.
+        if (recordingIdRef.current !== id) return;
+        const durationMs = clock.elapsed();
         await saveRecordingDraft({
           id,
           startedAt,
-          durationMs: clock.elapsed(),
+          durationMs,
+          cursor: snapshotCursor(durationMs) ?? undefined,
           ownerUserId: ownerUserIdRef.current,
           assets: snapshotRecordingAssets(chunksRef.current, assetSpecsRef.current),
         });
@@ -121,7 +138,7 @@ export function useRecordingSession({
       .catch((cause) => {
         setWarning(`Recovery checkpoint unavailable: ${(cause as Error).message}`);
       });
-  }, [clock]);
+  }, [clock, snapshotCursor]);
 
   const finalizeSession = useCallback(async () => {
     if (finalizingRef.current) return;
@@ -276,6 +293,7 @@ export function useRecordingSession({
     draftWriteRef.current = Promise.resolve();
     cursorStopRef.current = Promise.resolve(null);
     cursorStopRequestedRef.current = false;
+    cursorSnapshotRef.current = null;
     sessionCursorCaptureRef.current = cursorCapture ?? null;
     setElapsedMs(0);
     setWarning(null);
@@ -388,6 +406,7 @@ export function useRecordingSession({
     stoppedAssetsRef.current = new Set();
     cursorStopRef.current = Promise.resolve(null);
     cursorStopRequestedRef.current = false;
+    cursorSnapshotRef.current = null;
     void sessionCursorCaptureRef.current?.reset();
     sessionCursorCaptureRef.current = null;
     setRecording(null);

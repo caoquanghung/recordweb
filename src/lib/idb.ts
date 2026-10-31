@@ -1,5 +1,5 @@
 import { get, set, del, keys, setMany, delMany, update } from 'idb-keyval';
-import { RecordingAssetKind, RecordingMetadata } from '@/types/recording';
+import { CursorTrajectory, RecordingAssetKind, RecordingMetadata } from '@/types/recording';
 
 const RECORDINGS_KEY_PREFIX = 'recordweb_rec_';
 const DRAFTS_KEY_PREFIX = 'recordweb_draft_';
@@ -9,6 +9,8 @@ export interface RecordingDraft {
   id: string;
   startedAt: string;
   durationMs: number;
+  /** Cursor samples persisted alongside the media checkpoint during recording. */
+  cursor?: CursorTrajectory;
   ownerUserId?: string;
   /** Complete finalized files, including cursor JSON; written before cloud upload. */
   recording?: RecordingMetadata;
