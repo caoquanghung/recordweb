@@ -5,6 +5,7 @@ import Script from "next/script";
 import { PermissionProvider } from "@/components/auth/PermissionProvider";
 import { GlobalMediaControl } from "@/components/media/GlobalMediaControl";
 import { MediaSessionProvider } from "@/components/media/MediaSessionProvider";
+import { RecordingRecoveryProvider } from "@/components/recordings/RecordingRecoveryProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,8 +33,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ClerkProvider>
           <PermissionProvider>
             <MediaSessionProvider>
-              {children}
-              <GlobalMediaControl />
+              <RecordingRecoveryProvider>
+                {children}
+                <GlobalMediaControl />
+              </RecordingRecoveryProvider>
             </MediaSessionProvider>
           </PermissionProvider>
         </ClerkProvider>

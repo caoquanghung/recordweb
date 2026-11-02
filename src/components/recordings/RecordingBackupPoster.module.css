@@ -1,0 +1,2 @@
+.poster { position: absolute; inset: 0; display: block; overflow: hidden; background: radial-gradient(circle at 72% 28%, rgb(56 189 248 / 34%), transparent 24%), linear-gradient(135deg, #111827, #1e3a8a 52%, #0f766e 120%); }
+.image { object-fit: cover; }

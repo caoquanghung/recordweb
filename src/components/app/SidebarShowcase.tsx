@@ -5,6 +5,7 @@ import { AppSidebar, type AppSidebarBehavior, type AppSidebarItem } from './AppS
 import styles from './SidebarShowcase.module.css';
 
 const baseItems: AppSidebarItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', href: '/dashboard' },
   { id: 'studio', label: 'Studio Giảng Bài', icon: 'studio', href: '/studio' },
   { id: 'library', label: 'Thư viện bài giảng', icon: 'library', href: '/library' },
 ];

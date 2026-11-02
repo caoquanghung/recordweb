@@ -125,12 +125,13 @@
   opacity: 1;
 }
 
-.navItemActive {
+.navItemActive,
+.navItemActive:hover:not(:disabled) {
   padding: 14px 16px;
   color: #1e40af;
   border-color: #bfdbfe;
   background: #eff6ff;
-  box-shadow: 0 1px 1px rgb(0 0 0 / 5%);
+  box-shadow: inset 3px 0 0 var(--sidebar-blue), 0 1px 1px rgb(0 0 0 / 5%);
 }
 
 .navIcon {
@@ -141,8 +142,11 @@
   mask: var(--sidebar-icon) center / contain no-repeat;
 }
 
+.icondashboard { --sidebar-icon: url('/icons/dashboard.svg'); }
 .iconstudio { --sidebar-icon: url('/figma/sidebar/studio.svg'); }
 .iconlibrary { --sidebar-icon: url('/figma/sidebar/library.svg'); }
+
+.pendingCount { min-width: 22px; padding: 2px 6px; border-radius: 7px; color: #fff; background: #dc2626; font-size: 11px; font-weight: 800; text-align: center; }
 
 .navLabel {
   min-width: 0;
@@ -295,7 +299,8 @@
 :global(html[data-theme='dark']) .userCopy strong { color: #f3f6fb; }
 :global(html[data-theme='dark']) .brandCopy span { color: #8995aa; }
 :global(html[data-theme='dark']) .navItem:hover:not(:disabled) { color: var(--brand-primary); background: var(--brand-primary-soft); }
-:global(html[data-theme='dark']) .navItemActive { color: var(--brand-primary); border-color: var(--brand-primary-border); background: var(--brand-primary-tint); }
+:global(html[data-theme='dark']) .navItemActive,
+:global(html[data-theme='dark']) .navItemActive:hover:not(:disabled) { color: var(--brand-primary); border-color: var(--brand-primary-border); background: var(--brand-primary-tint); }
 :global(html[data-theme='dark']) .footer { border-color: #263149; background: #0e1524; }
 :global(html[data-theme='dark']) .profileCard,
 :global(html[data-theme='dark']) .themeToggle { color: #b4bfd2; border-color: #2a3650; background: #151f32; }

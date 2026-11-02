@@ -57,10 +57,18 @@ export function createRecordingUploadJob({ recording, ownerUserId, settings, onP
       if (previous?.ownerUserId && previous.ownerUserId !== ownerUserId) throw new Error('This backup belongs to another account.');
       const uploadSettings = previous?.uploadSettings ?? settings;
       // Also upgrades a legacy recovered draft to a complete backup before uploading.
-      await saveRecordingDraft({
-        id: recording.id, startedAt: recording.createdAt, durationMs: recording.durationSeconds * 1000,
-        ownerUserId, recording: { ...recording, previewUrl: undefined }, uploadSettings, uploadAttemptId: id,
-      });
+      if (previous) {
+        // Merge atomically so a title saved during upload preparation is never overwritten.
+        await updateRecordingDraft(recording.id, (draft) => ({
+          ownerUserId, recording: draft.recording ?? { ...recording, previewUrl: undefined },
+          uploadSettings, uploadAttemptId: id,
+        }));
+      } else {
+        await saveRecordingDraft({
+          id: recording.id, startedAt: recording.createdAt, durationMs: recording.durationSeconds * 1000,
+          ownerUserId, recording: { ...recording, previewUrl: undefined }, uploadSettings, uploadAttemptId: id,
+        });
+      }
       controller.signal.throwIfAborted();
       onPhase('uploading');
       const response = await fetch('/api/recording-uploads', {
@@ -100,10 +108,11 @@ export function createRecordingUploadJob({ recording, ownerUserId, settings, onP
         }));
         controller.signal.throwIfAborted();
         onPhase('saving');
+        const latest = await getRecordingDraft(recording.id);
         const completed = await fetch('/api/recordings', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
           body: JSON.stringify({
-            attempt_id: id, title: recording.title || `Recording ${recording.id}`,
+            attempt_id: id, title: latest?.recording?.title || recording.title || `Recording ${recording.id}`,
             recorded_at: recording.createdAt, duration_seconds: recording.durationSeconds,
             settings: uploadSettings,
             assets: localAssets.map((asset) => ({

@@ -35,7 +35,7 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
     return blob ? [{ kind, size: blob.size, mimeType: asset?.mimeType ?? blob.type }] : [];
   });
   const developerInspection = activeRecording ? getLocalRecordingInspection(activeRecording) : undefined;
-  const readyToContinue = !titleRequired && uploadState === 'ready';
+  const readyToContinue = !titleRequired && !titleSaving && uploadState === 'ready';
   const isSaving = uploadState === 'uploading' || uploadState === 'saving';
 
   return (
@@ -101,11 +101,15 @@ export function StudioReviewWorkspace({ studio }: { studio: StudioController }) 
                   <span id="recording-title-count">{title.trim().length}/{MAX_RECORDING_TITLE_LENGTH}</span>
                   {titleError && <strong id="recording-title-error" role="alert">{titleError}</strong>}
                 </div>
-                <button className={styles.primaryButton} type="submit" disabled={titleSaving || !title.trim() || uploadState !== 'ready'}>
+                <button className={styles.primaryButton} type="submit" disabled={titleSaving || !title.trim()}>
                   {titleSaving ? 'Saving title…' : 'Save title'}
                 </button>
               </form>
-            ) : <strong className={styles.savedTitle}>{activeRecording?.title}</strong>}
+            ) : <>
+              <strong className={styles.savedTitle}>{activeRecording?.title}</strong>
+              {isSaving && <p>Title saved on this device. Cloud saving is still in progress.</p>}
+              {titleError && <div className={styles.titleMeta}><strong role="alert">{titleError}</strong></div>}
+            </>}
             <div className={styles.saveStatus} aria-live="polite">
               {isSaving && <progress max="100" value={uploadProgress} aria-label="Recording save progress" />}
               <span>{uploadMessage || (isSaving ? 'Saving your recording…' : '')}</span>

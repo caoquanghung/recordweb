@@ -30,9 +30,9 @@ test('manifest rejects duplicate kinds, oversized files, wrong MIME types, and m
   }
 });
 
-function fixture({ saved, uploadError, saveError, delayStart = false } = {}) {
+function fixture({ saved, uploadError, saveError, delayStart = false, existingBackup } = {}) {
   const calls = [];
-  let backup;
+  let backup = existingBackup;
   let releaseStart;
   const response = (data, status = 200) => ({ ok: status < 400, status, json: async () => data });
   const fetch = async (url, options = {}) => {
@@ -68,7 +68,7 @@ function fixture({ saved, uploadError, saveError, delayStart = false } = {}) {
       if (name === '@/lib/idb') return {
         getRecordingDraft: async () => backup,
         saveRecordingDraft: async (value) => { if (saveError) throw new Error(saveError); backup = value; },
-        updateRecordingDraft: async (_id, patch) => { backup = { ...backup, ...patch }; },
+        updateRecordingDraft: async (_id, patch) => { backup = { ...backup, ...(typeof patch === 'function' ? patch(backup) : patch) }; },
       };
       throw new Error(`Unexpected dependency ${name}`);
     },

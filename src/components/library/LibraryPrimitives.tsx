@@ -34,12 +34,16 @@ export function RecordingThumbnail({
   summary,
   title,
   onClick,
+  canPreview = Boolean(src),
+  poster,
 }: {
   src?: string | null;
   badge: string;
   summary: string;
   title: string;
   onClick: () => void;
+  canPreview?: boolean;
+  poster?: ReactNode;
 }) {
   return (
     <button
@@ -47,13 +51,13 @@ export function RecordingThumbnail({
       type="button"
       onClick={onClick}
       aria-label={`Xem lại ${title}`}
-      disabled={!src}
+      disabled={!canPreview}
     >
-      {src ? (
+      {poster ?? (src ? (
         <video src={src} muted playsInline preload="metadata" tabIndex={-1} />
       ) : (
         <span className={styles.thumbnailFallback} aria-hidden="true" />
-      )}
+      ))}
       <span className={styles.thumbnailShade} aria-hidden="true" />
       <span className={styles.mediaBadge}>{badge}</span>
       <span className={styles.mediaSummary}>{summary}</span>

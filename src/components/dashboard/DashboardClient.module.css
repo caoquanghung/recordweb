@@ -88,6 +88,14 @@
 .primaryCardAction { color: #fff; background: #1d4ed8; cursor: pointer; font-size: 18px; }
 .disabledAction { color: #64748b; background: #f1f5f9; font-size: 18px; }
 .cardActions { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 0 24px 24px; }
+.draftCard .cardActions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.saveDraftAction, .deleteDraftAction { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 14px; border: 0; border-radius: 12px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.saveDraftAction { color: #fff; background: #1d4ed8; }
+.saveDraftAction:hover:not(:disabled) { background: #1e40af; }
+.deleteDraftAction { color: #b91c1c; background: #fff1f2; }
+.deleteDraftAction:hover:not(:disabled) { background: #ffe4e6; }
+.saveDraftAction:disabled, .deleteDraftAction:disabled { cursor: wait; opacity: .6; }
+.saveDraftAction:focus-visible, .deleteDraftAction:focus-visible { outline: 3px solid rgb(37 99 235 / 30%); outline-offset: 2px; }
 .watchButton { min-height: 56px; color: #1e293b; background: #f1f5f9; font-size: 18px; }
 .emptyState { grid-column: 1 / -1; min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px; color: #64748b; border: 1px dashed #bfdbfe; border-radius: 16px; background: #fff; text-align: center; }
 .emptyState h3 { color: #0f172a; font-size: 20px; }
@@ -162,6 +170,8 @@
 :global(html[data-theme='dark']) .watchButton,
 :global(html[data-theme='dark']) .disabledAction { color: #c0cad9; background: #222d41; }
 :global(html[data-theme='dark']) .thumbnail { border-color: #2a3650; background: #0a0f19; }
+:global(html[data-theme='dark']) .deleteDraftAction { color: #ff9caa; background: #3a1f2a; }
+:global(html[data-theme='dark']) .deleteDraftAction:hover:not(:disabled) { background: #512936; }
 :global(html[data-theme='dark']) .statsGrid article { color: #edf2f9; border-color: #2a3650; background: #111a2a; }
 :global(html[data-theme='dark']) .statsGrid span,
 :global(html[data-theme='dark']) .statsGrid small { color: #8997ac; }

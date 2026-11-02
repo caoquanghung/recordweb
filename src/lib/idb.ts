@@ -1,9 +1,13 @@
-import { get, set, del, keys, setMany, delMany, update } from 'idb-keyval';
+import { get, set, del, keys, setMany, delMany, update, createStore, promisifyRequest } from 'idb-keyval';
 import { CursorTrajectory, RecordingAssetKind, RecordingMetadata } from '@/types/recording';
+import { notifyRecordingRecoveryChanged } from '@/lib/recordingRecoveryEvents';
 
 const RECORDINGS_KEY_PREFIX = 'recordweb_rec_';
 const DRAFTS_KEY_PREFIX = 'recordweb_draft_';
 const DRAFT_INDEX_PREFIX = 'recordweb_draftIndex_';
+const THUMBNAIL_KEY_PREFIX = 'recordweb_thumbnail_';
+// Use the same database/store as idb-keyval's existing default store.
+const thumbnailStore = createStore('keyval-store', 'keyval');
 
 export interface RecordingDraft {
   id: string;
@@ -65,6 +69,9 @@ export async function saveRecordingDraft(draft: RecordingDraft): Promise<void> {
     [`${DRAFTS_KEY_PREFIX}${id}`, draft],
     [`${DRAFT_INDEX_PREFIX}${id}`, { id, startedAt, durationMs, ownerUserId, finalized: Boolean(draft.recording) }],
   ]);
+  // Raw checkpoints can arrive several times per second. Refresh UI summaries
+  // only for finalized backups; interrupted raw drafts are discovered on reload/focus.
+  if (draft.recording) notifyRecordingRecoveryChanged();
 }
 
 export type RecordingDraftSummary = Pick<RecordingDraft, 'id' | 'startedAt' | 'durationMs' | 'ownerUserId'> & { finalized?: boolean };
@@ -73,10 +80,13 @@ export async function getRecordingDraft(id: string): Promise<RecordingDraft | un
   return get<RecordingDraft>(`${DRAFTS_KEY_PREFIX}${id}`);
 }
 
-export async function updateRecordingDraft(id: string, patch: Partial<RecordingDraft>): Promise<void> {
+export async function updateRecordingDraft(
+  id: string,
+  patch: Partial<RecordingDraft> | ((draft: RecordingDraft) => Partial<RecordingDraft>),
+): Promise<void> {
   await update<RecordingDraft>(`${DRAFTS_KEY_PREFIX}${id}`, (draft) => {
     if (!draft) throw new Error('The local recording backup is unavailable.');
-    return { ...draft, ...patch, id };
+    return { ...draft, ...(typeof patch === 'function' ? patch(draft) : patch), id };
   });
 }
 
@@ -111,5 +121,36 @@ export async function getRecordingDrafts(): Promise<RecordingDraft[]> {
 }
 
 export async function deleteRecordingDraft(id: string): Promise<void> {
-  await delMany([`${DRAFTS_KEY_PREFIX}${id}`, `${DRAFT_INDEX_PREFIX}${id}`]);
+  await delMany([`${DRAFTS_KEY_PREFIX}${id}`, `${DRAFT_INDEX_PREFIX}${id}`, `${THUMBNAIL_KEY_PREFIX}${id}`]);
+  notifyRecordingRecoveryChanged();
+}
+
+/** Remove this backup and its titled local copy in one IndexedDB transaction. */
+export async function deleteRecordingBackup(id: string): Promise<void> {
+  await delMany([`${DRAFTS_KEY_PREFIX}${id}`, `${DRAFT_INDEX_PREFIX}${id}`, `${RECORDINGS_KEY_PREFIX}${id}`, `${THUMBNAIL_KEY_PREFIX}${id}`]);
+  notifyRecordingRecoveryChanged();
+}
+
+export async function getRecordingBackupThumbnail(id: string, ownerUserId: string): Promise<string | undefined> {
+  const cached = await get<{ ownerUserId: string; image: string }>(`${THUMBNAIL_KEY_PREFIX}${id}`);
+  return cached?.ownerUserId === ownerUserId ? cached.image : undefined;
+}
+
+export async function cacheRecordingBackupThumbnail(id: string, ownerUserId: string, image: string): Promise<void> {
+  await thumbnailStore('readwrite', (store) => {
+    const request = store.getKey(`${DRAFTS_KEY_PREFIX}${id}`);
+    request.onsuccess = () => {
+      if (!request.result) return;
+      // Check the lightweight owner index without reading all media a second time.
+      const summaryRequest = store.get(`${DRAFT_INDEX_PREFIX}${id}`);
+      summaryRequest.onsuccess = () => {
+        const summary = summaryRequest.result as RecordingDraftSummary | undefined;
+        // A late decoder must not recreate thumbnail data after backup deletion.
+        if (!summary?.ownerUserId || summary.ownerUserId === ownerUserId) {
+          store.put({ ownerUserId, image }, `${THUMBNAIL_KEY_PREFIX}${id}`);
+        }
+      };
+    };
+    return promisifyRequest(store.transaction);
+  });
 }

@@ -6,7 +6,11 @@ import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppSidebar } from '@/components/app/AppSidebar';
-import { getAllLocalRecordings, getRecordingDraftSummaries, type RecordingDraftSummary } from '@/lib/idb';
+import { getAllLocalRecordings } from '@/lib/idb';
+import { useRecordingRecovery } from '@/components/recordings/RecordingRecoveryProvider';
+import { useRecordingBackupActions } from '@/components/recordings/useRecordingBackupActions';
+import { RecordingBackupPoster } from '@/components/recordings/RecordingBackupPoster';
+import { PENDING_RECORDINGS_HREF, recentRecordingEntries, recordingBackupTitle } from '@/lib/pendingRecordings';
 import type { DbRecording, DbStudioPreset } from '@/types/database';
 import styles from './DashboardClient.module.css';
 
@@ -36,7 +40,7 @@ export function DashboardClient() {
   const router = useRouter();
   const [recordings, setRecordings] = useState<DbRecording[]>([]);
   const [presets, setPresets] = useState<DbStudioPreset[]>([]);
-  const [drafts, setDrafts] = useState<RecordingDraftSummary[]>([]);
+  const { drafts, loading: draftsLoading, error: recoveryError } = useRecordingRecovery();
   const [localCount, setLocalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -45,11 +49,10 @@ export function DashboardClient() {
     if (!userId) return;
     setLoading(true);
     try {
-      const [recordingResponse, presetResponse, local, storedDrafts] = await Promise.all([
+      const [recordingResponse, presetResponse, local] = await Promise.all([
         fetch('/api/recordings', { cache: 'no-store' }),
         fetch('/api/presets', { cache: 'no-store' }),
         getAllLocalRecordings(),
-        getRecordingDraftSummaries(userId),
       ]);
       const recordingData = await recordingResponse.json();
       const presetData = await presetResponse.json();
@@ -58,13 +61,13 @@ export function DashboardClient() {
       setRecordings(recordingData.recordings ?? []);
       setPresets(presetData.presets ?? []);
       setLocalCount(local.length);
-      setDrafts(storedDrafts);
     } catch (error) {
       setMessage((error as Error).message);
     } finally {
       setLoading(false);
     }
   }, [userId]);
+  const backupActions = useRecordingBackupActions(() => { void loadDashboard(); });
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => void loadDashboard(), 0);
@@ -81,8 +84,9 @@ export function DashboardClient() {
     router.push('/studio');
   };
 
-  const recentRecordings = recordings.slice(0, drafts.length > 0 ? 2 : 3);
-  const recentCount = Math.min(3, recentRecordings.length + (drafts.length > 0 ? 1 : 0));
+  const recentRecordings = useMemo(() => recentRecordingEntries(recordings, drafts), [recordings, drafts]);
+  const recentCount = recentRecordings.length;
+  const recentLoading = loading || draftsLoading;
 
   return (
     <div className={styles.dashboardShell}>
@@ -106,11 +110,11 @@ export function DashboardClient() {
                 </div>
               </div>
               <div className={styles.recoveryActions}>
-                <Link className={styles.secondaryButton} href="/studio">
+                {/* <Link className={styles.secondaryButton} href="/studio">
                   <Icon src="eye.svg" />
                   Xem lại hoặc huỷ
-                </Link>
-                <Link className={styles.dangerButton} href={`/studio?recover=${encodeURIComponent(drafts[0].id)}`}>
+                </Link> */}
+                <Link className={styles.dangerButton} href={PENDING_RECORDINGS_HREF}>
                   <Icon src="save.svg" />
                   Lưu bài giảng ngay
                 </Link>
@@ -119,6 +123,8 @@ export function DashboardClient() {
           )}
 
           {message && <p className={styles.message} role="status">{message}</p>}
+          {recoveryError && <p className={styles.message} role="alert">{recoveryError}</p>}
+          {backupActions.message && <p className={styles.message} role="status">{backupActions.message}</p>}
 
           <section className={styles.hero} aria-labelledby="dashboard-heading">
             <div className={styles.heroCopy}>
@@ -137,13 +143,13 @@ export function DashboardClient() {
               <div className={styles.sectionTitle}>
                 <Icon src="lectures.svg" size={24} />
                 <h2 id="recent-title">Bài giảng gần đây</h2>
-                <span>{loading ? 'Đang tải' : `${recentCount} bài gần nhất`}</span>
+                <span>{recentLoading ? 'Đang tải' : `${recentCount} bài gần nhất`}</span>
               </div>
               <Link href="/library">Xem toàn bộ thư viện <Icon src="arrow.svg" size={14} /></Link>
             </div>
 
             <div className={styles.recordingGrid}>
-              {loading && (
+              {recentLoading && (
                 <article className={styles.recordingCard} aria-busy="true">
                   <div className={styles.cardBody}>
                     <span className={`${styles.statusBadge} ${styles.statusProcessing}`}><Icon src="hourglass.svg" size={14} />Đang tải dữ liệu...</span>
@@ -158,33 +164,38 @@ export function DashboardClient() {
                 </article>
               )}
 
-              {!loading && drafts.length > 0 && (
-                <article className={`${styles.recordingCard} ${styles.draftCard}`}>
+              {!recentLoading && recentRecordings.map((entry) => entry.kind === 'draft' ? (
+                <article key={`draft-${entry.draft.id}`} className={`${styles.recordingCard} ${styles.draftCard}`}>
                   <div className={styles.cardBody}>
                     <span className={`${styles.statusBadge} ${styles.statusDraft}`}><i />Bản ghi chưa lưu thành công</span>
-                    <h3>Bản ghi chưa hoàn tất gần nhất</h3>
-                    <p>Đã quay được: {formatLongDuration(drafts[0].durationMs / 1000)}</p>
+                    <h3>{recordingBackupTitle(entry.draft.startedAt)}</h3>
+                    <p>Đã quay được: {formatLongDuration(entry.draft.durationMs / 1000)}</p>
                     <div className={styles.thumbnail}>
-                      <Image src={dashboardAsset('recording-draft.png')} alt="Xem trước bản ghi bài giảng chưa hoàn tất" fill sizes="(max-width: 720px) 100vw, 33vw" />
+                      <RecordingBackupPoster recordingId={entry.draft.id} />
                     </div>
                   </div>
-                  <button className={styles.primaryCardAction} type="button" onClick={() => router.push(`/studio?recover=${encodeURIComponent(drafts[0].id)}`)}>
-                    <Icon src="save.svg" />Lưu lại bản ghi
-                  </button>
+                  <div className={styles.cardActions}>
+                    <button className={styles.saveDraftAction} type="button" disabled={backupActions.deletingId === entry.draft.id}
+                      onClick={() => router.push(`/studio?recover=${encodeURIComponent(entry.draft.id)}`)}>
+                      <Icon src="save.svg" />Lưu lại bản ghi
+                    </button>
+                    <button className={styles.deleteDraftAction} type="button" disabled={Boolean(backupActions.deletingId)}
+                      onClick={() => void backupActions.removeBackup(entry.draft)}>
+                      {backupActions.deletingId === entry.draft.id ? 'Đang xoá…' : 'Xoá bản ghi'}
+                    </button>
+                  </div>
                 </article>
-              )}
-
-              {!loading && recentRecordings.map((recording) => (
-                <article className={styles.recordingCard} key={recording.id}>
+              ) : (
+                <article className={styles.recordingCard} key={`cloud-${entry.recording.id}`}>
                   <div className={styles.cardBody}>
                     <span className={`${styles.statusBadge} ${styles.statusReady}`}><Icon src="check.svg" size={15} />Sẵn sàng xem</span>
-                    <h3>{recording.title}</h3>
-                    <p>Đã quay: {new Date(recording.recorded_at).toLocaleDateString('vi-VN')} • Thời lượng {formatLongDuration(Number(recording.duration_seconds))}</p>
+                    <h3>{entry.recording.title}</h3>
+                    <p>Đã quay: {new Date(entry.recording.recorded_at).toLocaleDateString('vi-VN')} • Thời lượng {formatLongDuration(Number(entry.recording.duration_seconds))}</p>
                     <div className={styles.thumbnail}>
-                      {recording.storage_url ? (
+                      {entry.recording.storage_url ? (
                         <video
-                          src={recording.storage_url}
-                          aria-label={`Khung hình xem trước ${recording.title}`}
+                          src={entry.recording.storage_url}
+                          aria-label={`Khung hình xem trước ${entry.recording.title}`}
                           muted
                           playsInline
                           preload="metadata"
@@ -195,12 +206,12 @@ export function DashboardClient() {
                     </div>
                   </div>
                   <div className={styles.cardActions}>
-                    <Link className={styles.watchButton} href={`/library/${recording.id}`}><Icon src="watch.svg" size={20} />Xem lại</Link>
+                    <Link className={styles.watchButton} href={`/library/${entry.recording.id}`}><Icon src="watch.svg" size={20} />Xem lại</Link>
                   </div>
                 </article>
               ))}
 
-              {!loading && recentCount === 0 && (
+              {!recentLoading && recentCount === 0 && (
                 <div className={styles.emptyState}>
                   <Icon src="video.svg" size={32} />
                   <h3>Chưa có bài giảng nào</h3>

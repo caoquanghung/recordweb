@@ -8,10 +8,12 @@ import { useState } from 'react';
 import { usePermissions } from '@/components/auth/PermissionProvider';
 import type { AppPermission } from '@/lib/auth/roles';
 import { useAppTheme } from './useAppTheme';
+import { useRecordingRecovery } from '@/components/recordings/RecordingRecoveryProvider';
+import { PENDING_RECORDINGS_HREF } from '@/lib/pendingRecordings';
 import styles from './AppSidebar.module.css';
 
 export type AppSidebarBehavior = 'fixed' | 'adaptive';
-export type AppSidebarIcon = 'studio' | 'library';
+export type AppSidebarIcon = 'dashboard' | 'studio' | 'library';
 
 export interface AppSidebarItem {
   id: string;
@@ -31,6 +33,7 @@ interface AppSidebarProps {
 }
 
 const defaultItems: AppSidebarItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', href: '/dashboard' },
   { id: 'studio', label: 'Studio Giảng Bài', icon: 'studio', href: '/studio' },
   { id: 'library', label: 'Thư viện bài giảng', icon: 'library', href: '/library' },
 ];
@@ -57,9 +60,13 @@ export function AppSidebar({
   const { user } = useUser();
   const { theme, toggleTheme } = useAppTheme();
   const { hasPermission } = usePermissions();
+  const { drafts } = useRecordingRecovery();
   const [isOpen, setIsOpen] = useState(false);
   const resolvedPathname = activeHref ?? pathname;
   const displayName = user?.fullName || user?.firstName || 'Thầy Hoàng Nam';
+  const navigationItems = drafts.length > 0 && !items.some((item) => item.href === PENDING_RECORDINGS_HREF)
+    ? [...items, { id: 'pending-recordings', label: 'Bài giảng chưa lưu', icon: 'library' as const, href: PENDING_RECORDINGS_HREF }]
+    : items;
 
   function handleSelect(item: AppSidebarItem) {
     item.onSelect?.();
@@ -110,7 +117,7 @@ export function AppSidebar({
           </Link>
 
           <nav className={styles.nav} aria-label="Các khu vực ứng dụng">
-            {items.filter((item) => (
+            {navigationItems.filter((item) => (
               !item.requiredPermission || hasPermission(item.requiredPermission)
             )).map((item) => {
               const active = isActiveRoute(resolvedPathname, item.href);
@@ -121,6 +128,7 @@ export function AppSidebar({
                   {active && <span className={styles.activeDot} aria-hidden="true" />}
                 </>
               );
+              const pending = item.href === PENDING_RECORDINGS_HREF;
               const itemClassName = `${styles.navItem} ${active ? styles.navItemActive : ''}`;
 
               return item.href ? (
@@ -132,6 +140,7 @@ export function AppSidebar({
                   onClick={() => handleSelect(item)}
                 >
                   {content}
+                  {pending && <span className={styles.pendingCount} aria-label={`${drafts.length} bản ghi chưa lưu`}>{drafts.length}</span>}
                 </Link>
               ) : (
                 <button

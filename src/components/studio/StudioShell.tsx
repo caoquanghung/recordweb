@@ -24,7 +24,7 @@ function RecordingWorkspace({ onOpenPresentation }: { onOpenPresentation: () => 
       <StudioLeaveWarning reason={studio.leaveWarning} onConfirmLeave={studio.cancelPendingUpload} />
       <StudioHeader studio={studio} />
       {/* <StudioToolbar studio={studio} onOpenPresentation={onOpenPresentation} /> */}
-      <StudioSessionNotice studio={studio} />
+      {/* <StudioSessionNotice studio={studio} /> */}
 
       {studio.session === 'review' ? (
         <StudioReviewWorkspace studio={studio} />
@@ -58,7 +58,7 @@ function PresentationWorkspace({ onReturnToRecording }: { onReturnToRecording: (
         onReturnToRecording={onReturnToRecording}
       />
       <StudioToolbar studio={studio} integratedPresentation />
-      <StudioSessionNotice studio={studio} />
+      {/* <StudioSessionNotice studio={studio} /> */}
 
       {studio.session === 'review' ? (
         <StudioReviewWorkspace studio={studio} />

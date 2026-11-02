@@ -16,17 +16,16 @@ import { waitForCaptureHandle } from '@/lib/captureHandle';
 import { createCursorAsset, recoverCursorTrajectory } from '@/lib/cursorTrajectory';
 import { repairWebmDuration } from '@/lib/ebmlPatcher';
 import {
-  deleteRecordingDraft,
   getRecordingDraft,
   getRecordingDraftSummaries,
-  saveLocalRecording,
   type RecordingDraftSummary,
 } from '@/lib/idb';
 import {
   downloadRecordingArchive,
   RECORDING_ARCHIVE_KINDS,
 } from '@/lib/recordingArchive';
-import { getRecordingTitleError, normalizeRecordingTitle } from '@/lib/recordingTitle';
+import { getRecordingTitleError } from '@/lib/recordingTitle';
+import { createRecordingTitleSave } from '@/lib/recordingTitleClient';
 import { getRecordingLeaveWarning } from './recordingLeaveWarning';
 import { createRecordingUploadJob, type RecordingUploadJob } from '@/lib/recordingUploadClient';
 import type { DbRecording, DbStudioPreset } from '@/types/database';
@@ -101,8 +100,8 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const [cloudRecording, setCloudRecording] = useState<DbRecording | null>(null);
   const [titleSaving, setTitleSaving] = useState(false);
   const [titleError, setTitleError] = useState('');
+  const [savedTitle, setSavedTitle] = useState<{ recordingId: string; title: string } | null>(null);
   const recoveredPreviewUrlRef = useRef<string | null>(null);
-  const recoveredDraftIdRef = useRef<string | null>(null);
   const uploadStartedForRef = useRef<string | null>(null);
   const uploadJobRef = useRef<RecordingUploadJob | null>(null);
   const requestedRecoveryRef = useRef<string | null>(null);
@@ -237,7 +236,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     recording: completedRecording,
     start: startRecording,
     stop: stopRecording,
-    saveTitle: saveCompletedRecordingTitle,
     reset: resetRecording,
   } = useRecordingSession({
     ownerUserId: ownerUserId ?? undefined,
@@ -252,7 +250,11 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     cursorCapture,
   });
 
-  const activeRecording = completedRecording ?? recoveredRecording;
+  const reviewRecording = completedRecording ?? recoveredRecording;
+  const titleSave = useMemo(() => reviewRecording ? createRecordingTitleSave(reviewRecording) : null, [reviewRecording]);
+  const activeRecording = useMemo(() => reviewRecording && savedTitle?.recordingId === reviewRecording.id
+    ? { ...reviewRecording, title: savedTitle.title }
+    : reviewRecording, [reviewRecording, savedTitle]);
   const titleRequired = Boolean(activeRecording && !activeRecording.title);
   const session: SessionState = countdown !== null
     ? 'countdown'
@@ -615,7 +617,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         if (recoveredPreviewUrlRef.current) URL.revokeObjectURL(recoveredPreviewUrlRef.current);
         const previewUrl = URL.createObjectURL(draft.recording.blob);
         recoveredPreviewUrlRef.current = previewUrl;
-        recoveredDraftIdRef.current = draft.id;
         setRecoveredRecording({ ...draft.recording, previewUrl });
         consumeRecoveryRequest();
         setRecoveryDrafts((current) => current.filter((item) => item.id !== draft.id));
@@ -679,7 +680,6 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
         previewUrl,
         assets,
       };
-      recoveredDraftIdRef.current = draft.id;
       setRecoveredRecording(recording);
       consumeRecoveryRequest();
       setRecoveryDrafts((current) => current.filter((item) => item.id !== draft.id));
@@ -725,44 +725,32 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       setTitleError(validationError);
       return false;
     }
-    if (!activeRecording) {
+    if (!activeRecording || !titleSave) {
       setTitleError('The finalized recording is unavailable.');
       return false;
     }
-    if (!cloudRecording || uploadState !== 'ready') {
-      setTitleError('Wait for the recording to finish saving, then try again.');
-      return false;
-    }
-
     setTitleSaving(true);
     setTitleError('');
+    let savedLocally = false;
     try {
-      const title = normalizeRecordingTitle(value);
-      const response = await fetch('/api/recordings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: cloudRecording.id, title }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.recording) {
-        throw new Error(data.error ?? 'Could not update the recording.');
-      }
-      setCloudRecording((current) => current ? { ...current, ...data.recording } : current);
-      if (recoveredRecording) {
-        const titledRecording = { ...recoveredRecording, title };
-        await saveLocalRecording(titledRecording);
-        const draftId = recoveredDraftIdRef.current ?? titledRecording.id;
-        await deleteRecordingDraft(draftId);
-        recoveredDraftIdRef.current = null;
-        setRecoveredRecording(titledRecording);
-      } else {
-        await saveCompletedRecordingTitle(title);
+      const titledRecording = await titleSave.saveLocally(value);
+      savedLocally = true;
+      setSavedTitle({ recordingId: titledRecording.id, title: titledRecording.title });
+      const saved = await titleSave.syncCloud();
+      if (saved) {
+        setCloudRecording(saved);
+        setUploadState('ready');
+        setUploadMessage('Recording ready.');
       }
       setRecoveryMessage('');
-      setUploadMessage('Recording ready.');
       return true;
     } catch (cause) {
-      setTitleError(`Could not save the recording title: ${(cause as Error).message}`);
+      const message = `Could not save the recording title: ${(cause as Error).message}`;
+      setTitleError(message);
+      if (savedLocally) {
+        setUploadState('error');
+        setUploadMessage(message);
+      }
       return false;
     } finally {
       setTitleSaving(false);
@@ -787,7 +775,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   };
 
   const uploadRecording = useCallback(async () => {
-    if (!activeRecording || !ownerUserId || uploadJobRef.current) return;
+    if (!activeRecording || !ownerUserId || !titleSave || uploadJobRef.current) return;
     setUploadState('uploading');
     setUploadProgress(0);
     setUploadMessage('Đang sao lưu và lưu trữ bản ghi…');
@@ -807,10 +795,12 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       });
       uploadJobRef.current = job;
       const saved = await job.run();
-      setCloudRecording(saved);
+      const titled = await titleSave.completeUpload(saved);
+      setCloudRecording(titled);
       setUploadState('ready');
       setUploadProgress(100);
-      setUploadMessage(activeRecording.title ? 'Bản ghi đã được lưu.' : 'Bản ghi đã được lưu. Hãy đặt tiêu đề để tiếp tục.');
+      setTitleError('');
+      setUploadMessage(titleSave.title ? 'Bản ghi đã được lưu.' : 'Bản ghi đã được lưu. Hãy đặt tiêu đề để tiếp tục.');
     } catch (error) {
       console.error('Recording save failed', error);
       setUploadState('error');
@@ -820,7 +810,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     } finally {
       if (uploadJobRef.current === job) uploadJobRef.current = null;
     }
-  }, [activeRecording, ownerUserId, audioMode, background, mode, pipPosition, pipShape, pipSize]);
+  }, [activeRecording, ownerUserId, titleSave, audioMode, background, mode, pipPosition, pipShape, pipSize]);
 
   useEffect(() => {
     if (!activeRecording || !ownerUserId || uploadStartedForRef.current === activeRecording.id) return;
