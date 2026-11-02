@@ -3,6 +3,7 @@
 import { useAuth } from '@clerk/nextjs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMediaSession } from '@/components/media/MediaSessionProvider';
+import { useCloudPresets } from '@/components/recordings/CloudLibraryProvider';
 import { useAudioDSP } from '@/hooks/useAudioDSP';
 import { useCanvasCompositor } from '@/hooks/useCanvasCompositor';
 import { useCursorTrajectory } from '@/hooks/useCursorTrajectory';
@@ -77,7 +78,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
   const [healthState, setHealthState] = useState<CheckState>('idle');
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [capabilities, setCapabilities] = useState<BrowserCapabilities | null>(null);
-  const [presets, setPresets] = useState<DbStudioPreset[]>([]);
+  const { presets, upsert: cachePreset } = useCloudPresets();
   const [presetName, setPresetName] = useState('My studio preset');
   const [presetMessage, setPresetMessage] = useState('');
   const [theme, setTheme] = useState<Theme>('dark');
@@ -291,28 +292,12 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
     return () => window.clearTimeout(releaseSourceCanvases);
   }, [presentationCapture, presentationWorkspace, recordingStatus, stopAllMedia, stopPresentationCapture, stopScreen]);
 
-  const loadPresets = useCallback(async () => {
-    try {
-      const presetResponse = await fetch('/api/presets', { cache: 'no-store' });
-      const presetJson = await presetResponse.json();
-      if (!presetResponse.ok) throw new Error(presetJson.error ?? 'Could not load presets.');
-      setPresets(presetJson.presets ?? []);
-    } catch {
-      setPresets([]);
-    }
-  }, []);
-
   useEffect(() => {
     const syncTheme = window.setTimeout(() => {
       setTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
     }, 0);
     return () => window.clearTimeout(syncTheme);
   }, []);
-
-  useEffect(() => {
-    const initialLoad = window.setTimeout(() => void loadPresets(), 0);
-    return () => window.clearTimeout(initialLoad);
-  }, [loadPresets]);
 
   useEffect(() => {
     const applyPendingSetup = window.setTimeout(() => {
@@ -879,7 +864,7 @@ export function useStudioController({ workspace = 'studio' }: UseStudioControlle
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? 'Could not save preset.');
       setPresetMessage('Saved to Neon.');
-      await loadPresets();
+      if (data.preset) cachePreset(data.preset);
     } catch (error) {
       setPresetMessage((error as Error).message);
     }

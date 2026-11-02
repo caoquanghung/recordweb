@@ -2,6 +2,7 @@ import { deleteRecordingDraft, saveLocalRecording, updateRecordingDraft } from '
 import { getRecordingTitleError, normalizeRecordingTitle } from '@/lib/recordingTitle';
 import type { DbRecording } from '@/types/database';
 import type { RecordingMetadata } from '@/types/recording';
+import { notifyCloudRecordingSaved } from '@/lib/cloudLibraryEvents';
 
 /** Coordinates title writes with upload completion for one Review recording. */
 export function createRecordingTitleSave(recording: RecordingMetadata) {
@@ -41,7 +42,9 @@ export function createRecordingTitleSave(recording: RecordingMetadata) {
       if (!response.ok || !data.recording) {
         throw new Error(data.error ?? 'Could not update the recording title.');
       }
-      cloudRecording = { ...cloudRecording, ...data.recording };
+      const updated: DbRecording = { ...cloudRecording, ...data.recording };
+      cloudRecording = updated;
+      notifyCloudRecordingSaved(updated.user_id, updated);
     }
     // Keep recovery available until cloud title sync AND the full local save succeed.
     await saveLocalRecording({ ...currentRecording, previewUrl: undefined });

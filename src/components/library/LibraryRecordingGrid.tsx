@@ -12,6 +12,7 @@ import {
 } from './LibraryPrimitives';
 import { LibraryCardGrid, LibraryRecordingCard } from './LibraryRecordingCard';
 import type { LibraryEntry, RecordingPreview } from './useLibraryController';
+import { RecordingPoster } from '@/components/recordings/RecordingPoster';
 
 type LibraryRecordingGridProps = {
   entries: LibraryEntry[];
@@ -35,6 +36,7 @@ function CloudRecordingCard({
       description="Sẵn sàng xem lại và tải xuống cho nghiên cứu."
       thumbnail={{
         src: recording.storage_url,
+        poster: recording.storage_url ? <RecordingPoster recordingId={recording.id} storageUrl={recording.storage_url} /> : undefined,
         badge: 'Bài giảng',
         summary: `${formatLibraryDuration(Number(recording.duration_seconds))} • ${formatLibraryBytes(Number(recording.file_size_bytes))}`,
         onClick: () => recording.storage_url && setPreview({

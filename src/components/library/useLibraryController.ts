@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useCloudRecordings } from '@/components/recordings/CloudLibraryProvider';
+import { deleteCloudRecordingThumbnail } from '@/lib/idb';
 import { downloadRecordingArchive } from '@/lib/recordingArchive';
 import type { DbRecording, DbRecordingAsset } from '@/types/database';
 import type { RecordingInspectionData } from '@/components/review/recordingInspection';
@@ -27,35 +29,23 @@ export function useLibraryController() {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<LibrarySort>('newest');
   const [page, setPage] = useState(1);
-  const [cloud, setCloud] = useState<DbRecording[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cloudData = useCloudRecordings();
+  const { loading, refreshing } = cloudData;
+  const cloud = useMemo(() => cloudData.recordings.filter((recording) => Boolean(
+    recording.storage_url || recording.assets?.some((asset) => asset.kind === 'composite'),
+  )), [cloudData.recordings]);
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState<RecordingPreview | null>(null);
   const [cursorPreview, setCursorPreview] = useState<CursorPreview | null>(null);
 
-  const loadLibrary = useCallback(async () => {
-    setLoading(true);
+  const loadLibrary = async () => {
     setMessage('');
     try {
-      const response = await fetch('/api/recordings', { cache: 'no-store' });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Could not load cloud recordings.');
-
-      const hasCloudVideo = (recording: DbRecording) => Boolean(
-        recording.storage_url || recording.assets?.some((asset) => asset.kind === 'composite'),
-      );
-      setCloud(((data.recordings ?? []) as DbRecording[]).filter(hasCloudVideo));
+      await cloudData.refresh();
     } catch (error) {
       setMessage((error as Error).message);
-    } finally {
-      setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    const initialLoad = window.setTimeout(() => void loadLibrary(), 0);
-    return () => window.clearTimeout(initialLoad);
-  }, [loadLibrary]);
+  };
 
   const filteredEntries = useMemo<LibraryEntry[]>(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('vi');
@@ -128,7 +118,10 @@ export function useLibraryController() {
       setMessage(data.error ?? 'Could not delete cloud recording.');
       return;
     }
-    setCloud((current) => current.filter((item) => item.id !== recording.id));
+    cloudData.remove(recording.id);
+    if (cloudData.ownerUserId) {
+      await deleteCloudRecordingThumbnail(recording.id, cloudData.ownerUserId).catch(() => undefined);
+    }
     setMessage('Cloud recording and Blob object deleted.');
   };
 
@@ -141,7 +134,8 @@ export function useLibraryController() {
     setPage,
     cloud,
     loading,
-    message,
+    refreshing,
+    message: message || cloudData.error,
     preview,
     setPreview,
     cursorPreview,

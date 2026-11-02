@@ -6,12 +6,12 @@ import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppSidebar } from '@/components/app/AppSidebar';
-import { getAllLocalRecordings } from '@/lib/idb';
+import { getLocalRecordingCount } from '@/lib/idb';
+import { useCloudPresets, useCloudRecordings } from '@/components/recordings/CloudLibraryProvider';
 import { useRecordingRecovery } from '@/components/recordings/RecordingRecoveryProvider';
 import { useRecordingBackupActions } from '@/components/recordings/useRecordingBackupActions';
-import { RecordingBackupPoster } from '@/components/recordings/RecordingBackupPoster';
+import { RecordingPoster } from '@/components/recordings/RecordingPoster';
 import { PENDING_RECORDINGS_HREF, recentRecordingEntries, recordingBackupTitle } from '@/lib/pendingRecordings';
-import type { DbRecording, DbStudioPreset } from '@/types/database';
 import styles from './DashboardClient.module.css';
 
 const defaultQuickStart = {
@@ -38,33 +38,23 @@ function Icon({ src, size = 18 }: { src: string; size?: number }) {
 export function DashboardClient() {
   const { userId } = useAuth();
   const router = useRouter();
-  const [recordings, setRecordings] = useState<DbRecording[]>([]);
-  const [presets, setPresets] = useState<DbStudioPreset[]>([]);
+  const { recordings, loading: recordingsLoading, error: recordingsError } = useCloudRecordings();
+  const { presets, loading: presetsLoading, error: presetsError } = useCloudPresets();
   const { drafts, loading: draftsLoading, error: recoveryError } = useRecordingRecovery();
   const [localCount, setLocalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [localLoading, setLocalLoading] = useState(true);
+  const loading = localLoading || recordingsLoading || presetsLoading;
   const [message, setMessage] = useState('');
 
   const loadDashboard = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
+    setLocalLoading(true);
     try {
-      const [recordingResponse, presetResponse, local] = await Promise.all([
-        fetch('/api/recordings', { cache: 'no-store' }),
-        fetch('/api/presets', { cache: 'no-store' }),
-        getAllLocalRecordings(),
-      ]);
-      const recordingData = await recordingResponse.json();
-      const presetData = await presetResponse.json();
-      if (!recordingResponse.ok) throw new Error(recordingData.error ?? 'Không thể tải danh sách bài giảng.');
-      if (!presetResponse.ok) throw new Error(presetData.error ?? 'Không thể tải cấu hình đã lưu.');
-      setRecordings(recordingData.recordings ?? []);
-      setPresets(presetData.presets ?? []);
-      setLocalCount(local.length);
+      setLocalCount(await getLocalRecordingCount());
     } catch (error) {
       setMessage((error as Error).message);
     } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
   }, [userId]);
   const backupActions = useRecordingBackupActions(() => { void loadDashboard(); });
@@ -86,7 +76,7 @@ export function DashboardClient() {
 
   const recentRecordings = useMemo(() => recentRecordingEntries(recordings, drafts), [recordings, drafts]);
   const recentCount = recentRecordings.length;
-  const recentLoading = loading || draftsLoading;
+  const recentLoading = recordingsLoading || draftsLoading;
 
   return (
     <div className={styles.dashboardShell}>
@@ -123,6 +113,7 @@ export function DashboardClient() {
           )}
 
           {message && <p className={styles.message} role="status">{message}</p>}
+          {(recordingsError || presetsError) && <p className={styles.message} role="alert">{recordingsError || presetsError}</p>}
           {recoveryError && <p className={styles.message} role="alert">{recoveryError}</p>}
           {backupActions.message && <p className={styles.message} role="status">{backupActions.message}</p>}
 
@@ -171,7 +162,7 @@ export function DashboardClient() {
                     <h3>{recordingBackupTitle(entry.draft.startedAt)}</h3>
                     <p>Đã quay được: {formatLongDuration(entry.draft.durationMs / 1000)}</p>
                     <div className={styles.thumbnail}>
-                      <RecordingBackupPoster recordingId={entry.draft.id} />
+                      <RecordingPoster recordingId={entry.draft.id} />
                     </div>
                   </div>
                   <div className={styles.cardActions}>
@@ -193,13 +184,7 @@ export function DashboardClient() {
                     <p>Đã quay: {new Date(entry.recording.recorded_at).toLocaleDateString('vi-VN')} • Thời lượng {formatLongDuration(Number(entry.recording.duration_seconds))}</p>
                     <div className={styles.thumbnail}>
                       {entry.recording.storage_url ? (
-                        <video
-                          src={entry.recording.storage_url}
-                          aria-label={`Khung hình xem trước ${entry.recording.title}`}
-                          muted
-                          playsInline
-                          preload="metadata"
-                        />
+                        <RecordingPoster recordingId={entry.recording.id} storageUrl={entry.recording.storage_url} />
                       ) : (
                         <span className={styles.recordingThumbnailFallback} aria-hidden="true" />
                       )}

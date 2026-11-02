@@ -1,11 +1,13 @@
 import { get, set, del, keys, setMany, delMany, update, createStore, promisifyRequest } from 'idb-keyval';
 import { CursorTrajectory, RecordingAssetKind, RecordingMetadata } from '@/types/recording';
 import { notifyRecordingRecoveryChanged } from '@/lib/recordingRecoveryEvents';
+import { RECORDING_THUMBNAIL_VERSION } from '@/lib/recordingThumbnailPolicy';
 
 const RECORDINGS_KEY_PREFIX = 'recordweb_rec_';
 const DRAFTS_KEY_PREFIX = 'recordweb_draft_';
 const DRAFT_INDEX_PREFIX = 'recordweb_draftIndex_';
 const THUMBNAIL_KEY_PREFIX = 'recordweb_thumbnail_';
+const cloudThumbnailKey = (ownerUserId: string, id: string) => `recordweb_cloudThumbnail_${encodeURIComponent(ownerUserId)}_${id}`;
 // Use the same database/store as idb-keyval's existing default store.
 const thumbnailStore = createStore('keyval-store', 'keyval');
 
@@ -56,6 +58,10 @@ export async function getAllLocalRecordings(): Promise<RecordingMetadata[]> {
   return results.sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
+}
+
+export async function getLocalRecordingCount(): Promise<number> {
+  return (await keys()).filter((key) => typeof key === 'string' && key.startsWith(RECORDINGS_KEY_PREFIX)).length;
 }
 
 export async function deleteLocalRecording(id: string): Promise<void> {
@@ -132,8 +138,8 @@ export async function deleteRecordingBackup(id: string): Promise<void> {
 }
 
 export async function getRecordingBackupThumbnail(id: string, ownerUserId: string): Promise<string | undefined> {
-  const cached = await get<{ ownerUserId: string; image: string }>(`${THUMBNAIL_KEY_PREFIX}${id}`);
-  return cached?.ownerUserId === ownerUserId ? cached.image : undefined;
+  const cached = await get<{ ownerUserId: string; image: string; version?: number }>(`${THUMBNAIL_KEY_PREFIX}${id}`);
+  return cached?.ownerUserId === ownerUserId && cached.version === RECORDING_THUMBNAIL_VERSION ? cached.image : undefined;
 }
 
 export async function cacheRecordingBackupThumbnail(id: string, ownerUserId: string, image: string): Promise<void> {
@@ -147,10 +153,33 @@ export async function cacheRecordingBackupThumbnail(id: string, ownerUserId: str
         const summary = summaryRequest.result as RecordingDraftSummary | undefined;
         // A late decoder must not recreate thumbnail data after backup deletion.
         if (!summary?.ownerUserId || summary.ownerUserId === ownerUserId) {
-          store.put({ ownerUserId, image }, `${THUMBNAIL_KEY_PREFIX}${id}`);
+          store.put({ ownerUserId, image, version: RECORDING_THUMBNAIL_VERSION }, `${THUMBNAIL_KEY_PREFIX}${id}`);
         }
       };
     };
+    return promisifyRequest(store.transaction);
+  });
+}
+
+export async function getCloudRecordingThumbnail(id: string, ownerUserId: string, sourceUrl: string): Promise<string | undefined> {
+  const cached = await get<{ sourceUrl: string; image: string; version?: number }>(cloudThumbnailKey(ownerUserId, id));
+  return cached?.sourceUrl === sourceUrl && cached.version === RECORDING_THUMBNAIL_VERSION ? cached.image : undefined;
+}
+
+export async function cacheCloudRecordingThumbnail(id: string, ownerUserId: string, sourceUrl: string, image: string): Promise<void> {
+  const key = cloudThumbnailKey(ownerUserId, id);
+  await thumbnailStore('readwrite', (store) => {
+    const request = store.getKey(`${key}_deleted`);
+    request.onsuccess = () => { if (!request.result) store.put({ sourceUrl, image, version: RECORDING_THUMBNAIL_VERSION }, key); };
+    return promisifyRequest(store.transaction);
+  });
+}
+
+export async function deleteCloudRecordingThumbnail(id: string, ownerUserId: string): Promise<void> {
+  const key = cloudThumbnailKey(ownerUserId, id);
+  await thumbnailStore('readwrite', (store) => {
+    store.put(true, `${key}_deleted`);
+    store.delete(key);
     return promisifyRequest(store.transaction);
   });
 }

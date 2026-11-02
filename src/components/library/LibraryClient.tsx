@@ -13,7 +13,7 @@ export function LibraryClient() {
   const library = useLibraryController();
   const {
     query, setQuery, sort, setSort, page, setPage,
-    loading, message,
+    loading, refreshing, message,
     preview, setPreview,
     loadLibrary, paginatedEntries, visibleCount, pageCount,
     cloudBytes, cloudGigabytes, storagePercent, totalCount,
@@ -38,8 +38,8 @@ export function LibraryClient() {
             </div>
             <small>Dung lượng các bản ghi trong thư viện</small>
           </div>
-          <button className={styles.syncButton} type="button" onClick={() => void loadLibrary()} disabled={loading}>
-            <LibraryIcon name="sync" />{loading ? 'Đang đồng bộ' : 'Đồng bộ ngay'}
+          <button className={styles.syncButton} type="button" onClick={() => void loadLibrary()} disabled={refreshing}>
+            <LibraryIcon name="sync" />{refreshing ? 'Đang đồng bộ' : 'Đồng bộ ngay'}
           </button>
         </section>
       }

@@ -2,12 +2,12 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useCloudRecordings } from '@/components/recordings/CloudLibraryProvider';
 import { AppSidebar } from '@/components/app/AppSidebar';
 import { RecordingDeveloperInspection } from '@/components/review/RecordingDeveloperInspection';
 import { getCloudRecordingInspection } from '@/components/review/recordingInspection';
 import { downloadRecordingArchive } from '@/lib/recordingArchive';
-import type { DbRecording } from '@/types/database';
 import styles from './RecordingDetailsClient.module.css';
 
 type Chapter = {
@@ -91,36 +91,12 @@ function StatusPage({ kind, message }: { kind: 'loading' | 'error'; message?: st
 }
 
 export function RecordingDetailsClient({ recordingId }: { recordingId: string }) {
-  const [recording, setRecording] = useState<DbRecording | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { recordings, loading, error: loadError } = useCloudRecordings();
+  const recording = recordings.find((item) => item.id === recordingId) ?? null;
+  const error = !recording ? loadError || (!loading ? 'Bài giảng không tồn tại hoặc bạn không có quyền truy cập.' : '') : '';
   const [message, setMessage] = useState('');
   const [downloadBusy, setDownloadBusy] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadRecording() {
-      setLoading(true);
-      setError('');
-      try {
-        const response = await fetch('/api/recordings', { cache: 'no-store' });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error ?? 'Không thể tải thư viện bài giảng.');
-        const owned = (data.recordings as DbRecording[] | undefined)?.find((item) => item.id === recordingId);
-        if (!owned) throw new Error('Bài giảng không tồn tại hoặc bạn không có quyền truy cập.');
-        if (!cancelled) setRecording(owned);
-      } catch (loadError) {
-        if (!cancelled) setError((loadError as Error).message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    void loadRecording();
-    return () => { cancelled = true; };
-  }, [recordingId]);
 
   const canDownload = Boolean(
     recording

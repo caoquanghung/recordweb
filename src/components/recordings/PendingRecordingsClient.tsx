@@ -14,7 +14,7 @@ import { loadRecordingBackupPreview } from '@/lib/recordingBackupClient';
 import type { RecordingDraftSummary } from '@/lib/idb';
 import { useRecordingRecovery } from './RecordingRecoveryProvider';
 import { useRecordingBackupActions } from './useRecordingBackupActions';
-import { RecordingBackupPoster } from './RecordingBackupPoster';
+import { RecordingPoster } from './RecordingPoster';
 import styles from '@/components/library/LibraryClient.module.css';
 
 export function PendingRecordingsClient() {
@@ -117,7 +117,7 @@ export function PendingRecordingsClient() {
                 title={title}
                 description="Bấm vào ảnh để xem trước. Lưu lại để hoàn tất tải lên đám mây."
                 thumbnail={{
-                  poster: <RecordingBackupPoster recordingId={draft.id} />,
+                  poster: <RecordingPoster recordingId={draft.id} />,
                   badge: 'Chưa hoàn tất lưu', summary: formatLibraryDuration(draft.durationMs / 1000),
                   canPreview: !deleting && previewingId !== draft.id, onClick: () => void openPreview(draft),
                 }}

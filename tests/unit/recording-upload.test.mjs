@@ -63,6 +63,7 @@ function fixture({ saved, uploadError, saveError, delayStart = false, existingBa
     window: { setInterval: () => 1, clearInterval: () => undefined },
     navigator: { sendBeacon: () => { calls.push({ beacon: true }); return true; } },
     require(name) {
+      if (name === '@/lib/cloudLibraryEvents') return { notifyCloudRecordingSaved() {} };
       if (name === '@vercel/blob/client') return { upload: fakeUpload, uploadPresigned: fakeUpload };
       if (name === '@/lib/recordingUploadProtocol') return { buildUploadManifest, UPLOAD_KINDS: ['composite', 'cursor'] };
       if (name === '@/lib/idb') return {

@@ -3,6 +3,7 @@ import { getRecordingDraft, saveRecordingDraft, updateRecordingDraft } from '@/l
 import { buildUploadManifest, UPLOAD_KINDS } from '@/lib/recordingUploadProtocol';
 import type { DbRecording } from '@/types/database';
 import type { RecordingAssetMetadata, RecordingMetadata } from '@/types/recording';
+import { notifyCloudRecordingSaved } from '@/lib/cloudLibraryEvents';
 
 export function createRecordingUploadJob({ recording, ownerUserId, settings, onPhase, onProgress }: {
   recording: RecordingMetadata;
@@ -127,6 +128,7 @@ export function createRecordingUploadJob({ recording, ownerUserId, settings, onP
         saved = data.recording;
       }
       finished = true;
+      notifyCloudRecordingSaved(ownerUserId, saved);
       await updateRecordingDraft(recording.id, { cloudRecordingId: saved.id });
       return saved;
     } catch (error) {

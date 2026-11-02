@@ -78,6 +78,7 @@ function fixture({ title = '', uploadGate, metadataGate, prepareGate, localGate 
       module: loaded, exports: loaded.exports, Blob, AbortController, AbortSignal, crypto, fetch,
       window: { setInterval: () => 1, clearInterval() {} },
       require(name) {
+        if (name === '@/lib/cloudLibraryEvents') return { notifyCloudRecordingSaved() {} };
         if (name === '@/lib/idb') return idb;
         if (name === '@/lib/recordingTitle') return { getRecordingTitleError, normalizeRecordingTitle };
         if (name === '@/lib/recordingUploadProtocol') return { buildUploadManifest, UPLOAD_KINDS };
