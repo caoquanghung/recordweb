@@ -12,6 +12,7 @@
     "128": "icons/icon-128.png"
   },
   "host_permissions": [
+    "http://localhost:3000/*",
     "https://recordweb-nine.vercel.app/*",
     "https://docs.google.com/presentation/*"
   ],
@@ -28,6 +29,7 @@
   "content_scripts": [
     {
       "matches": [
+        "http://localhost:3000/*",
         "https://recordweb-nine.vercel.app/*"
       ],
       "js": ["extension-protocol.js", "resilient-port.js", "recordweb-bridge.js"],

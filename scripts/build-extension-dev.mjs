@@ -18,9 +18,9 @@ const developmentManifest = {
   ...productionManifest,
   name: `${productionManifest.name} (Development)`,
   homepage_url: `${developmentOrigin}/`,
-  host_permissions: productionManifest.host_permissions.flatMap((match) =>
+  host_permissions: [...new Set(productionManifest.host_permissions.flatMap((match) =>
     match === productionMatch ? [developmentMatch, productionMatch] : [match],
-  ),
+  ))],
   content_scripts: productionManifest.content_scripts.map((script) => ({
     ...script,
     matches: script.js.includes('recordweb-bridge.js')

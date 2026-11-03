@@ -5,6 +5,9 @@ import vm from 'node:vm';
 
 const homepageUrl = 'https://recordweb-nine.vercel.app/';
 const productionMatch = 'https://recordweb-nine.vercel.app/*';
+const sourceManifest = JSON.parse(await readFile(new URL('../manifest.json', import.meta.url), 'utf8'));
+const sourceBridgeMatches = sourceManifest.content_scripts
+  .find((script) => script.js.includes('recordweb-bridge.js')).matches;
 
 function manifestWithMatches(matches) {
   return {
@@ -51,6 +54,12 @@ test('RecordWeb bridge connects only on exact manifest bridge origins', async ()
   assert.equal(runBridge('http://localhost:3000'), 0);
   assert.equal(runBridge('http://localhost:3000', [productionMatch, 'http://localhost:3000/*']), 1);
   assert.equal(runBridge('https://recordweb-preview-coannoacs-projects.vercel.app'), 0);
+  assert.equal(sourceManifest.host_permissions.includes('http://localhost:3000/*'), true);
+  assert.equal(runBridge('http://localhost:3000', sourceBridgeMatches), 1);
+  assert.equal(runBridge('https://recordweb-nine.vercel.app', sourceBridgeMatches), 1);
+  assert.equal(runBridge('http://localhost:3001', sourceBridgeMatches), 0);
+  assert.equal(runBridge('http://127.0.0.1:3000', sourceBridgeMatches), 0);
+  assert.equal(runBridge('http://localhost.example.com:3000', sourceBridgeMatches), 0);
 });
 
 test('service worker accepts app ports only from exact manifest bridge origins', async () => {
@@ -125,4 +134,10 @@ test('service worker accepts app ports only from exact manifest bridge origins',
     runConnection('https://recordweb-preview-coannoacs-projects.vercel.app/studio').length,
     0,
   );
+  assert.deepEqual(
+    runConnection('http://localhost:3000/studio', sourceBridgeMatches).map(({ type }) => type),
+    ['BRIDGE_READY'],
+  );
+  assert.equal(runConnection('http://localhost:3001/studio', sourceBridgeMatches).length, 0);
+  assert.equal(runConnection('http://127.0.0.1:3000/studio', sourceBridgeMatches).length, 0);
 });

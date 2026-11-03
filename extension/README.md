@@ -10,13 +10,13 @@ This unpacked Chromium Manifest V3 extension automatically prepares 24 Hz cursor
 4. Reload any already-open localhost and Google Slides tabs after installing or rebuilding the extension. Use Chrome's **Reload** button for the unpacked extension after each rebuild.
 5. Use a separate browser profile for development, or disable the publication extension while testing. Both variants inject a Slides tracker and cannot safely track the same Slides tab at once.
 
-The publication source remains `extension/manifest.json`. The development build is generated and ignored by Git; rebuild it after changing extension code. Its toolbar button opens localhost, while its bridge also works on the exact production origin for deployment testing.
+You can also load `extension/` directly: its source manifest accepts both `http://localhost:3000` and the canonical production origin. Its toolbar button opens production; the generated Development variant opens localhost. The development build is ignored by Git; rebuild it after changing extension code or switching branches. The Store packaging script removes localhost access from the publication ZIP.
 
 ## Publication installation
 
 1. Open `chrome://extensions` (or the equivalent extension page in Arc/Edge).
 2. Enable **Developer mode**.
-3. Choose **Load unpacked** and select this `extension/` directory (or a directory extracted from the Store ZIP).
+3. Choose **Load unpacked** and select this `extension/` directory (supports localhost and production), or a directory extracted from the Store ZIP (production only).
 4. Open the canonical production URL declared by `homepage_url` in `manifest.json`.
 5. Reload an already-open RecordWeb tab after installing or reloading the extension so its bridge can connect.
 6. Configure and connect the camera and microphone in RecordWeb.
