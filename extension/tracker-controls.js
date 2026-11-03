@@ -76,13 +76,12 @@
         transition: width 180ms ease, opacity 140ms ease, transform 180ms ease, visibility 0s linear 180ms;
       }
       .dock[data-expanded="true"] .controls {
-        width: 306px;
+        width: max-content;
         opacity: 1;
         visibility: visible;
         transform: translateX(0);
         transition-delay: 0s;
       }
-      .dock[data-mode="ready"][data-expanded="true"] .controls { width: 174px; }
       .separator { width: 1px; height: 22px; flex: 0 0 auto; background: rgba(255,255,255,.12); }
       .control {
         display: flex;
