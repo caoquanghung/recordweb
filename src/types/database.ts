@@ -2,6 +2,28 @@ import type { RecordingMediaProfile, RecordingProjectStatus } from './recordingP
 import type { AppRole } from '@/lib/auth/roles';
 import type { UploadManifestAsset } from '@/lib/recordingUploadProtocol';
 
+/** Durable administrative cleanup record; deliberately independent of user FKs. */
+export interface DbAdminDeletionJob {
+  id: string;
+  actor_user_id: string;
+  target_user_id: string;
+  target_email: string;
+  scope: 'recording' | 'recordings' | 'account';
+  recording_id: string | null;
+  recording_ids: string[];
+  blob_pathnames: string[];
+  blob_cursor: number;
+  status: 'pending' | 'running' | 'failed' | 'completed';
+  lease_token: string | null;
+  lease_expires_at: string | null;
+  cleanup_until: string;
+  last_cleanup_at: string | null;
+  cleanup_cursor: number;
+  error: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
 export interface DbRecordingUploadAttempt {
   id: string;
   user_id: string;

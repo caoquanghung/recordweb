@@ -2,18 +2,19 @@ import { LibraryIcon } from './LibraryPrimitives';
 import { LIBRARY_PAGE_SIZE, type LibrarySort } from './useLibraryController';
 import styles from './LibraryClient.module.css';
 
-export function LibraryToolbar({ query, sort, onQueryChange, onSortChange }: {
+export function LibraryToolbar({ query, sort, onQueryChange, onSortChange, searchLabel = 'Tìm bài giảng' }: {
   query: string;
   sort: LibrarySort;
   onQueryChange: (value: string) => void;
   onSortChange: (value: LibrarySort) => void;
+  searchLabel?: string;
 }) {
   return (
     <section className={styles.toolbarPanel} aria-label="Bộ lọc thư viện">
       <label className={styles.searchField}>
-        <span className={styles.srOnly}>Tìm bài giảng</span>
+        <span className={styles.srOnly}>{searchLabel}</span>
         <LibraryIcon name="search" />
-        <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Tìm bài giảng" />
+        <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder={searchLabel} />
       </label>
       <label className={styles.sortField}>
         <span className={styles.sortGlyph} aria-hidden="true">↕</span>
@@ -41,8 +42,7 @@ export function LibraryPagination({ page, pageCount, visibleCount, onPageChange 
       </p>
       <nav className={styles.pagination} aria-label="Phân trang thư viện">
         <button type="button" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page === 1}>‹ <span>Trang trước</span></button>
-        {Array.from({ length: pageCount }, (_, index) => index + 1)
-          .slice(Math.max(0, page - 3), Math.min(pageCount, page + 2))
+        {Array.from({ length: Math.min(pageCount, page + 2) - Math.max(1, page - 2) + 1 }, (_, index) => Math.max(1, page - 2) + index)
           .map((pageNumber) => (
             <button type="button" key={pageNumber} className={pageNumber === page ? styles.currentPage : ''}
               aria-current={pageNumber === page ? 'page' : undefined} onClick={() => onPageChange(pageNumber)}>

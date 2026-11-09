@@ -9,6 +9,7 @@ export const APP_PERMISSIONS = [
   'telemetry:read',
   'experiments:use',
   'users:manage',
+  'recordings:manage',
 ] as const;
 
 export type AppPermission = (typeof APP_PERMISSIONS)[number];

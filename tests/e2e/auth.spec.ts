@@ -18,6 +18,13 @@ test('rejects scheduled upload cleanup without the cron secret', async ({ reques
   expect(response.status()).toBe(401);
 });
 
+test('rejects anonymous admin listing and destructive requests', async ({ request }) => {
+  for (const path of ['/api/admin/recordings', '/api/admin/users', '/api/admin/deletions']) {
+    expect((await request.get(path, { maxRedirects: 0 })).status()).toBe(401);
+  }
+  expect((await request.delete('/api/admin/users/anonymous-fixture', { maxRedirects: 0, data: { confirmEmail: 'fixture@example.invalid' } })).status()).toBe(401);
+});
+
 test('redirects anonymous sidebar showcase access to sign-in', async ({ page }) => {
   await page.goto('/component/sidebar', { waitUntil: 'domcontentloaded' });
 

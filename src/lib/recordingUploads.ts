@@ -122,7 +122,12 @@ export async function handleUploadCompleted(pathname: string, request: Request):
   const id = uploadIdFromPath(pathname);
   if (!id) return; // Legacy uploads are never deleted by this workflow.
   const attempt = await getUploadAttempt(id);
-  if (!attempt || !attempt.manifest.some((asset) => asset.pathname === pathname)) throw new Error('Unknown upload asset.');
+  if (!attempt) {
+    const { cleanupDeletedAdminUpload } = await import('@/lib/adminDeletions');
+    if (await cleanupDeletedAdminUpload(pathname, request)) return;
+    throw new Error('Unknown upload asset.');
+  }
+  if (!attempt.manifest.some((asset) => asset.pathname === pathname)) throw new Error('Unknown upload asset.');
   if (attempt.status === 'cancelled') await cleanupUploadAttempt(id, request);
 }
 

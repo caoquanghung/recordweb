@@ -46,6 +46,7 @@ test('user has only the core recording permission', () => {
   assert.equal(hasPermission('user', 'diagnostics:internal'), false);
   assert.equal(hasPermission('user', 'experiments:use'), false);
   assert.equal(hasPermission('user', 'users:manage'), false);
+  assert.equal(hasPermission('user', 'recordings:manage'), false);
 });
 
 test('developer has every declared application permission', () => {
@@ -55,4 +56,5 @@ test('developer has every declared application permission', () => {
   assert.equal(hasPermission('developer', 'telemetry:read'), true);
   assert.equal(hasPermission('developer', 'experiments:use'), true);
   assert.equal(hasPermission('developer', 'users:manage'), true);
+  assert.equal(hasPermission('developer', 'recordings:manage'), true);
 });

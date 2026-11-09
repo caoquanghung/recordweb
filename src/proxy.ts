@@ -9,6 +9,7 @@ const isPublicRoute = createRouteMatcher([
   // Authentication and RBAC are enforced inside the Route Handler so it can
   // preserve the explicit 401/403 authorization contract.
   '/api/health(.*)',
+  '/api/admin(.*)',
   // Vercel Blob calls this endpoint after a direct upload. Token generation is
   // still authenticated inside the Route Handler.
   '/api/upload(.*)',

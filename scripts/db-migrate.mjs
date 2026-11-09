@@ -168,6 +168,16 @@ if (command === "verify") {
       IF to_regclass('public.recording_upload_attempts') IS NULL THEN
         RAISE EXCEPTION 'Missing table: recording_upload_attempts';
       END IF;
+      IF to_regclass('public.admin_deletion_jobs') IS NULL THEN
+        RAISE EXCEPTION 'Missing table: admin_deletion_jobs';
+      END IF;
+      IF to_regprocedure('begin_admin_deletion(text,text,text,uuid,text)') IS NULL THEN
+        RAISE EXCEPTION 'Missing function: begin_admin_deletion';
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'recording_upload_attempts'::regclass
+          AND tgname = 'recording_uploads_admin_deletion_guard' AND tgenabled <> 'D') THEN
+        RAISE EXCEPTION 'Missing upload deletion guard';
+      END IF;
       IF to_regclass('public.recordings_owner_local_id_key') IS NULL THEN
         RAISE EXCEPTION 'Missing unique owner/local recording index';
       END IF;

@@ -36,6 +36,7 @@ const defaultItems: AppSidebarItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', href: '/dashboard' },
   { id: 'studio', label: 'Studio Giảng Bài', icon: 'studio', href: '/studio' },
   { id: 'library', label: 'Thư viện bài giảng', icon: 'library', href: '/library' },
+  { id: 'admin-library', label: 'Quản trị thư viện', icon: 'library', href: '/admin/library', requiredPermission: 'recordings:manage' },
 ];
 
 function isActiveRoute(pathname: string, href?: string) {

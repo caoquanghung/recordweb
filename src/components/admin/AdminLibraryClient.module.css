@@ -1,0 +1,24 @@
+.panel { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--library-line); border-radius: 14px; background: var(--panel); }
+.panel h2 { font-size: 16px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.row > label { display: flex; align-items: center; gap: 8px; }
+.row > .field { display: grid; align-items: stretch; }
+.field { display: grid; flex: 1 1 240px; gap: 6px; font-size: 12px; }
+.field input, .field select { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--library-line); border-radius: 10px; background: var(--panel-raised); color: var(--library-ink); font: inherit; }
+.button { min-height: 36px; padding: 8px 12px; border: 1px solid var(--library-line); border-radius: 10px; background: var(--panel-raised); color: var(--library-ink); font: inherit; font-size: 12px; cursor: pointer; }
+.button:disabled { opacity: .5; cursor: default; }
+.button:focus-visible, .field input:focus-visible, .field select:focus-visible { outline: 3px solid var(--library-blue-bright); outline-offset: 2px; }
+.danger { color: var(--danger, #dc2626); }
+.note { color: var(--library-muted); font-size: 12px; overflow-wrap: anywhere; }
+.cardActions { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.cardActions .row { gap: 6px; }
+.cardActions button:disabled { opacity: .5; cursor: default; }
+.assetList { display: grid; gap: 6px; margin-top: 8px; }
+.assetList button { justify-content: flex-start; text-align: left; }
+.email { overflow-wrap: anywhere; }
+.job { display: grid; gap: 6px; padding: 12px 0; border-top: 1px solid var(--library-line); }
+.dialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; padding: 22px; border: 1px solid var(--library-line); border-radius: 16px; background: var(--panel); color: var(--library-ink); }
+.dialog::backdrop { background: rgb(15 23 42 / 68%); backdrop-filter: blur(6px); }
+.dialog form { display: grid; gap: 16px; }
+.dialog h2 { font-size: 20px; }
+.dialog p { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }

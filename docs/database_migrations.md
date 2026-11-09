@@ -84,3 +84,13 @@ Set `CRON_SECRET` in Vercel for the daily upload-cleanup endpoint configured in
 `vercel.json`; this is separate from applying the database migration.
 `npm run test:upload-database` verifies the lifecycle in an always-rolled-back
 fixture transaction without calling live Blob APIs.
+
+Migration `0009_admin_library.sql` adds durable administrative deletion manifests,
+per-user job exclusion, a transactional snapshot/cancellation function, and guards
+against upload completion or delayed Clerk mirror events restoring deleted data.
+The manifest table intentionally has no foreign key to users/recordings so a Clerk
+deletion webhook cannot cascade away paths still needed for Blob cleanup. It does
+not change the `user`/`developer` role set or widen existing owner API predicates.
+Deploy this schema before the Admin Library routes and extended cleanup cron.
+`npm run test:admin-database` validates the migration and fixtures inside an
+always-rolled-back transaction, with Blob and Clerk mocked.
