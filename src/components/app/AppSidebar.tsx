@@ -13,7 +13,7 @@ import { PENDING_RECORDINGS_HREF } from '@/lib/pendingRecordings';
 import styles from './AppSidebar.module.css';
 
 export type AppSidebarBehavior = 'fixed' | 'adaptive';
-export type AppSidebarIcon = 'dashboard' | 'studio' | 'library';
+export type AppSidebarIcon = 'dashboard' | 'studio' | 'library' | 'calibration';
 
 export interface AppSidebarItem {
   id: string;
@@ -36,6 +36,7 @@ const defaultItems: AppSidebarItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', href: '/dashboard' },
   { id: 'studio', label: 'Studio Giảng Bài', icon: 'studio', href: '/studio' },
   { id: 'library', label: 'Thư viện bài giảng', icon: 'library', href: '/library' },
+  { id: 'calibration', label: 'Hiệu chỉnh dáng đứng', icon: 'calibration', href: '/calibration' },
   { id: 'admin-library', label: 'Quản trị thư viện', icon: 'library', href: '/admin/library', requiredPermission: 'recordings:manage' },
 ];
 

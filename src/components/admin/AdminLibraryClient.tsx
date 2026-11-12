@@ -11,6 +11,7 @@ import { getCloudRecordingInspection } from '@/components/review/recordingInspec
 import type { RecordingPreview } from '@/components/library/useLibraryController';
 import { ADMIN_PAGE_SIZE, canAdminDeleteUser } from '@/lib/adminLibraryPolicy';
 import type { AdminDeletionScope } from '@/types/adminLibrary';
+import { AdminCalibrationPanel } from './AdminCalibrationPanel';
 import { useAdminLibrary } from './useAdminLibrary';
 import shared from '@/components/library/LibraryClient.module.css';
 import styles from './AdminLibraryClient.module.css';
@@ -108,6 +109,8 @@ export function AdminLibraryClient({ actorId }: { actorId: string }) {
         {protectedUser && <p className={styles.note}>Không hỗ trợ xoá chính mình hoặc developer khác trong trang quản trị.</p>}
       </>}
     </section>
+
+    <AdminCalibrationPanel />
 
     <LibraryToolbar query={library.query} sort={library.sort} searchLabel="Tìm tên bản ghi hoặc email chủ sở hữu"
       onQueryChange={(query) => { library.setQuery(query); library.setPage(1); }}

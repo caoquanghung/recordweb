@@ -181,6 +181,15 @@ if (command === "verify") {
       IF to_regclass('public.recordings_owner_local_id_key') IS NULL THEN
         RAISE EXCEPTION 'Missing unique owner/local recording index';
       END IF;
+      IF to_regclass('public.calibration_profiles') IS NULL THEN
+        RAISE EXCEPTION 'Missing table: calibration_profiles';
+      END IF;
+      IF to_regclass('public.calibration_postures') IS NULL THEN
+        RAISE EXCEPTION 'Missing table: calibration_postures';
+      END IF;
+      IF to_regclass('public.calibration_upload_ledger') IS NULL THEN
+        RAISE EXCEPTION 'Missing table: calibration_upload_ledger';
+      END IF;
       IF to_regclass('public.recording_projects') IS NULL THEN
         RAISE EXCEPTION 'Missing table: recording_projects';
       END IF;

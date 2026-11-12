@@ -145,6 +145,7 @@
 .icondashboard { --sidebar-icon: url('/icons/dashboard.svg'); }
 .iconstudio { --sidebar-icon: url('/figma/sidebar/studio.svg'); }
 .iconlibrary { --sidebar-icon: url('/figma/sidebar/library.svg'); }
+.iconcalibration { --sidebar-icon: url('/icons/calibration.svg'); }
 
 .pendingCount { min-width: 22px; padding: 2px 6px; border-radius: 7px; color: #fff; background: #dc2626; font-size: 11px; font-weight: 800; text-align: center; }
 

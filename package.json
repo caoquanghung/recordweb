@@ -25,11 +25,13 @@
     "test:e2e:ui": "playwright test --ui",
     "db:status": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs status",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs migrate",
-    "db:verify": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs verify"
+    "db:verify": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs verify",
+    "test:calibration": "node --experimental-strip-types --test tests/unit/calibration.test.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.14",
     "@mediapipe/selfie_segmentation": "0.1.1675465747",
+    "@mediapipe/tasks-vision": "0.10.21",
     "@neondatabase/serverless": "^1.2.0",
     "@vercel/blob": "^2.8.1",
     "client-zip": "^2.5.1",

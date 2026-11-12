@@ -133,3 +133,36 @@ export interface DbStudioPreset {
   filters_config: Record<string, unknown>;
   updated_at: string;
 }
+
+/** Mirrors `calibration_profiles` (one row per user). */
+export interface DbCalibrationProfile {
+  user_id: string;
+  consent_version: string;
+  consent_accepted_at: string;
+  settings: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Mirrors `calibration_postures` (up to nine rows per profile). */
+export interface DbCalibrationPosture {
+  id: string;
+  user_id: string;
+  cell_row: number;
+  cell_col: number;
+  storage_url: string;
+  blob_pathname: string;
+  mime_type: string;
+  file_size_bytes: number | string;
+  width_px: number;
+  height_px: number;
+  source_width: number;
+  source_height: number;
+  source_bbox: { x: number; y: number; width: number; height: number };
+  scale_factor: number | string;
+  mirrored: boolean;
+  pose_model: string;
+  capture_session_id: string;
+  captured_at: string;
+  created_at: string;
+}
