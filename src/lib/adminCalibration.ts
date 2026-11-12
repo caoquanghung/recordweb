@@ -38,7 +38,7 @@ export async function downloadAdminCalibration(userIdValue: unknown): Promise<Ad
   const [user] = await sql`SELECT email FROM users WHERE id = ${userId};`;
   if (!user) throw new AdminLibraryError(404, 'Không tìm thấy user.');
   const [profile] = await sql`SELECT * FROM calibration_profiles WHERE user_id = ${userId};` as DbCalibrationProfile[];
-  if (!profile) throw new AdminLibraryError(404, 'User chưa có profile calibration.');
+  if (!profile) throw new AdminLibraryError(404, 'User chưa có thiết lập dáng chỉ tay.');
   const postures = await sql`SELECT * FROM calibration_postures WHERE user_id = ${userId}
     ORDER BY cell_row, cell_col;` as DbCalibrationPosture[];
   if (!postures.length) throw new AdminLibraryError(404, 'Profile chưa có ảnh nào.');
@@ -56,7 +56,8 @@ export async function downloadAdminCalibration(userIdValue: unknown): Promise<Ad
       width_px: p.width_px, height_px: p.height_px,
       source_width: p.source_width, source_height: p.source_height,
       source_bbox: p.source_bbox, scale_factor: Number(p.scale_factor),
-      mirrored: p.mirrored, pose_model: p.pose_model,
+      mirrored: p.mirrored, body_coverage: p.body_coverage,
+      head_to_hip_px: p.head_to_hip_px === null ? null : Number(p.head_to_hip_px), pose_model: p.pose_model,
       capture_session_id: p.capture_session_id, captured_at: p.captured_at,
     })),
   };

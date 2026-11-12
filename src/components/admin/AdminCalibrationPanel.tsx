@@ -53,20 +53,20 @@ export function AdminCalibrationPanel() {
     const controller = new AbortController();
     task.current = controller;
     setDownloading(user.id);
-    setMessage('Đang chuẩn bị tải profile calibration…');
+    setMessage('Đang chuẩn bị tải thiết lập dáng chỉ tay…');
     const manifests = async function* (signal: AbortSignal) {
       yield await fetchAdminJson<AdminDownloadManifest>(`/api/admin/calibration/${encodeURIComponent(user.id)}/download`, { signal });
     };
     const stem = user.email.replace(/[^A-Za-z0-9._-]+/g, '-');
     void saveAdminDownload(`${stem}-calibration.zip`, manifests(controller.signal), controller.signal, (file) => setMessage(`Đang tải ${file}`))
-      .then(() => setMessage('Đã chuẩn bị tải profile calibration.'))
+      .then(() => setMessage('Đã chuẩn bị tải thiết lập dáng chỉ tay.'))
       .catch((error: Error) => setMessage(controller.signal.aborted || error.name === 'AbortError' ? 'Đã huỷ tải.' : error.message))
       .finally(() => { task.current = null; setDownloading(null); });
   }
 
   return (
     <details className={library.panel} onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary><strong>Calibration dáng đứng của user</strong></summary>
+      <summary><strong>Thiết lập dáng chỉ tay của user</strong></summary>
       {open && (
         <>
           <label className={library.field}>Tìm user theo email hoặc tên
@@ -83,7 +83,7 @@ export function AdminCalibrationPanel() {
                     <div className={styles.head}>
                       <span className={library.email}><strong>{user.email}</strong>{user.display_name ? ` · ${user.display_name}` : ''}</span>
                       <span className={`${styles.badge} ${full ? styles.badgeFull : ''}`}>
-                        {user.consent_version ? `${user.completeness}/${CALIBRATION_CELL_COUNT} ô` : 'Chưa calibrate'}
+                        {user.consent_version ? `${user.completeness}/${CALIBRATION_CELL_COUNT} ô` : 'Chưa thiết lập'}
                       </span>
                     </div>
                     {user.completeness > 0 && (
@@ -104,7 +104,7 @@ export function AdminCalibrationPanel() {
                         <div className={library.row}>
                           {user.updated_at && <span className={library.note}>Cập nhật {new Date(user.updated_at).toLocaleString('vi-VN')}</span>}
                           <button className={library.button} type="button" disabled={Boolean(downloading)} onClick={() => download(user)}>
-                            {downloading === user.id ? 'Đang tải…' : 'Tải ZIP calibration'}
+                            {downloading === user.id ? 'Đang tải…' : 'Tải ZIP thiết lập'}
                           </button>
                           {downloading === user.id && <button className={library.button} type="button" onClick={() => task.current?.abort()}>Huỷ tải</button>}
                         </div>

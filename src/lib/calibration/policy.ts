@@ -13,6 +13,7 @@ export const CALIBRATION_UPLOAD_LIMIT_PER_HOUR = 60;
 export const CALIBRATION_PENDING_TTL_MS = 60 * 60 * 1000;
 export const CALIBRATION_PREFIX = 'calibration/';
 export const CALIBRATION_CELL_COUNT = 9;
+export const CALIBRATION_BODY_COVERAGES = ['full', 'hips'] as const;
 
 /** Fixed capture order, row-major from the top-left cell. */
 export const CALIBRATION_CELL_ORDER: ReadonlyArray<readonly [number, number]> = [
@@ -61,7 +62,7 @@ export function isCalibrationPathnameFor(userId: string, pathname: unknown): pat
 
 function finite(value: unknown, min: number, max: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
-    throw new CalibrationValidationError('Giá trị ảnh calibration không hợp lệ.');
+    throw new CalibrationValidationError('Giá trị ảnh thiết lập không hợp lệ.');
   }
   return value;
 }
@@ -71,7 +72,7 @@ function parsePosture(userId: string, raw: unknown): CalibrationPostureInput {
   const item = raw as Record<string, unknown>;
   if (!isCalibrationCell(item.cellRow, item.cellCol)) throw new CalibrationValidationError('Toạ độ ô phải nằm trong 1-3.');
   if (!isCalibrationPathnameFor(userId, item.pathname)) throw new CalibrationValidationError('Đường dẫn ảnh không hợp lệ.');
-  if (item.mirrored !== false) throw new CalibrationValidationError('Ảnh calibration không được lật gương.');
+  if (item.mirrored !== false) throw new CalibrationValidationError('Ảnh thiết lập không được lật gương.');
   if (item.heightPx !== CALIBRATION_IMAGE_HEIGHT) throw new CalibrationValidationError('Ảnh phải cao đúng 1080 px.');
   const bbox = item.sourceBbox as Record<string, unknown> | null;
   if (!bbox || typeof bbox !== 'object') throw new CalibrationValidationError('Thiếu bounding box nguồn.');
@@ -84,6 +85,11 @@ function parsePosture(userId: string, raw: unknown): CalibrationPostureInput {
   }
   const sourceWidth = finite(item.sourceWidth, 1, 16384);
   const sourceHeight = finite(item.sourceHeight, 1, 16384);
+  // Tabs still running the previous script omit these fields; ask for a reload instead of guessing.
+  if (!(CALIBRATION_BODY_COVERAGES as readonly unknown[]).includes(item.bodyCoverage) || typeof item.headToHipPx !== 'number') {
+    throw new CalibrationValidationError('Hãy tải lại trang rồi thử lại.');
+  }
+  const headToHipPx = finite(item.headToHipPx, 0.001, sourceHeight);
   return {
     cellRow: item.cellRow as number,
     cellCol: item.cellCol as number,
@@ -98,6 +104,8 @@ function parsePosture(userId: string, raw: unknown): CalibrationPostureInput {
     },
     scaleFactor: finite(item.scaleFactor, 0.01, 100),
     mirrored: false,
+    bodyCoverage: item.bodyCoverage as CalibrationPostureInput['bodyCoverage'],
+    headToHipPx,
     poseModel: item.poseModel,
     capturedAt: new Date(capturedAt).toISOString(),
   };

@@ -19,7 +19,7 @@ export class CalibrationError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-const NO_PROFILE = 'Hãy xác nhận thông báo quyền riêng tư trước khi lưu calibration.';
+const NO_PROFILE = 'Hãy xác nhận thông báo quyền riêng tư trước khi lưu thiết lập.';
 
 function toPosture(row: DbCalibrationPosture): CalibrationPosture {
   return {
@@ -36,6 +36,8 @@ function toPosture(row: DbCalibrationPosture): CalibrationPosture {
     sourceBbox: row.source_bbox,
     scaleFactor: Number(row.scale_factor),
     mirrored: row.mirrored,
+    bodyCoverage: row.body_coverage,
+    headToHipPx: row.head_to_hip_px === null ? null : Number(row.head_to_hip_px),
     poseModel: row.pose_model,
     captureSessionId: row.capture_session_id,
     capturedAt: new Date(row.captured_at).toISOString(),
@@ -137,16 +139,18 @@ export async function commitCalibrationPostures(userId: string, raw: unknown, re
 
   const writes = verified.map(({ posture, url, size }) => sql`INSERT INTO calibration_postures (
       user_id, cell_row, cell_col, storage_url, blob_pathname, mime_type, file_size_bytes, width_px, height_px,
-      source_width, source_height, source_bbox, scale_factor, mirrored, pose_model, capture_session_id, captured_at)
+      source_width, source_height, source_bbox, scale_factor, mirrored, body_coverage, head_to_hip_px,
+      pose_model, capture_session_id, captured_at)
     VALUES (${userId}, ${posture.cellRow}, ${posture.cellCol}, ${url}, ${posture.pathname}, 'image/png', ${size},
       ${posture.widthPx}, ${posture.heightPx}, ${posture.sourceWidth}, ${posture.sourceHeight},
-      ${JSON.stringify(posture.sourceBbox)}::jsonb, ${posture.scaleFactor}, FALSE, ${posture.poseModel},
+      ${JSON.stringify(posture.sourceBbox)}::jsonb, ${posture.scaleFactor}, FALSE, ${posture.bodyCoverage}, ${posture.headToHipPx}, ${posture.poseModel},
       ${body.captureSessionId}, ${posture.capturedAt})
     ON CONFLICT (user_id, cell_row, cell_col) DO UPDATE SET
       storage_url = EXCLUDED.storage_url, blob_pathname = EXCLUDED.blob_pathname,
       file_size_bytes = EXCLUDED.file_size_bytes, width_px = EXCLUDED.width_px, height_px = EXCLUDED.height_px,
       source_width = EXCLUDED.source_width, source_height = EXCLUDED.source_height,
-      source_bbox = EXCLUDED.source_bbox, scale_factor = EXCLUDED.scale_factor, pose_model = EXCLUDED.pose_model,
+      source_bbox = EXCLUDED.source_bbox, scale_factor = EXCLUDED.scale_factor,
+      body_coverage = EXCLUDED.body_coverage, head_to_hip_px = EXCLUDED.head_to_hip_px, pose_model = EXCLUDED.pose_model,
       capture_session_id = EXCLUDED.capture_session_id, captured_at = EXCLUDED.captured_at, created_at = NOW();`);
 
   await sql.transaction([

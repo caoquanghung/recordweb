@@ -190,6 +190,14 @@ if (command === "verify") {
       IF to_regclass('public.calibration_upload_ledger') IS NULL THEN
         RAISE EXCEPTION 'Missing table: calibration_upload_ledger';
       END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public'
+          AND table_name = 'calibration_postures' AND column_name = 'body_coverage') THEN
+        RAISE EXCEPTION 'Missing column: calibration_postures.body_coverage';
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public'
+          AND table_name = 'calibration_postures' AND column_name = 'head_to_hip_px') THEN
+        RAISE EXCEPTION 'Missing column: calibration_postures.head_to_hip_px';
+      END IF;
       IF to_regclass('public.recording_projects') IS NULL THEN
         RAISE EXCEPTION 'Missing table: recording_projects';
       END IF;

@@ -23,10 +23,12 @@ import type { CalibrationProfile, CalibrationSaveMode } from '@/types/calibratio
 
 const COUNTDOWN_STORAGE_KEY = 'recordweb-calibration-countdown';
 const RETRY_PAUSE_MS = 1800;
+const FULLSCREEN_WARNING = 'Không bật được toàn màn hình, vẫn tiếp tục chụp.';
 
 type CaptureFn = ReturnType<typeof usePoseCutout>['capture'];
 
-export type CalibrationStep = 'ready' | 'capturing' | 'review' | 'saving';
+/** `idle` is the main screen: no capture run and no unsaved captures. */
+export type CalibrationStep = 'idle' | 'capturing' | 'review' | 'saving';
 export type Cell = readonly [row: number, col: number];
 
 export interface LocalCapture {
@@ -54,8 +56,15 @@ function message(cause: unknown, fallback: string): string {
   return cause instanceof Error && cause.message ? cause.message : fallback;
 }
 
-/** Orchestrates profile loading, consent, the capture queue and saving for /calibration. */
-export function useCalibrationSession(overlayRef: RefObject<HTMLCanvasElement | null>) {
+/**
+ * Orchestrates profile loading, consent, the camera, the capture run (fullscreen), review and
+ * saving for /calibration. The camera is independent of the capture run: it is switched on from
+ * the main screen and switched off automatically when a run ends (saved or discarded).
+ */
+export function useCalibrationSession(
+  overlayRef: RefObject<HTMLCanvasElement | null>,
+  fullscreenRef: RefObject<HTMLElement | null>,
+) {
   const [profile, setProfile] = useState<CalibrationProfile | null>(null);
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -63,12 +72,12 @@ export function useCalibrationSession(overlayRef: RefObject<HTMLCanvasElement | 
   const [consentBusy, setConsentBusy] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
 
-  const [active, setActive] = useState(false);
-  const [step, setStep] = useState<CalibrationStep>('ready');
+  const [step, setStep] = useState<CalibrationStep>('idle');
   const [saveMode, setSaveMode] = useState<CalibrationSaveMode>('replace-all');
   const [captures, setCaptures] = useState<Record<string, LocalCapture>>({});
   const [queue, setQueue] = useState<Cell[]>([]);
   const [activeCell, setActiveCell] = useState<Cell | null>(null);
+  const [selectedCell, setSelectedCell] = useState<Cell | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [seconds, setSecondsState] = useState(CALIBRATION_DEFAULT_COUNTDOWN);
@@ -76,23 +85,32 @@ export function useCalibrationSession(overlayRef: RefObject<HTMLCanvasElement | 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenWarning, setFullscreenWarning] = useState<string | null>(null);
 
   const capturesRef = useRef(captures);
   const runRef = useRef(0);
   const secondsRef = useRef(seconds);
   const sessionIdRef = useRef('');
   const saveModeRef = useRef(saveMode);
+  const stepRef = useRef(step);
   const abortRef = useRef<AbortController | null>(null);
   const deviceRef = useRef('');
+  const programmaticExitRef = useRef(false);
+  const cancelCaptureRef = useRef<() => void>(() => undefined);
 
   const camera = useCalibrationCamera();
   const { start: startCamera, stop: stopCamera } = camera;
-  const pose = usePoseCutout({ video: camera.video, active, overlayRef });
-  const captureRef = useRef(pose.capture);
+  const cameraRunning = camera.status === 'starting' || camera.status === 'ready';
+  const pose = usePoseCutout({ video: camera.video, enabled: cameraRunning, overlayRef });
+  const captureRef = useRef<CaptureFn>(pose.capture);
+
+  const active = step !== 'idle';
 
   useEffect(() => { captureRef.current = pose.capture; }, [pose.capture]);
   useEffect(() => { secondsRef.current = seconds; }, [seconds]);
   useEffect(() => { saveModeRef.current = saveMode; }, [saveMode]);
+  useEffect(() => { stepRef.current = step; }, [step]);
   useEffect(() => { deviceRef.current = camera.deviceId; }, [camera.deviceId]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is only readable after hydration
   useEffect(() => { setSecondsState(readCountdown()); }, []);
@@ -107,7 +125,7 @@ export function useCalibrationSession(overlayRef: RefObject<HTMLCanvasElement | 
       setLoadState('ready');
     }).catch((cause) => {
       if (controller.signal.aborted) return;
-      setLoadError(message(cause, 'Không thể tải profile calibration.'));
+      setLoadError(message(cause, 'Không thể tải thiết lập đã lưu.'));
       setLoadState('error');
     });
     return () => controller.abort();
@@ -129,10 +147,42 @@ export function useCalibrationSession(overlayRef: RefObject<HTMLCanvasElement | 
     setCaptures(next);
   }, []);
 
+  // Fullscreen: entered from the click that starts a run, left when the run ends. Leaving it any
+  // other way (Esc, browser UI) while capturing cancels the run and keeps what was captured.
+  useEffect(() => {
+    const onChange = () => {
+      const open = Boolean(document.fullscreenElement);
+      setIsFullscreen(open);
+      if (open) return;
+      if (programmaticExitRef.current) { programmaticExitRef.current = false; return; }
+      if (stepRef.current === 'capturing') cancelCaptureRef.current();
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const enterFullscreen = useCallback(() => {
+    const element = fullscreenRef.current;
+    if (!element || typeof element.requestFullscreen !== 'function') {
+      setFullscreenWarning(FULLSCREEN_WARNING);
+      return;
+    }
+    setFullscreenWarning(null);
+    // Must be called synchronously inside the user's click; a refusal is not an error.
+    element.requestFullscreen().catch(() => setFullscreenWarning(FULLSCREEN_WARNING));
+  }, [fullscreenRef]);
+
+  const exitFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) return;
+    programmaticExitRef.current = true;
+    document.exitFullscreen().catch(() => { programmaticExitRef.current = false; });
+  }, []);
+
   useEffect(() => () => {
     runRef.current += 1;
     abortRef.current?.abort();
     for (const capture of Object.values(capturesRef.current)) URL.revokeObjectURL(capture.url);
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
   }, []);
 
   const wait = useCallback((ms: number, run: number) => new Promise<boolean>((resolve) => {
@@ -180,66 +230,78 @@ export function useCalibrationSession(overlayRef: RefObject<HTMLCanvasElement | 
     }
     setActiveCell(null);
     setCountdown(null);
+    exitFullscreen();
     setStep('review');
-  }, [replaceCaptures, wait]);
+  }, [exitFullscreen, replaceCaptures, wait]);
 
-  const openSession = useCallback((mode: CalibrationSaveMode, cells: readonly Cell[]) => {
+  const canBegin = camera.status === 'ready' && pose.modelState === 'ready';
+
+  const beginRun = useCallback((mode: CalibrationSaveMode, cells: readonly Cell[]) => {
     runRef.current += 1;
     replaceCaptures({});
     sessionIdRef.current = crypto.randomUUID();
     setSaveMode(mode);
     setQueue([...cells]);
-    setActiveCell(null);
-    setCountdown(null);
-    setNotice(null);
     setSaveError(null);
     setStatus(null);
-    setStep('ready');
-    setActive(true);
-    void startCamera(deviceRef.current || undefined);
-  }, [startCamera, replaceCaptures]);
+    void runQueue(cells);
+  }, [replaceCaptures, runQueue]);
 
-  /** "Chụp lại toàn bộ": all nine cells; saving replaces the whole profile. */
-  const startFull = useCallback(() => openSession('replace-all', CALIBRATION_CELL_ORDER), [openSession]);
+  /** "Bắt đầu chụp" / "Thiết lập lại toàn bộ": all nine cells; saving replaces the whole profile. */
+  const startFull = useCallback(() => {
+    if (!canBegin || stepRef.current !== 'idle') return;
+    enterFullscreen();
+    beginRun('replace-all', CALIBRATION_CELL_ORDER);
+  }, [beginRun, canBegin, enterFullscreen]);
 
-  /** "Chụp lại ô" from the saved profile: saving replaces only that cell. */
-  const startRetake = useCallback((cell: Cell) => openSession('replace-cells', [cell]), [openSession]);
+  /** "Chụp lại ô r,c" from the main screen: saving replaces only that cell. */
+  const startRetakeSelected = useCallback(() => {
+    if (!canBegin || !selectedCell || stepRef.current !== 'idle') return;
+    enterFullscreen();
+    beginRun('replace-cells', [selectedCell]);
+  }, [beginRun, canBegin, enterFullscreen, selectedCell]);
 
-  const begin = useCallback(() => { void runQueue(queue); }, [queue, runQueue]);
-
-  /** Retake one cell during review, keeping the same capture session. */
+  /** Retake one cell from review, keeping the same capture session. */
   const retake = useCallback((cell: Cell) => {
-    if (camera.status !== 'ready' || pose.modelState !== 'ready') {
+    if (!canBegin) {
       setNotice('Camera hoặc model chưa sẵn sàng để chụp lại.');
       return;
     }
+    enterFullscreen();
     void runQueue([cell]);
-  }, [camera.status, pose.modelState, runQueue]);
+  }, [canBegin, enterFullscreen, runQueue]);
+
+  const exitSession = useCallback(() => {
+    runRef.current += 1;
+    abortRef.current?.abort();
+    replaceCaptures({});
+    exitFullscreen();
+    setStep('idle');
+    setActiveCell(null);
+    setSelectedCell(null);
+    setCountdown(null);
+    setNotice(null);
+    setSaveProgress(null);
+    setFullscreenWarning(null);
+    // The camera is only needed while a run (or its review) is open.
+    stopCamera();
+  }, [exitFullscreen, replaceCaptures, stopCamera]);
 
   const cancelCapture = useCallback(() => {
     runRef.current += 1;
     setCountdown(null);
     setActiveCell(null);
     setNotice(null);
-    setStep(Object.keys(capturesRef.current).length ? 'review' : 'ready');
-  }, []);
+    exitFullscreen();
+    // Nothing captured yet: back to the main screen with the camera still on for another try.
+    setStep(Object.keys(capturesRef.current).length ? 'review' : 'idle');
+  }, [exitFullscreen]);
 
-  const exitSession = useCallback(() => {
-    runRef.current += 1;
-    abortRef.current?.abort();
-    replaceCaptures({});
-    setActive(false);
-    setStep('ready');
-    setActiveCell(null);
-    setCountdown(null);
-    setNotice(null);
-    setSaveProgress(null);
-    stopCamera();
-  }, [stopCamera, replaceCaptures]);
+  useEffect(() => { cancelCaptureRef.current = cancelCapture; }, [cancelCapture]);
 
   useEffect(() => {
     if (camera.status === 'error' && step === 'capturing') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- a lost camera must stop the capture loop immediately
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- a lost camera must stop the capture run immediately
       cancelCapture();
     }
   }, [camera.status, step, cancelCapture]);
@@ -248,6 +310,16 @@ export function useCalibrationSession(overlayRef: RefObject<HTMLCanvasElement | 
     setSecondsState(value);
     try { window.localStorage.setItem(COUNTDOWN_STORAGE_KEY, String(value)); } catch { /* optional */ }
   }, []);
+
+  const enableCamera = useCallback(() => {
+    setStatus(null);
+    void startCamera(deviceRef.current || undefined);
+  }, [startCamera]);
+
+  const disableCamera = useCallback(() => {
+    if (stepRef.current !== 'idle') return;
+    stopCamera();
+  }, [stopCamera]);
 
   const save = useCallback(async () => {
     const ordered = CALIBRATION_CELL_ORDER
@@ -284,7 +356,9 @@ export function useCalibrationSession(overlayRef: RefObject<HTMLCanvasElement | 
             widthPx: capture.posture.widthPx, heightPx: capture.posture.heightPx,
             sourceWidth: capture.posture.sourceWidth, sourceHeight: capture.posture.sourceHeight,
             sourceBbox: capture.posture.sourceBbox, scaleFactor: capture.posture.scaleFactor,
-            mirrored: false as const, poseModel: capture.posture.poseModel, capturedAt: capture.capturedAt,
+            mirrored: false as const, bodyCoverage: capture.posture.bodyCoverage,
+            headToHipPx: capture.posture.headToHipPx, poseModel: capture.posture.poseModel,
+            capturedAt: capture.capturedAt,
           })),
         });
       } catch (cause) {
@@ -293,14 +367,14 @@ export function useCalibrationSession(overlayRef: RefObject<HTMLCanvasElement | 
         throw cause;
       }
       setProfile(updated);
-      setStatus(`Đã lưu ${updated.completeness}/9 ô calibration.`);
+      setStatus(`Đã lưu thiết lập (${updated.completeness}/9 ô).`);
       exitSession();
     } catch (cause) {
       if (controller.signal.aborted) {
         setStep('review');
         return;
       }
-      setSaveError(message(cause, 'Không thể lưu calibration. Ảnh của bạn vẫn còn trên trang, hãy thử lại.'));
+      setSaveError(message(cause, 'Không thể lưu thiết lập. Ảnh của bạn vẫn còn trên trang, hãy thử lại.'));
       setStep('review');
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
@@ -327,9 +401,9 @@ export function useCalibrationSession(overlayRef: RefObject<HTMLCanvasElement | 
     try {
       await deleteCalibrationProfile();
       setProfile(null);
-      setStatus('Đã xoá toàn bộ profile calibration.');
+      setStatus('Đã xoá thiết lập đã lưu.');
     } catch (cause) {
-      setStatus(message(cause, 'Không thể xoá profile.'));
+      setStatus(message(cause, 'Không thể xoá thiết lập.'));
     } finally {
       setBusy(false);
     }
@@ -337,19 +411,20 @@ export function useCalibrationSession(overlayRef: RefObject<HTMLCanvasElement | 
 
   const needsConsent = loadState === 'ready' && (!profile || profile.consentVersion !== CALIBRATION_CONSENT_VERSION);
   const capturedCount = Object.keys(captures).length;
-  const leaveWarning = step === 'saving' && active
-    ? 'Ảnh calibration đang được lưu. Rời trang lúc này có thể làm gián đoạn việc lưu.'
+  const leaveWarning = step === 'saving'
+    ? 'Ảnh thiết lập đang được lưu. Rời trang lúc này có thể làm gián đoạn việc lưu.'
     : active && capturedCount > 0
-      ? `Bạn có ${capturedCount} ảnh calibration chưa lưu. Nếu rời trang, các ảnh này sẽ bị mất.`
+      ? `Bạn có ${capturedCount} ảnh thiết lập chưa lưu. Nếu rời trang, các ảnh này sẽ bị mất.`
       : null;
 
   return {
     profile, loadState, loadError, retryLoad: () => setLoadAttempt((value) => value + 1),
     needsConsent, consentBusy, consentError, acceptConsent,
-    active, step, saveMode, captures, queue, activeCell, countdown, notice, seconds, setSeconds,
-    saveProgress, saveError, status, busy, leaveWarning,
-    camera, pose,
-    canBegin: camera.status === 'ready' && pose.modelState === 'ready',
-    startFull, startRetake, begin, retake, cancelCapture, exitSession, save, cancelSave, removeProfile,
+    active, step, saveMode, captures, queue, activeCell, selectedCell, selectCell: setSelectedCell,
+    countdown, notice, seconds, setSeconds,
+    saveProgress, saveError, status, busy, leaveWarning, isFullscreen, fullscreenWarning,
+    camera, pose, cameraRunning, canBegin,
+    enableCamera, disableCamera, startFull, startRetakeSelected, retake, cancelCapture, exitSession,
+    save, cancelSave, removeProfile,
   };
 }

@@ -36,7 +36,7 @@ const defaultItems: AppSidebarItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', href: '/dashboard' },
   { id: 'studio', label: 'Studio Giảng Bài', icon: 'studio', href: '/studio' },
   { id: 'library', label: 'Thư viện bài giảng', icon: 'library', href: '/library' },
-  { id: 'calibration', label: 'Hiệu chỉnh dáng đứng', icon: 'calibration', href: '/calibration' },
+  { id: 'calibration', label: 'Thiết lập dáng chỉ tay', icon: 'calibration', href: '/calibration' },
   { id: 'admin-library', label: 'Quản trị thư viện', icon: 'library', href: '/admin/library', requiredPermission: 'recordings:manage' },
 ];
 

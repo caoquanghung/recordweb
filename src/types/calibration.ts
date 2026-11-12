@@ -23,9 +23,15 @@ export interface CalibrationPostureInput {
   sourceBbox: CalibrationBbox;
   scaleFactor: number;
   mirrored: false;
+  bodyCoverage: CalibrationBodyCoverage;
+  /** Source-frame pixels from the estimated head top to the hip midpoint. */
+  headToHipPx: number;
   poseModel: string;
   capturedAt: string;
 }
+
+/** 'full' = feet visible and frame not cut below them; 'hips' = at least head to just past the hips. */
+export type CalibrationBodyCoverage = 'full' | 'hips';
 
 export type CalibrationSaveMode = 'replace-all' | 'replace-cells';
 
@@ -50,6 +56,9 @@ export interface CalibrationPosture {
   sourceBbox: CalibrationBbox;
   scaleFactor: number;
   mirrored: boolean;
+  bodyCoverage: CalibrationBodyCoverage;
+  /** Null for images saved before head-to-hip length was recorded. */
+  headToHipPx: number | null;
   poseModel: string;
   captureSessionId: string;
   capturedAt: string;

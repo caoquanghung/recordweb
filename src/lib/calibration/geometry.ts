@@ -23,24 +23,28 @@ export const POSE = {
 
 export const MASK_THRESHOLD = 0.5;
 export const VISIBILITY_THRESHOLD = 0.5;
-/** Frame margin (fraction of height/width) the person must stay clear of at top and bottom. */
+/** Frame margin (fraction of height) the head/arms must stay clear of at the top edge. */
 export const EDGE_MARGIN = 0.01;
-export const MIN_BODY_HEIGHT_RATIO = 0.4;
+/** The frame must extend at least this fraction of its height below the hip line ("past the hips"). */
+export const HIP_BOTTOM_MARGIN = 0.03;
+/** Head-to-hip length must be at least this fraction of the frame height. */
+export const MIN_HEAD_HIP_RATIO = 0.15;
 export const CROP_PADDING = 0.02;
-/** Nose sits at about 93.5% of standing height; used to infer the top of the head. */
-const NOSE_HEIGHT_FRACTION = 0.935;
+/**
+ * Nose to head top is about 0.065 of standing height and nose to hip about 0.415, so the
+ * head top sits 0.157 x (nose to hip) above the nose. Anthropometric approximation.
+ */
+export const HEAD_TOP_PER_NOSE_HIP = 0.157;
 
 export type QualityIssue =
-  | 'no-person' | 'multiple-people' | 'head-hidden' | 'feet-hidden'
-  | 'clipped-top' | 'clipped-bottom' | 'too-small';
+  | 'no-person' | 'multiple-people' | 'head-hidden' | 'hips-hidden' | 'clipped-top' | 'too-small';
 
 export const QUALITY_MESSAGES: Record<QualityIssue, string> = {
   'no-person': 'Không thấy người trong khung hình.',
   'multiple-people': 'Chỉ một người được đứng trong khung hình.',
-  'head-hidden': 'Chưa thấy đầu. Hãy lùi ra để thấy cả đầu và chân.',
-  'feet-hidden': 'Chưa thấy chân. Hãy lùi ra để thấy cả đầu và chân.',
-  'clipped-top': 'Đầu hoặc tay bị cắt ở mép trên. Hãy lùi ra để thấy cả đầu và chân.',
-  'clipped-bottom': 'Chân bị cắt ở mép dưới. Hãy lùi ra để thấy cả đầu và chân.',
+  'head-hidden': 'Chưa thấy đầu. Hãy lùi ra để thấy ít nhất từ đầu đến hông.',
+  'hips-hidden': 'Chưa thấy hông. Hãy lùi ra để thấy ít nhất từ đầu đến hông.',
+  'clipped-top': 'Đầu hoặc tay bị cắt ở mép trên. Hãy lùi ra để thấy ít nhất từ đầu đến hông.',
   'too-small': 'Bạn đứng quá xa. Hãy tiến lại gần hơn một chút.',
 };
 
@@ -76,6 +80,23 @@ export function isPersonPose(landmarks: readonly PoseLandmark[]): boolean {
   return scores.reduce((sum, score) => sum + score, 0) / scores.length >= VISIBILITY_THRESHOLD;
 }
 
+/**
+ * Top of the head from the nose and the hip line, so a raised pointing arm and the
+ * (possibly out-of-frame) feet do not matter. Never above the mask top.
+ */
+export function estimateHeadTop(noseY: number, hipMidY: number, boundsTop: number): number {
+  return Math.max(noseY - HEAD_TOP_PER_NOSE_HIP * (hipMidY - noseY), boundsTop);
+}
+
+/** Vertical hip-line position in pixels, or null when neither hip landmark is usable. */
+export function hipMidY(pose: readonly PoseLandmark[], frameHeight: number): number | null {
+  const hips = [pose[POSE.leftHip], pose[POSE.rightHip]].filter((p): p is PoseLandmark => Boolean(p));
+  if (!hips.length) return null;
+  return (hips.reduce((sum, p) => sum + p.y, 0) / hips.length) * frameHeight;
+}
+
+export type BodyCoverage = 'full' | 'hips';
+
 export interface QualityInput {
   poses: ReadonlyArray<readonly PoseLandmark[]>;
   /** Mask bounds of the single person, in pixels of the frame the mask was computed on. */
@@ -88,39 +109,48 @@ export interface QualityResult {
   ok: boolean;
   issues: QualityIssue[];
   personIndex: number;
+  /** Only when `ok`: whether the feet are in the picture too. */
+  coverage?: BodyCoverage;
+  /** Only when `ok`: pixels from the estimated head top to the hip midpoint. */
+  headToHipPx?: number;
 }
 
-/** Evaluates the "whole body visible" rule: head and feet seen, not clipped, one person, big enough. */
-export function evaluateFullBody({ poses, bounds, frameHeight }: QualityInput): QualityResult {
+/**
+ * The minimum is head to just past the hips. Anything the camera sees below that is kept
+ * (nothing is ever cropped at the hips); `coverage` only records whether the feet are in view.
+ */
+export function evaluateBodyInFrame({ poses, bounds, frameHeight }: QualityInput): QualityResult {
   const people = poses.map((pose, index) => ({ pose, index })).filter(({ pose }) => isPersonPose(pose));
   if (people.length === 0 || !bounds) return { ok: false, issues: ['no-person'], personIndex: -1 };
   if (people.length > 1) return { ok: false, issues: ['multiple-people'], personIndex: -1 };
 
   const { pose, index } = people[0];
   const issues: QualityIssue[] = [];
-  const head = [POSE.nose, POSE.leftEye, POSE.rightEye].every((i) => visible(pose[i]));
-  if (!head) issues.push('head-hidden');
+  if (![POSE.nose, POSE.leftEye, POSE.rightEye].every((i) => visible(pose[i]))) issues.push('head-hidden');
+
+  const hipY = hipMidY(pose, frameHeight);
+  const hipsInFrame = visible(pose[POSE.leftHip]) && visible(pose[POSE.rightHip])
+    && hipY !== null && hipY <= frameHeight * (1 - HIP_BOTTOM_MARGIN);
+  if (!hipsInFrame) issues.push('hips-hidden');
+  if (bounds.y <= EDGE_MARGIN * frameHeight) issues.push('clipped-top');
+
+  let headToHipPx: number | undefined;
+  if (hipY !== null && visible(pose[POSE.nose])) {
+    const headTop = estimateHeadTop(pose[POSE.nose].y * frameHeight, hipY, bounds.y);
+    headToHipPx = hipY - headTop;
+    if (headToHipPx / frameHeight < MIN_HEAD_HIP_RATIO) issues.push('too-small');
+  }
+  if (issues.length || headToHipPx === undefined) return { ok: false, issues, personIndex: index };
+
   const footSide = (ankle: number, heel: number, toe: number) =>
     visible(pose[ankle]) && (visible(pose[heel]) || visible(pose[toe]));
   const feet = footSide(POSE.leftAnkle, POSE.leftHeel, POSE.leftFootIndex)
     && footSide(POSE.rightAnkle, POSE.rightHeel, POSE.rightFootIndex);
-  if (!feet) issues.push('feet-hidden');
-
-  const margin = EDGE_MARGIN * frameHeight;
-  if (bounds.y <= margin) issues.push('clipped-top');
-  if (bounds.y + bounds.height >= frameHeight - margin) issues.push('clipped-bottom');
-  if (bounds.height / frameHeight < MIN_BODY_HEIGHT_RATIO) issues.push('too-small');
-  return { ok: issues.length === 0, issues, personIndex: index };
-}
-
-/**
- * Top of the head from the nose and feet, so a raised pointing arm does not
- * change the body height used for scaling. Never lower than the mask top.
- */
-export function estimateHeadTop(noseY: number, feetY: number, boundsTop: number): number {
-  const bodyHeight = (feetY - noseY) / NOSE_HEIGHT_FRACTION;
-  const derived = feetY - bodyHeight;
-  return Math.max(derived, boundsTop);
+  const bottomClipped = bounds.y + bounds.height >= frameHeight - EDGE_MARGIN * frameHeight;
+  return {
+    ok: true, issues, personIndex: index, headToHipPx,
+    coverage: feet && !bottomClipped ? 'full' : 'hips',
+  };
 }
 
 /** Horizontal body axis (shoulders and hips) in pixels; falls back to the mask centre. */
@@ -173,16 +203,52 @@ export const STAGE = {
   zone: { x: 1517, width: 403 },
 } as const;
 
+/** Inner padding (stage units) between the blue zone edge and the raw-webcam fallback. */
+export const ZONE_PADDING = 24;
+/** The cutout never gets closer than this to the stage edges, so no part of the body is clipped. */
+export const STAGE_EDGE_MARGIN = 16;
+
 /**
- * Where the cutout goes on the stage: body height (head top to feet) equals the white
- * panel height, feet on the panel's bottom edge, body axis centred in the blue zone.
- * Width is intentionally unconstrained so an outstretched arm may overlap the panel.
+ * Where the cutout goes on the stage. The visible body (estimated head top down to the lowest
+ * mask pixel, feet included when they are in view) is scaled to be exactly as tall as the
+ * white panel, i.e. what the camera captured vertically covers the slide vertically, with its
+ * lowest point on the panel's bottom edge.
+ *
+ * Horizontally the body is centred in the blue zone, but its width is not constrained by the
+ * zone: it is shifted sideways just enough that neither side leaves the stage, so a spread arm
+ * overlaps the white panel instead of being cut off at the right edge. Two safety caps keep
+ * the whole mask on the stage (arms raised above the head, extremely wide poses).
+ *
+ * `headTopY`/`bottomY` may be smoothed values; the caps and clamp use the current `bounds`.
  */
-export function placeBody(headTopY: number, feetY: number): { scale: number; destX: number; destY: number } {
-  const bodyHeight = Math.max(1, feetY - headTopY);
-  return {
-    scale: STAGE.panel.height / bodyHeight,
-    destX: STAGE.zone.x + STAGE.zone.width / 2,
-    destY: STAGE.panel.y + STAGE.panel.height,
-  };
+export function placeBody(
+  bounds: Rect,
+  headTopY: number,
+  bottomY = bounds.y + bounds.height,
+): { scale: number; destX: number; destY: number; sourceCenterX: number; sourceBottomY: number } {
+  const destY = STAGE.panel.y + STAGE.panel.height;
+  const scale = Math.min(
+    STAGE.panel.height / Math.max(1, bottomY - headTopY),
+    (destY - STAGE_EDGE_MARGIN) / Math.max(1, bounds.height),
+    (STAGE.width - 2 * STAGE_EDGE_MARGIN) / Math.max(1, bounds.width),
+  );
+  const half = (scale * bounds.width) / 2;
+  const zoneCenter = STAGE.zone.x + STAGE.zone.width / 2;
+  const destX = Math.min(Math.max(zoneCenter, STAGE_EDGE_MARGIN + half), STAGE.width - STAGE_EDGE_MARGIN - half);
+  return { scale, destX, destY, sourceCenterX: bounds.x + bounds.width / 2, sourceBottomY: bounds.y + bounds.height };
+}
+
+/**
+ * Source rectangle of a "cover" crop: the largest centred region of a source frame that has
+ * the destination's aspect ratio. Used for the raw-webcam fallback in the blue zone.
+ */
+export function coverSource(sourceWidth: number, sourceHeight: number, destWidth: number, destHeight: number): Rect {
+  const destAspect = destWidth / destHeight;
+  const sourceAspect = sourceWidth / sourceHeight;
+  if (sourceAspect > destAspect) {
+    const width = sourceHeight * destAspect;
+    return { x: (sourceWidth - width) / 2, y: 0, width, height: sourceHeight };
+  }
+  const height = sourceWidth / destAspect;
+  return { x: 0, y: (sourceHeight - height) / 2, width: sourceWidth, height };
 }

@@ -1,5 +1,7 @@
 # Calibration Profile — đặc tả trang hiệu chỉnh dáng đứng của teacher
 
+> **Có bản sửa đổi:** [calibration_profile_revision_1.md](calibration_profile_revision_1.md) (12/11/2026) thay đổi vòng đời camera, fullscreen, thuật ngữ, quy tắc "đến hông" và dữ liệu `body_coverage`. Khi hai tài liệu khác nhau, ưu tiên bản sửa đổi.
+
 Trạng thái: **đã triển khai (11/11/2026); xem mục 16 cho kết quả kiểm thử và các điểm khác với bản đặc tả ban đầu**. Nguồn yêu cầu: `docs/note-note/get_profile_data.md` và `image.png`, cùng vòng phỏng vấn ngày 11/11/2026. Các quyết định ở mục 2 đã được người dùng xác nhận; mục 14 ghi các quyết định bổ sung và giả định.
 
 ## 1. Mục tiêu và phạm vi

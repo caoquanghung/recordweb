@@ -161,6 +161,10 @@ export interface DbCalibrationPosture {
   source_bbox: { x: number; y: number; width: number; height: number };
   scale_factor: number | string;
   mirrored: boolean;
+  /** 'full' = whole body incl. feet; 'hips' = at least head to just past the hips. */
+  body_coverage: 'full' | 'hips';
+  /** Source-frame pixels from the estimated head top to the hip midpoint; null for pre-0011 rows. */
+  head_to_hip_px: number | string | null;
   pose_model: string;
   capture_session_id: string;
   captured_at: string;

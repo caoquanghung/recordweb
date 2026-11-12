@@ -1,7 +1,6 @@
 'use client';
 
 import type { ReactNode, RefObject } from 'react';
-import { QUALITY_MESSAGES, type QualityIssue } from '@/lib/calibration/geometry';
 import { CALIBRATION_CELL_ORDER, calibrationCellKey } from '@/lib/calibration/policy';
 import type { Cell } from '@/hooks/useCalibrationSession';
 import styles from './CalibrationStage.module.css';
@@ -14,6 +13,11 @@ export interface StageCell {
   dimmed?: boolean;
 }
 
+export interface StageChip {
+  tone: 'ok' | 'warn' | 'info';
+  text: string;
+}
+
 interface CalibrationStageProps {
   overlayRef: RefObject<HTMLCanvasElement | null>;
   cells: StageCell[];
@@ -22,8 +26,10 @@ interface CalibrationStageProps {
   notice?: string | null;
   target: Cell | null;
   countdown: number | null;
-  /** Live whole-body check; null hides the chip (camera not running). */
-  quality: { ok: boolean; issues: QualityIssue[] } | null;
+  /** Short status shown at the top of the blue zone; null shows `zoneMessage` instead. */
+  chip: StageChip | null;
+  /** Cell picked on the main screen for a single-cell retake. */
+  selected?: Cell | null;
   zoneMessage: string;
   onCellSelect?: (cell: Cell) => void;
   selectLabel?: string;
@@ -31,7 +37,7 @@ interface CalibrationStageProps {
 
 /** The 16:9 calibration stage: grid panel on the left, live cutout zone on the right. */
 export function CalibrationStage({
-  overlayRef, cells, heading, hint, notice, target, countdown, quality, zoneMessage, onCellSelect, selectLabel,
+  overlayRef, cells, heading, hint, notice, target, countdown, chip, selected, zoneMessage, onCellSelect, selectLabel,
 }: CalibrationStageProps) {
   const byKey = new Map(cells.map((cell) => [calibrationCellKey(cell.row, cell.col), cell]));
   const holdStill = countdown !== null && countdown > 0 && countdown <= 2;
@@ -45,12 +51,14 @@ export function CalibrationStage({
           {CALIBRATION_CELL_ORDER.map(([row, col]) => {
             const cell = byKey.get(calibrationCellKey(row, col));
             const isTarget = target?.[0] === row && target?.[1] === col;
+            const isSelected = !isTarget && selected?.[0] === row && selected?.[1] === col;
             const classes = [
               styles.cell,
               cell?.kind === 'captured' ? styles.captured : '',
               cell?.kind === 'saved' ? styles.saved : '',
               cell?.dimmed ? styles.dimmed : '',
               isTarget ? styles.target : '',
+              isSelected ? styles.selected : '',
             ].join(' ');
             const content = (
               <>
@@ -86,12 +94,12 @@ export function CalibrationStage({
       </div>
 
       <div className={styles.zone}>
-        {quality && (
-          <span className={`${styles.chip} ${quality.ok ? styles.chipOk : ''}`}>
-            {quality.ok ? 'Thấy toàn thân' : QUALITY_MESSAGES[quality.issues[0]]}
+        {chip && (
+          <span className={`${styles.chip} ${chip.tone === 'ok' ? styles.chipOk : chip.tone === 'info' ? styles.chipInfo : ''}`} role="status">
+            {chip.text}
           </span>
         )}
-        {!quality && <p className={styles.zonePlaceholder}>{zoneMessage}</p>}
+        {!chip && <p className={styles.zonePlaceholder}>{zoneMessage}</p>}
       </div>
 
       <canvas ref={overlayRef} className={styles.overlay} aria-hidden="true" />

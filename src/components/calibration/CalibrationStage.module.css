@@ -11,7 +11,8 @@
   --stage-warn: #b45309;
   container-type: inline-size;
   position: relative;
-  width: min(100%, calc((100vh - 250px) * 16 / 9));
+  /* --stage-chrome is the vertical space the page needs besides the stage; fullscreen shrinks it. */
+  width: min(100%, calc((100vh - var(--stage-chrome, 250px)) * 16 / 9));
   min-width: 320px;
   aspect-ratio: 16 / 9;
   margin: 0 auto;
@@ -102,6 +103,11 @@ button.cell:hover { border-color: var(--stage-blue); background: #eff6ff; }
   background: var(--stage-ok);
   font-size: max(10px, 0.9cqw);
   font-weight: 800;
+}
+
+.selected {
+  border: 3px solid var(--stage-blue);
+  background: #eff6ff;
 }
 
 .target {
@@ -201,6 +207,7 @@ button.cell:hover { border-color: var(--stage-blue); background: #eff6ff; }
 }
 
 .chipOk { background: var(--stage-ok); }
+.chipInfo { background: #475569; }
 
 .overlay {
   position: absolute;
